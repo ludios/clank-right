@@ -1,4 +1,5 @@
 // Model-output: Claude Fable 5.1
+// Model-output: Claude Opus 5
 //
 // Renders the master template into a complete AGENTS.md for one project.
 
@@ -41,6 +42,7 @@ export async function render(input: RenderInput): Promise<string> {
 		tool_dir:         tilde(TOOL_DIR),
 	};
 	const { content } = await env.run(TEMPLATE_FILE, data);
-	A(content.startsWith(HEADER_OPEN + "\n"), "the template must begin with the header");
+	const open = HEADER_OPEN + "\n";
+	A.eq(content.slice(0, open.length), open, "the template must begin with the header");
 	return content.replace(/\n*$/, "\n");
 }
