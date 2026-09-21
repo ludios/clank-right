@@ -1,4 +1,5 @@
 // Model-output: Claude Fable 5.1
+// Model-output: Claude Opus 5
 
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -8,7 +9,7 @@ import { stringify as stringify_toml } from "smol-toml";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { CHECKS, COLOR_SCHEMES, COMMIT_STYLES, LANGUAGES, WEB_DESIGNS, split_header, type ProjectOptions } from "./config.ts";
 import { file_state, git } from "./git.ts";
-import { AGENTS_MD, ProjectError, commit_existing, inspect, regenerate, update } from "./project.ts";
+import { AGENTS_MD, ProjectError, commit_existing, inspect, regenerate, update, type Status } from "./project.ts";
 import { TEMPLATE_HEADINGS, join_sections, split_sections, type Section } from "./sections.ts";
 
 /** @returns A file that is nothing but a header with `toml` as its options. */
@@ -19,6 +20,15 @@ function header(toml: string): string {
 /** @returns The H1 headings of a managed file, in order. */
 function headings_of(text: string): string[] {
 	return split_sections(split_header(text)!.body).sections.map((section) => section.heading);
+}
+
+/**
+ * Fails the test unless the repository needs regenerating, and narrows `status` so that the test can reach its
+ * `rendered` text.
+ * @param status What `inspect` said about the repository.
+ */
+function assert_dirty(status: Status): asserts status is Extract<Status, { kind: "dirty" }> {
+	expect(status).toMatchObject({ kind: "dirty" });
 }
 
 const TEXT = constantFrom("", "A note.", "Two\n\nparagraphs, one with `code`.");
@@ -138,10 +148,7 @@ describe("in a repository", () => {
 			await git(repo, "add", "other.txt");
 
 			const status = await inspect(repo);
-			expect(status.kind).toBe("dirty");
-			if (status.kind !== "dirty") {
-				return;
-			}
+			assert_dirty(status);
 			const sha = await update(repo, status.rendered, "AGENTS.md: regenerate");
 			expect(await touched("HEAD")).toBe(AGENTS_MD);
 			expect(await git(repo, "rev-parse", "--short", "HEAD")).toBe(sha);
@@ -155,10 +162,7 @@ describe("in a repository", () => {
 		it("reports a regenerated file whose commit a hook rejected, instead of calling it clean", async () => {
 			await writeFile(join(repo, ".git", "hooks", "pre-commit"), "#!/bin/sh\nexit 1\n", { mode: 0o755 });
 			const status = await inspect(repo);
-			expect(status.kind).toBe("dirty");
-			if (status.kind !== "dirty") {
-				return;
-			}
+			assert_dirty(status);
 			await expect(update(repo, status.rendered, "m")).rejects.toThrow("regenerated and staged but not committed");
 			expect(await readFile(agents(), "utf8")).toBe(status.rendered);
 			expect(await inspect(repo)).toEqual({ kind: "uncommitted" });
@@ -169,10 +173,7 @@ describe("in a repository", () => {
 			const before = await readFile(agents(), "utf8");
 			await writeFile(agents(), before + "\n# Hand edit\n\nx\n");
 			const status = await inspect(repo);
-			expect(status.kind).toBe("dirty");
-			if (status.kind !== "dirty") {
-				return;
-			}
+			assert_dirty(status);
 			await expect(update(repo, status.rendered, "m")).rejects.toThrow("uncommitted changes");
 			expect(await readFile(agents(), "utf8")).toBe(before + "\n# Hand edit\n\nx\n");
 		});
@@ -183,10 +184,7 @@ describe("in a repository", () => {
 			expect(await inspect(repo)).toMatchObject({ kind: "error", message: expect.stringContaining("no AGENTS.md") });
 			await writeFile(agents(), header(""));
 			const status = await inspect(repo);
-			expect(status.kind).toBe("dirty");
-			if (status.kind !== "dirty") {
-				return;
-			}
+			assert_dirty(status);
 			await update(repo, status.rendered, "add");
 			expect(await touched("HEAD")).toBe(AGENTS_MD);
 			expect(await inspect(repo)).toEqual({ kind: "clean" });
@@ -208,10 +206,7 @@ describe("in a repository", () => {
 			expect(await git(repo, "diff", "--cached", "--name-only")).toBe("other.txt");
 
 			const status = await inspect(repo);
-			expect(status.kind).toBe("dirty");
-			if (status.kind !== "dirty") {
-				return;
-			}
+			assert_dirty(status);
 			await update(repo, status.rendered, "regenerate");
 			expect(await git(repo, "log", "--format=%s")).toBe("regenerate\nhand edit\ninitial");
 			expect(await touched("HEAD")).toBe(AGENTS_MD);
@@ -244,10 +239,7 @@ describe("in a repository", () => {
 			expect(await commit_existing(repo, "m")).toBeNull();
 			expect(await git(repo, "log", "--format=%s")).toBe("initial");
 			const status = await inspect(repo);
-			expect(status.kind).toBe("dirty");
-			if (status.kind !== "dirty") {
-				return;
-			}
+			assert_dirty(status);
 			await update(repo, status.rendered, "regenerate");
 			expect(await git(repo, "log", "--format=%s")).toBe("regenerate\ninitial");
 			expect(await inspect(repo)).toEqual({ kind: "clean" });
