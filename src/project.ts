@@ -8,7 +8,7 @@ import { join } from "node:path";
 import { A } from "ayy";
 import { getLogger } from "@logtape/logtape";
 import { OptionsError, parse_options, split_header } from "./config.ts";
-import { commit_only, file_state } from "./git.ts";
+import { GitError, commit_only, file_state } from "./git.ts";
 import { render } from "./render.ts";
 import { TEMPLATE_HEADINGS, split_sections } from "./sections.ts";
 
@@ -59,13 +59,16 @@ export async function regenerate(current: string): Promise<Regenerated> {
 }
 
 export type Status =
+	/** The file matches the template and is committed. */
 	| { kind: "clean" }
+	/** The file matches the template but differs from HEAD, e.g. after a commit that a hook rejected. */
+	| { kind: "uncommitted" }
 	| { kind: "dirty"; rendered: string; dropped: string[] }
 	| { kind: "error"; message: string };
 
 /**
  * @param dir The repository's working directory.
- * @returns Whether its AGENTS.md matches the template, or why that can't be decided.
+ * @returns Whether its AGENTS.md matches the template and is committed, or why that can't be decided.
  */
 export async function inspect(dir: string): Promise<Status> {
 	let current: string;
@@ -79,10 +82,11 @@ export async function inspect(dir: string): Promise<Status> {
 	}
 	try {
 		const { rendered, dropped } = await regenerate(current);
-		if (rendered === current) {
-			return { kind: "clean" };
+		if (rendered !== current) {
+			return { kind: "dirty", rendered, dropped };
 		}
-		return { kind: "dirty", rendered, dropped };
+		const state = await file_state(dir, AGENTS_MD);
+		return { kind: state === "clean" ? "clean" : "uncommitted" };
 	} catch (error) {
 		if (error instanceof ProjectError || error instanceof OptionsError) {
 			return { kind: "error", message: error.message };
@@ -97,7 +101,9 @@ export async function inspect(dir: string): Promise<Status> {
  * @param rendered The text to write, from `inspect`.
  * @param message The commit message.
  * @returns The new commit's short hash.
- * @throws ProjectError when AGENTS.md already has uncommitted changes, which the commit would otherwise sweep up unreviewed.
+ * @throws ProjectError when AGENTS.md already has uncommitted changes, which the commit would otherwise sweep up
+ * unreviewed, or when git refuses the commit (a hook, signing): the regenerated file is then left in place and
+ * staged, and `inspect` reports it as "uncommitted" until the human commits it.
  */
 export async function update(dir: string, rendered: string, message: string): Promise<string> {
 	const state = await file_state(dir, AGENTS_MD);
@@ -105,7 +111,15 @@ export async function update(dir: string, rendered: string, message: string): Pr
 		throw new ProjectError(`${AGENTS_MD} has uncommitted changes; commit or stash them first`);
 	}
 	await writeFile(join(dir, AGENTS_MD), rendered);
-	const sha = await commit_only(dir, AGENTS_MD, message);
+	let sha: string;
+	try {
+		sha = await commit_only(dir, AGENTS_MD, message);
+	} catch (error) {
+		if (error instanceof GitError) {
+			throw new ProjectError(`${AGENTS_MD} was regenerated and staged but not committed; commit it yourself once this is fixed: ${error.message}`);
+		}
+		throw error;
+	}
 	log.info("committed {sha} in {dir}", { sha, dir });
 	return sha;
 }

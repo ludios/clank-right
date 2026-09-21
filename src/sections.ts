@@ -37,26 +37,31 @@ function trim_newlines(text: string): string {
 	return text.replace(/^\n+/, "").replace(/\n+$/, "");
 }
 
+/** A code fence opener or closer: three or more backticks or tildes, indented at most three spaces. */
+const FENCE = /^ {0,3}(`{3,}|~{3,})/;
+
 /**
  * @param markdown The part of an AGENTS.md after its header.
- * @returns Its H1 sections in order. A `# ` line inside a ``` fence never starts a section.
+ * @returns Its H1 sections in order. A `# ` line inside a code fence never starts a section; a fence closes only at a line of the same character at least as long, as in CommonMark.
  */
 export function split_sections(markdown: string): SplitMarkdown {
 	const preamble: string[] = [];
 	const sections: Section[] = [];
 	let heading: string | null = null;
 	let lines: string[] = preamble;
-	let in_fence = false;
+	let fence: string | null = null;
 	const finish = () => {
 		if (heading !== null) {
 			sections.push({ heading, body: trim_newlines(lines.join("\n")) });
 		}
 	};
 	for (const line of markdown.split("\n")) {
-		if (line.startsWith("```")) {
-			in_fence = !in_fence;
-		}
-		if (!in_fence && line.startsWith("# ")) {
+		const marker = FENCE.exec(line)?.[1];
+		if (fence === null && marker !== undefined) {
+			fence = marker;
+		} else if (fence !== null && marker !== undefined && marker[0] === fence[0] && marker.length >= fence.length) {
+			fence = null;
+		} else if (fence === null && line.startsWith("# ")) {
 			finish();
 			heading = line.slice(2).trim();
 			lines = [];

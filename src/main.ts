@@ -20,7 +20,7 @@ const USAGE = `for-agents check [--diff] [DIR...]
 for-agents update [DIR...]
 
 check   Report which repositories' ${AGENTS_MD} differ from what the template
-        generates; --diff shows how. Exits 1 if any differ.
+        generates, or are not committed; --diff shows how. Exits 1 if any.
 update  Regenerate each differing ${AGENTS_MD} and commit it, alone.
 
 DIR defaults to every repository listed in ${tilde(PROJECTS_FILE)}.
@@ -99,6 +99,9 @@ function describe_status(status: Status): string {
 	if (status.kind === "clean") {
 		return "clean";
 	}
+	if (status.kind === "uncommitted") {
+		return `up to date but not committed; commit ${AGENTS_MD} yourself`;
+	}
 	if (status.kind === "error") {
 		return `error: ${status.message}`;
 	}
@@ -137,7 +140,7 @@ async function update_all(dirs: string[]): Promise<number> {
 		const status = await inspect(dir);
 		if (status.kind !== "dirty") {
 			console.log(`${tilde(dir)}: ${describe_status(status)}`);
-			failures += status.kind === "error" ? 1 : 0;
+			failures += status.kind === "clean" ? 0 : 1;
 			continue;
 		}
 		try {

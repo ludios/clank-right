@@ -40,7 +40,7 @@ export interface ProjectOptions {
 	checks: Check[];
 	/** "nixpkgs" replaces the commit template with nixpkgs-style commits. */
 	commit_style: CommitStyle;
-	/** Project-specific markdown to append at named points of the template. */
+	/** Project-specific markdown (no H1 headings) to append at named points of the template; `web_design` applies to the "2010" design only. */
 	extra: Record<ExtraSlot, string>;
 }
 
@@ -90,11 +90,32 @@ function expect_string(key: string, value: unknown): string {
 	return value;
 }
 
-function expect_string_list(key: string, value: unknown): string[] {
-	if (!Array.isArray(value) || !value.every((item): item is string => typeof item === "string")) {
+/** A string that the template drops into the middle of a line, so it must not contain a newline. */
+function expect_line(key: string, value: unknown): string {
+	const text = expect_string(key, value);
+	if (text.includes("\n")) {
+		throw new OptionsError(`\`${key}\` must be a single line`);
+	}
+	return text;
+}
+
+function expect_line_list(key: string, value: unknown): string[] {
+	if (!Array.isArray(value)) {
 		throw new OptionsError(`\`${key}\` must be an array of strings`);
 	}
-	return value;
+	return value.map((item) => expect_line(key, item));
+}
+
+/**
+ * Markdown the template inserts as its own content: an H1 in it would be taken for one of the project's own sections
+ * on the next run and be emitted twice.
+ */
+function expect_markdown(key: string, value: unknown): string {
+	const text = expect_string(key, value).trim();
+	if (/^# /m.test(text)) {
+		throw new OptionsError(`\`${key}\` must not contain a \`# \` heading line`);
+	}
+	return text;
 }
 
 function expect_one_of<T extends string>(key: string, value: unknown, allowed: readonly T[]): T {
@@ -106,7 +127,7 @@ function expect_one_of<T extends string>(key: string, value: unknown, allowed: r
 }
 
 function expect_list_of<T extends string>(key: string, value: unknown, allowed: readonly T[]): T[] {
-	return expect_string_list(key, value).map((item) => expect_one_of(key, item, allowed));
+	return expect_line_list(key, value).map((item) => expect_one_of(key, item, allowed));
 }
 
 function expect_extra(value: unknown): Record<ExtraSlot, string> {
@@ -118,7 +139,7 @@ function expect_extra(value: unknown): Record<ExtraSlot, string> {
 		if (!(EXTRA_SLOTS as readonly string[]).includes(slot)) {
 			throw new OptionsError(`unknown \`extra\` slot \`${slot}\`; the slots are ${EXTRA_SLOTS.join(", ")}`);
 		}
-		extra[slot as ExtraSlot] = expect_string(`extra.${slot}`, text).trim();
+		extra[slot as ExtraSlot] = expect_markdown(`extra.${slot}`, text);
 	}
 	return extra;
 }
@@ -145,7 +166,7 @@ export function parse_options(toml: string): ProjectOptions {
 				options.effection = expect_boolean(key, value);
 				break;
 			case "libraries_extra":
-				options.libraries_extra = expect_string_list(key, value);
+				options.libraries_extra = expect_line_list(key, value);
 				break;
 			case "web_design":
 				options.web_design = expect_one_of(key, value, WEB_DESIGNS);
@@ -154,10 +175,10 @@ export function parse_options(toml: string): ProjectOptions {
 				options.color_scheme = expect_one_of(key, value, COLOR_SCHEMES);
 				break;
 			case "sandbox_note":
-				options.sandbox_note = expect_string(key, value);
+				options.sandbox_note = expect_line(key, value);
 				break;
 			case "tools_extra":
-				options.tools_extra = expect_string_list(key, value);
+				options.tools_extra = expect_line_list(key, value);
 				break;
 			case "checks":
 				options.checks = expect_list_of(key, value, CHECKS);

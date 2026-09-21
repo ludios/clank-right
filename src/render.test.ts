@@ -78,11 +78,18 @@ describe("render", () => {
 		expect(await render_with({})).toContain("# After making changes\n\nAutomatically commit your changes");
 	});
 
-	it("replaces the commit template for nixpkgs-style commits", async () => {
+	it("replaces the commit template for nixpkgs-style commits, keeping the checks", async () => {
 		const text = await render_with({ commit_style: "nixpkgs" });
-		expect(text).toContain("# After making changes\n\nAutomatically commit them as per the standard nixpkgs style");
+		expect(text).toContain("# After making changes\n\nAutomatically commit them as per the standard nixpkgs style for doing commits. Check the git log for a particular directory if uncertain.\n\n# Codex code review after each commit");
 		expect(text).not.toContain("<prompt>");
-		expect(text).toContain("# Codex code review after each commit");
+		const checked = await render_with({ commit_style: "nixpkgs", checks: ["cargo"] });
+		expect(checked).toContain("# After making changes\n\nAt the workspace root:\n\n\tcargo test\n\nThen automatically commit them as per the standard nixpkgs style");
+	});
+
+	it("ignores extra.web_design for a custom design, which is the project's own already", async () => {
+		const custom = await render_with({ web_design: "custom", extra: { ...DEFAULT_OPTIONS.extra, web_design: "(Note.)" } }, { web_design_body: "Bespoke." });
+		expect(custom).toContain("# Web design\n\nBespoke.\n\n# Programming thoughts");
+		expect(custom).not.toContain("(Note.)");
 	});
 
 	it("appends the extra text at each slot", async () => {
@@ -105,9 +112,16 @@ describe("render", () => {
 		expect(text).toContain("\tpnpm test  # runs vitest\n\nplus the bank steps above when bank/ changed.\n\nThen automatically commit");
 	});
 
-	it("places project sections between Programming thoughts and After making changes", async () => {
-		const text = await render_with({}, { project_sections: [{ heading: "Project map", body: "- a/\n- b/" }, { heading: "The app", body: "Text." }] });
-		expect(text).toContain("User loves AskUserQuestion.\n\n# Project map\n\n- a/\n- b/\n\n# The app\n\nText.\n\n# After making changes\n");
+	it("places project sections between Programming thoughts and After making changes, verbatim", async () => {
+		const sections = [{ heading: "Project map", body: "- a/\n- b/" }, { heading: "The app", body: "Text.\n\n\n\n```\n\n\n# code\n```" }];
+		const text = await render_with({}, { project_sections: sections });
+		expect(text).toContain("User loves AskUserQuestion.\n\n# Project map\n\n- a/\n- b/\n\n# The app\n\nText.\n\n\n\n```\n\n\n# code\n```\n\n# After making changes\n");
+	});
+
+	it("carries the options text through verbatim, blank lines included", async () => {
+		const options_text = "languages = [\"rust\"]\n\n\n[extra]\nchecks = \"\"\"\nA\n\n\nB\"\"\"";
+		const text = await render_with({}, { options_text });
+		expect(text).toContain(`# overwritten.\n\n${options_text}\n-->\n\n# Environment\n`);
 	});
 
 	it("never leaves runs of blank lines and ends with one newline", async () => {

@@ -3,9 +3,10 @@
 // Renders the master template into a complete AGENTS.md for one project.
 
 import { join } from "node:path";
+import { A } from "ayy";
 import vento from "ventojs";
 import auto_trim from "ventojs/plugins/auto_trim.js";
-import type { ProjectOptions } from "./config.ts";
+import { HEADER_OPEN, type ProjectOptions } from "./config.ts";
 import { tilde } from "./paths.ts";
 import type { Section } from "./sections.ts";
 
@@ -27,12 +28,10 @@ export interface RenderInput {
 	web_design_body: string;
 }
 
-/** @returns `text` with runs of blank lines collapsed to one, no leading blank lines, and exactly one trailing newline. */
-function normalize_blank_lines(text: string): string {
-	return text.replace(/\n{3,}/g, "\n\n").replace(/^\n+/, "").replace(/\n*$/, "\n");
-}
-
-/** @returns The complete AGENTS.md text: the header, then the sections, separated by single blank lines. */
+/**
+ * @returns The complete AGENTS.md text: the header, then the sections, ending in one newline. The template's own
+ * whitespace is exact, so project-owned text (options, sections) passes through untouched.
+ */
 export async function render(input: RenderInput): Promise<string> {
 	const data = {
 		...input.options,
@@ -41,6 +40,7 @@ export async function render(input: RenderInput): Promise<string> {
 		web_design_body:  input.web_design_body,
 		tool_dir:         tilde(TOOL_DIR),
 	};
-	const result = await env.run(TEMPLATE_FILE, data);
-	return normalize_blank_lines(result.content);
+	const { content } = await env.run(TEMPLATE_FILE, data);
+	A(content.startsWith(HEADER_OPEN + "\n"), "the template must begin with the header");
+	return content.replace(/\n*$/, "\n");
 }

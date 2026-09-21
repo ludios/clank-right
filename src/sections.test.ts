@@ -34,6 +34,18 @@ describe("split_sections", () => {
 		]);
 	});
 
+	it("understands tilde fences and fences nested in longer fences", () => {
+		const tilde = "# One\n\n~~~\n# in tilde\n~~~\n\n# Two\n\ny\n";
+		expect(split_sections(tilde).sections.map((s) => s.heading)).toEqual(["One", "Two"]);
+		const nested = "# One\n\n````md\n```\n# still inside\n```\n# also inside\n````\n\n# Two\n\ny\n";
+		expect(split_sections(nested).sections).toEqual([
+			{ heading: "One", body: "````md\n```\n# still inside\n```\n# also inside\n````" },
+			{ heading: "Two", body: "y" },
+		]);
+		const mixed = "# One\n\n```\n~~~\n# inside: a tilde line does not close a backtick fence\n```\n\n# Two\n\ny\n";
+		expect(split_sections(mixed).sections.map((s) => s.heading)).toEqual(["One", "Two"]);
+	});
+
 	it("keeps the indentation of a body's first line", () => {
 		expect(split_sections("# One\n\n\tcode\n").sections[0]!.body).toBe("\tcode");
 	});

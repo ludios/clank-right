@@ -72,6 +72,14 @@ checks      = "plus the bank steps"
 		expect(() => parse_options("[extra]\nchecks = false")).toThrow("`extra.checks` must be a string");
 	});
 
+	it("rejects text the template could not place", () => {
+		expect(() => parse_options("[extra]\nenvironment = \"# Special\\n\\nrule\"")).toThrow("`extra.environment` must not contain a `# ` heading line");
+		expect(() => parse_options("sandbox_note = \"two\\nlines\"")).toThrow("`sandbox_note` must be a single line");
+		expect(() => parse_options("tools_extra = [\"a\\nb\"]")).toThrow("`tools_extra` must be a single line");
+		expect(() => parse_options("libraries_extra = [\"a\\nb\"]")).toThrow("`libraries_extra` must be a single line");
+		expect(parse_options("[extra]\nenvironment = \"## fine\\n\\n\\t# code\"").extra.environment).toBe("## fine\n\n\t# code");
+	});
+
 	it("rejects malformed TOML", () => {
 		expect(() => parse_options("languages = [")).toThrow("not valid TOML");
 	});

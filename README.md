@@ -13,10 +13,12 @@ Put `bin/` on your `PATH` (or run `pnpm for-agents ...` from this directory).
 	for-agents update [DIR...]
 
 `check` reports which repositories' `AGENTS.md` differ from what the template
-generates; `--diff` shows how. `update` regenerates each differing `AGENTS.md`
-and commits it, alone: other staged changes stay staged, and if `AGENTS.md`
-itself already has uncommitted changes, that repository is skipped so nothing
-gets committed unreviewed.
+generates, or match it but aren't committed; `--diff` shows how. `update`
+regenerates each differing `AGENTS.md` and commits it, alone: other staged
+changes stay staged, and if `AGENTS.md` itself already has uncommitted changes,
+that repository is skipped so nothing gets committed unreviewed. If git refuses
+the commit (a hook, signing), the regenerated file stays in place and staged,
+and both commands report it as not committed until you commit it.
 
 Without `DIR`s, both commands go through every repository in `projects.txt`.
 `for-agents update .` regenerates the repository you're in.
@@ -65,7 +67,7 @@ Every option has a default, so an empty header is valid.
 | `tools_extra`  | `[]`         | Installed tools worth mentioning, e.g. `["ffmpeg"]`; listed after `uv`.                              |
 | `checks`       | `[]`         | Steps before committing, in order: `"sqlx"` (`./make-sqlx-data`), `"pnpm"` (lint/check/test), `"cargo"` (`cargo test`). |
 | `commit_style` | `"template"` | `"nixpkgs"` replaces the commit template with nixpkgs-style commits.                                  |
-| `extra`        | `{}`         | A table of markdown appended at named points: `environment`, `authorship`, `code_conventions`, `web_design`, `checks`. |
+| `extra`        | `{}`         | A table of markdown (no `# ` headings) appended at named points: `environment`, `authorship`, `code_conventions`, `web_design` (for the `"2010"` design only; a `"custom"` section already is the project's), `checks`. |
 
 Facts that change over time (model names, the NixOS version, the
 curl-impersonate binary) are `set` at the top of `templates/AGENTS.md.vto`.

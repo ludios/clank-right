@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { array, assert, asyncProperty, boolean, constantFrom, record, uniqueArray, type Arbitrary } from "fast-check";
 import { stringify as stringify_toml } from "smol-toml";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { CHECKS, COLOR_SCHEMES, COMMIT_STYLES, LANGUAGES, split_header, type ProjectOptions } from "./config.ts";
+import { CHECKS, COLOR_SCHEMES, COMMIT_STYLES, LANGUAGES, WEB_DESIGNS, split_header, type ProjectOptions } from "./config.ts";
 import { git } from "./git.ts";
 import { AGENTS_MD, ProjectError, inspect, regenerate, update } from "./project.ts";
 import { TEMPLATE_HEADINGS, join_sections, split_sections, type Section } from "./sections.ts";
@@ -23,12 +23,11 @@ function headings_of(text: string): string[] {
 
 const TEXT = constantFrom("", "A note.", "Two\n\nparagraphs, one with `code`.");
 
-/** Options the template can render without an existing file: "custom" web design needs one, so it's tested separately. */
 const options_arb: Arbitrary<ProjectOptions> = record({
 	languages:       uniqueArray(constantFrom(...LANGUAGES)),
 	effection:       boolean(),
 	libraries_extra: array(constantFrom("`ventojs` for templating.", "`ws` for sockets."), { maxLength: 2 }),
-	web_design:      constantFrom("none", "2010"),
+	web_design:      constantFrom(...WEB_DESIGNS),
 	color_scheme:    constantFrom(...COLOR_SCHEMES),
 	sandbox_note:    constantFrom("", "you're unable to hit production"),
 	tools_extra:     array(constantFrom("ffmpeg", "nm", "natscli (bin: nats)"), { maxLength: 2 }),
@@ -39,8 +38,11 @@ const options_arb: Arbitrary<ProjectOptions> = record({
 
 const section_arb: Arbitrary<Section> = record({
 	heading: constantFrom("Project map", "The app", "This fork", "Upstream conventions (still binding)"),
-	body:    constantFrom("Text.", "- a/ - things\n- b/ - stuff", "## Sub\n\nMore.\n\n\tcode"),
+	body:    constantFrom("Text.", "- a/ - things\n- b/ - stuff", "## Sub\n\nMore.\n\n\tcode", "Gaps.\n\n\n\nWide.", "~~~\n# fenced\n\n\n~~~"),
 });
+
+/** A "custom" web design needs a section to keep, so the file gets one. */
+const WEB_DESIGN_SECTION: Section = { heading: "Web design", body: "Bespoke rules.\n\n- one" };
 
 describe("regenerate", () => {
 	it("rejects a file without a header", async () => {
@@ -86,15 +88,23 @@ describe("regenerate", () => {
 		expect(new Set(headings_of(rendered))).toEqual(TEMPLATE_HEADINGS);
 	});
 
-	it("is a fixed point: regenerating its own output changes nothing", async () => {
+	it("is a fixed point that keeps project text verbatim and never doubles blank lines", async () => {
 		await assert(asyncProperty(options_arb, array(section_arb, { maxLength: 3 }), async (options, sections) => {
-			const file = header(stringify_toml(options)) + join_sections(sections);
+			const own = options.web_design === "custom" ? [WEB_DESIGN_SECTION, ...sections] : sections;
+			const file = header(stringify_toml(options)) + join_sections(own);
 			const first = await regenerate(file);
 			const second = await regenerate(first.rendered);
 			expect(second.rendered).toBe(first.rendered);
 			expect(second.dropped).toEqual([]);
-			expect(split_header(first.rendered)!.options_text).toBe(stringify_toml(options).trim());
-		}), { numRuns: 40 });
+			const split = split_header(first.rendered)!;
+			expect(split.options_text).toBe(stringify_toml(options).trim());
+			const kept = split_sections(split.body).sections.filter((s) => !TEMPLATE_HEADINGS.has(s.heading) || s.heading === "Web design");
+			for (const section of own) {
+				expect(kept).toContainEqual(section);
+			}
+			const template_owned = own.reduce((body, s) => body.replace(s.body, "(kept)"), split.body);
+			expect(template_owned).not.toMatch(/\n{3,}/);
+		}), { numRuns: 60 });
 	});
 });
 
@@ -139,6 +149,19 @@ describe("update", () => {
 		expect(await inspect(repo)).toEqual({ kind: "clean" });
 		expect(await git(repo, "diff", "--cached", "--name-only")).toBe("other.txt");
 		expect(await git(repo, "status", "--porcelain", "junk.txt")).toBe("?? junk.txt");
+	});
+
+	it("reports a regenerated file whose commit a hook rejected, instead of calling it clean", async () => {
+		await writeFile(join(repo, ".git", "hooks", "pre-commit"), "#!/bin/sh\nexit 1\n", { mode: 0o755 });
+		const status = await inspect(repo);
+		expect(status.kind).toBe("dirty");
+		if (status.kind !== "dirty") {
+			return;
+		}
+		await expect(update(repo, status.rendered, "m")).rejects.toThrow("regenerated and staged but not committed");
+		expect(await readFile(agents(), "utf8")).toBe(status.rendered);
+		expect(await inspect(repo)).toEqual({ kind: "uncommitted" });
+		expect(await git(repo, "log", "--format=%s")).toBe("initial");
 	});
 
 	it("refuses when AGENTS.md has uncommitted changes", async () => {
