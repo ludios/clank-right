@@ -79,7 +79,7 @@ Minutae:
 - `logtape` for logging. Logs teach us about anomalies and the causes of things; log what a human operator would probably be interested in when observing the system.
 - `ventojs` for plain text templating.
 - `vitest` for unit tests. Writing more tests is fine.
-- `fast-check` for property-based testing where needed, i.e. to check a bunch of variations on e.g. a string or number.
+- `fast-check` for property-based testing where needed, i.e. to check a bunch of variations on a string or number.
 
 # Programming thoughts
 
