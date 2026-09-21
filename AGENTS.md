@@ -75,7 +75,9 @@ Minutae:
 
 # Libraries to use
 
-- `ayy` to assert things when it's okay to raise `AssertionError` instead of a domain-specific error.
+- `ayy` to assert things (when it's okay to throw `AssertionError` instead of a domain-specific error).
+  - Always use the most specific assertion function, so that the error message shows the unexpected value when possible.
+    - e.g. A.gte(x, 1); A.lte(x, 3) instead of A(x >= 1 && x <= 3);
 - `logtape` for logging. Logs teach us about anomalies and the causes of things; log what a human operator would probably be interested in when observing the system.
 - `ventojs` for plain text templating.
 - `vitest` for unit tests. Writing more tests is fine.
@@ -148,8 +150,8 @@ Notes:
 
 - Codex is configured globally in `~/.codex/config.toml` (`approval_policy = "never"`, `sandbox_mode = "danger-full-access"`) to never ask for permission and run unsandboxed, so reviews and `codex exec` runs never block on prompts. If codex ever stalls waiting for approval, check that file.
 - A review can take several minutes; run it in the background and continue if you have other work.
-- Astra often nitpicks, or cares about bizarre, irrelevant edge cases. Ignore those findings; they should not stop you from making progress.
-- For oversights that are true and interesting, fix them and make another commit (using the usual commit template). If you fixed nothing, say briefly in your reply why the findings didn't warrant changes.
+- The findings are from a **fallible machine**: think hard before adding a bunch of code to handle an irrelevant edge case.
+- For oversights that are really worth fixing, fix them and make another commit (using the usual commit template). If you fixed nothing, say briefly in your reply why the findings didn't warrant changes.
 - Do _not_ send that follow-up fix commit through another Codex review — the review cycle for a change ends after one round of findings and fixes. (Exception: the follow-up grew into something substantial beyond addressing the findings.)
 - If you made several commits in a row, make sure the reviews cover all of them: either review each commit, or run one ranged review of the whole batch with `codex review --base <sha before your first commit>` plus the same `-c` options.
 
