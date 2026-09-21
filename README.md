@@ -67,7 +67,7 @@ Every option has a default, so an empty header is valid.
 | `tools_extra`  | `[]`         | Installed tools worth mentioning, e.g. `["ffmpeg"]`; listed after `uv`.                              |
 | `checks`       | `[]`         | Steps before committing, in order: `"sqlx"` (`./make-sqlx-data`), `"pnpm"` (lint/check/test), `"cargo"` (`cargo test`). |
 | `commit_style` | `"template"` | `"nixpkgs"` replaces the commit template with nixpkgs-style commits.                                  |
-| `extra`        | `{}`         | A table of markdown (no `# ` headings) appended at named points: `environment`, `authorship`, `code_conventions`, `web_design` (for the `"2010"` design only; a `"custom"` section already is the project's), `checks`. |
+| `extra`        | `{}`         | A table of markdown (no `# ` headings) appended at named points: `environment`, `code_conventions`, `web_design` (for the `"2010"` design only; a `"custom"` section already is the project's), `checks`. |
 
 Facts that change over time (model names, the NixOS version, the
 curl-impersonate binary) are `set` at the top of `templates/AGENTS.md.vto`.

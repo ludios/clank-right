@@ -33,7 +33,7 @@ const options_arb: Arbitrary<ProjectOptions> = record({
 	tools_extra:     array(constantFrom("ffmpeg", "nm", "natscli (bin: nats)"), { maxLength: 2 }),
 	checks:          uniqueArray(constantFrom(...CHECKS)),
 	commit_style:    constantFrom(...COMMIT_STYLES),
-	extra:           record({ environment: TEXT, authorship: TEXT, code_conventions: TEXT, web_design: TEXT, checks: TEXT }),
+	extra:           record({ environment: TEXT, code_conventions: TEXT, web_design: TEXT, checks: TEXT }),
 });
 
 const section_arb: Arbitrary<Section> = record({

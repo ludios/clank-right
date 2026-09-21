@@ -11,7 +11,7 @@ export const CHECKS        = ["sqlx", "pnpm", "cargo"] as const;
 export const WEB_DESIGNS   = ["none", "2010", "custom"] as const;
 export const COLOR_SCHEMES = ["light", "dark", "both"] as const;
 export const COMMIT_STYLES = ["template", "nixpkgs"] as const;
-export const EXTRA_SLOTS   = ["environment", "authorship", "code_conventions", "web_design", "checks"] as const;
+export const EXTRA_SLOTS   = ["environment", "code_conventions", "web_design", "checks"] as const;
 
 export type Language    = (typeof LANGUAGES)[number];
 export type Check       = (typeof CHECKS)[number];
@@ -59,7 +59,6 @@ export const DEFAULT_OPTIONS: Readonly<ProjectOptions> = {
 	commit_style: "template",
 	extra: {
 		environment:      "",
-		authorship:       "",
 		code_conventions: "",
 		web_design:       "",
 		checks:           "",

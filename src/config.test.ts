@@ -37,7 +37,6 @@ checks      = "plus the bank steps"
 			commit_style:    "nixpkgs",
 			extra: {
 				environment:      "There's a questdb.",
-				authorship:       "",
 				code_conventions: "",
 				web_design:       "",
 				checks:           "plus the bank steps",

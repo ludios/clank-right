@@ -99,14 +99,13 @@ describe("render", () => {
 			checks:     ["pnpm"],
 			extra: {
 				environment:      "A questdb is around.",
-				authorship:       "Upstream files are exempt.",
 				code_conventions: "Match upstream style.",
 				web_design:       "(Existing code violates this.)",
 				checks:           "plus the bank steps above when bank/ changed.",
 			},
 		});
 		expect(text).toContain("edit this file.\n\nA questdb is around.\n\n# Avoid consuming");
-		expect(text).toContain("keep existing lines.\n\nUpstream files are exempt.\n\n# Code conventions");
+		expect(text).toContain("keep existing lines.\n\n# Code conventions");
 		expect(text).toContain("to align things.\n\nMatch upstream style.\n\n# Libraries to use");
 		expect(text).toContain("written by humans.\n\n(Existing code violates this.)\n\n# Programming thoughts");
 		expect(text).toContain("\tpnpm test  # runs vitest\n\nplus the bank steps above when bank/ changed.\n\nThen automatically commit");

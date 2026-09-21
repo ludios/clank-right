@@ -86,10 +86,6 @@ If you can't fetch something, use google-chrome or {{ curl_chrome }} on this mac
 # Tracking AI authorship
 
 Files with any LLM-authored code (not counting mechanistic sed-like changes) begin with a comment like `// Model-output: <model name>`, one per model that contributed (e.g. "{{ claude_model }}", "{{ chatgpt_model }}"); keep existing lines.
-{{ if extra.authorship }}
-
-{{ extra.authorship }}
-{{ /if }}
 
 # Code conventions
 {{ if node }}
