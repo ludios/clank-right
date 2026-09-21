@@ -7,8 +7,8 @@ import { array, assert, asyncProperty, boolean, constantFrom, record, uniqueArra
 import { stringify as stringify_toml } from "smol-toml";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { CHECKS, COLOR_SCHEMES, COMMIT_STYLES, LANGUAGES, WEB_DESIGNS, split_header, type ProjectOptions } from "./config.ts";
-import { git } from "./git.ts";
-import { AGENTS_MD, ProjectError, inspect, regenerate, update } from "./project.ts";
+import { file_state, git } from "./git.ts";
+import { AGENTS_MD, ProjectError, commit_existing, inspect, regenerate, update } from "./project.ts";
 import { TEMPLATE_HEADINGS, join_sections, split_sections, type Section } from "./sections.ts";
 
 /** @returns A file that is nothing but a header with `toml` as its options. */
@@ -108,7 +108,7 @@ describe("regenerate", () => {
 	});
 });
 
-describe("update", () => {
+describe("in a repository", () => {
 	let repo: string;
 
 	/** @returns The paths in the commit `ref` touches. */
@@ -131,63 +131,107 @@ describe("update", () => {
 		await rm(repo, { recursive: true, force: true });
 	});
 
-	it("commits the regenerated AGENTS.md and nothing else", async () => {
-		await writeFile(join(repo, "other.txt"), "two\n");
-		await writeFile(join(repo, "junk.txt"), "junk\n");
-		await git(repo, "add", "other.txt");
+	describe("update", () => {
+		it("commits the regenerated AGENTS.md and nothing else", async () => {
+			await writeFile(join(repo, "other.txt"), "two\n");
+			await writeFile(join(repo, "junk.txt"), "junk\n");
+			await git(repo, "add", "other.txt");
 
-		const status = await inspect(repo);
-		expect(status.kind).toBe("dirty");
-		if (status.kind !== "dirty") {
-			return;
-		}
-		const sha = await update(repo, status.rendered, "AGENTS.md: regenerate");
-		expect(await touched("HEAD")).toBe(AGENTS_MD);
-		expect(await git(repo, "rev-parse", "--short", "HEAD")).toBe(sha);
-		expect(await git(repo, "log", "--format=%s", "-1")).toBe("AGENTS.md: regenerate");
-		expect(await readFile(agents(), "utf8")).toBe(status.rendered);
-		expect(await inspect(repo)).toEqual({ kind: "clean" });
-		expect(await git(repo, "diff", "--cached", "--name-only")).toBe("other.txt");
-		expect(await git(repo, "status", "--porcelain", "junk.txt")).toBe("?? junk.txt");
+			const status = await inspect(repo);
+			expect(status.kind).toBe("dirty");
+			if (status.kind !== "dirty") {
+				return;
+			}
+			const sha = await update(repo, status.rendered, "AGENTS.md: regenerate");
+			expect(await touched("HEAD")).toBe(AGENTS_MD);
+			expect(await git(repo, "rev-parse", "--short", "HEAD")).toBe(sha);
+			expect(await git(repo, "log", "--format=%s", "-1")).toBe("AGENTS.md: regenerate");
+			expect(await readFile(agents(), "utf8")).toBe(status.rendered);
+			expect(await inspect(repo)).toEqual({ kind: "clean" });
+			expect(await git(repo, "diff", "--cached", "--name-only")).toBe("other.txt");
+			expect(await git(repo, "status", "--porcelain", "junk.txt")).toBe("?? junk.txt");
+		});
+
+		it("reports a regenerated file whose commit a hook rejected, instead of calling it clean", async () => {
+			await writeFile(join(repo, ".git", "hooks", "pre-commit"), "#!/bin/sh\nexit 1\n", { mode: 0o755 });
+			const status = await inspect(repo);
+			expect(status.kind).toBe("dirty");
+			if (status.kind !== "dirty") {
+				return;
+			}
+			await expect(update(repo, status.rendered, "m")).rejects.toThrow("regenerated and staged but not committed");
+			expect(await readFile(agents(), "utf8")).toBe(status.rendered);
+			expect(await inspect(repo)).toEqual({ kind: "uncommitted" });
+			expect(await git(repo, "log", "--format=%s")).toBe("initial");
+		});
+
+		it("refuses when AGENTS.md has uncommitted changes", async () => {
+			const before = await readFile(agents(), "utf8");
+			await writeFile(agents(), before + "\n# Hand edit\n\nx\n");
+			const status = await inspect(repo);
+			expect(status.kind).toBe("dirty");
+			if (status.kind !== "dirty") {
+				return;
+			}
+			await expect(update(repo, status.rendered, "m")).rejects.toThrow("uncommitted changes");
+			expect(await readFile(agents(), "utf8")).toBe(before + "\n# Hand edit\n\nx\n");
+		});
+
+		it("commits a brand-new, untracked AGENTS.md", async () => {
+			await git(repo, "rm", "--quiet", AGENTS_MD);
+			await git(repo, "commit", "--quiet", "--message", "remove");
+			expect(await inspect(repo)).toMatchObject({ kind: "error", message: expect.stringContaining("no AGENTS.md") });
+			await writeFile(agents(), header(""));
+			const status = await inspect(repo);
+			expect(status.kind).toBe("dirty");
+			if (status.kind !== "dirty") {
+				return;
+			}
+			await update(repo, status.rendered, "add");
+			expect(await touched("HEAD")).toBe(AGENTS_MD);
+			expect(await inspect(repo)).toEqual({ kind: "clean" });
+		});
 	});
 
-	it("reports a regenerated file whose commit a hook rejected, instead of calling it clean", async () => {
-		await writeFile(join(repo, ".git", "hooks", "pre-commit"), "#!/bin/sh\nexit 1\n", { mode: 0o755 });
-		const status = await inspect(repo);
-		expect(status.kind).toBe("dirty");
-		if (status.kind !== "dirty") {
-			return;
-		}
-		await expect(update(repo, status.rendered, "m")).rejects.toThrow("regenerated and staged but not committed");
-		expect(await readFile(agents(), "utf8")).toBe(status.rendered);
-		expect(await inspect(repo)).toEqual({ kind: "uncommitted" });
-		expect(await git(repo, "log", "--format=%s")).toBe("initial");
-	});
+	describe("commit_existing", () => {
+		it("commits the edited AGENTS.md alone, so that update can follow with its own commit", async () => {
+			const edited = (await readFile(agents(), "utf8")) + "\n# Hand edit\n\nx\n";
+			await writeFile(agents(), edited);
+			await writeFile(join(repo, "other.txt"), "two\n");
+			await git(repo, "add", "other.txt");
 
-	it("refuses when AGENTS.md has uncommitted changes", async () => {
-		const before = await readFile(agents(), "utf8");
-		await writeFile(agents(), before + "\n# Hand edit\n\nx\n");
-		const status = await inspect(repo);
-		expect(status.kind).toBe("dirty");
-		if (status.kind !== "dirty") {
-			return;
-		}
-		await expect(update(repo, status.rendered, "m")).rejects.toThrow("uncommitted changes");
-		expect(await readFile(agents(), "utf8")).toBe(before + "\n# Hand edit\n\nx\n");
-	});
+			const existing = await commit_existing(repo, "hand edit");
+			expect(existing).toBe(await git(repo, "rev-parse", "--short", "HEAD"));
+			expect(await touched("HEAD")).toBe(AGENTS_MD);
+			expect(await git(repo, "show", `HEAD:${AGENTS_MD}`)).toBe(edited.trim());
+			expect(await file_state(repo, AGENTS_MD)).toBe("clean");
+			expect(await git(repo, "diff", "--cached", "--name-only")).toBe("other.txt");
 
-	it("commits a brand-new, untracked AGENTS.md", async () => {
-		await git(repo, "rm", "--quiet", AGENTS_MD);
-		await git(repo, "commit", "--quiet", "--message", "remove");
-		expect(await inspect(repo)).toMatchObject({ kind: "error", message: expect.stringContaining("no AGENTS.md") });
-		await writeFile(agents(), header(""));
-		const status = await inspect(repo);
-		expect(status.kind).toBe("dirty");
-		if (status.kind !== "dirty") {
-			return;
-		}
-		await update(repo, status.rendered, "add");
-		expect(await touched("HEAD")).toBe(AGENTS_MD);
-		expect(await inspect(repo)).toEqual({ kind: "clean" });
+			const status = await inspect(repo);
+			expect(status.kind).toBe("dirty");
+			if (status.kind !== "dirty") {
+				return;
+			}
+			await update(repo, status.rendered, "regenerate");
+			expect(await git(repo, "log", "--format=%s")).toBe("regenerate\nhand edit\ninitial");
+			expect(await touched("HEAD")).toBe(AGENTS_MD);
+			expect(await readFile(agents(), "utf8")).toContain("# Hand edit\n\nx\n");
+			expect(await inspect(repo)).toEqual({ kind: "clean" });
+		});
+
+		it("commits an untracked AGENTS.md", async () => {
+			await git(repo, "rm", "--quiet", AGENTS_MD);
+			await git(repo, "commit", "--quiet", "--message", "remove");
+			await writeFile(agents(), header(""));
+			expect(await commit_existing(repo, "add header")).not.toBeNull();
+			expect(await touched("HEAD")).toBe(AGENTS_MD);
+			expect(await git(repo, "log", "--format=%s", "-1")).toBe("add header");
+			expect(await inspect(repo)).toMatchObject({ kind: "dirty" });
+		});
+
+		it("commits nothing when AGENTS.md matches HEAD", async () => {
+			expect(await commit_existing(repo, "m")).toBeNull();
+			expect(await git(repo, "log", "--format=%s")).toBe("initial");
+		});
 	});
 });

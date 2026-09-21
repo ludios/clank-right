@@ -12,17 +12,19 @@ import { ansiColorFormatter, configureSync, getConsoleSink } from "@logtape/logt
 import { GitError, describe } from "./git.ts";
 import { config_home, tilde, untilde } from "./paths.ts";
 import { run_process } from "./process.ts";
-import { AGENTS_MD, ProjectError, inspect, update, type Status } from "./project.ts";
+import { AGENTS_MD, ProjectError, commit_existing, inspect, update, type Status } from "./project.ts";
 import { TOOL_DIR } from "./render.ts";
 
 const PROJECTS_FILE = join(config_home(), "clank-right", "projects.txt");
 
 const USAGE = `clank-right check [--diff] [DIR...]
-clank-right update [DIR...]
+clank-right update [--commit-existing-changes MESSAGE] [DIR...]
 
 check   Report which repositories' ${AGENTS_MD} differ from what the template
         generates, or are not committed; --diff shows how. Exits 1 if any.
-update  Regenerate each differing ${AGENTS_MD} and commit it, alone.
+update  Regenerate each differing ${AGENTS_MD} and commit it, alone. One that
+        already has uncommitted changes is refused, unless
+        --commit-existing-changes first commits it as it is, alone, with MESSAGE.
 
 DIR defaults to every repository listed in ${tilde(PROJECTS_FILE)}.
 --verbose logs each git invocation.`;
@@ -31,6 +33,8 @@ interface Cli {
 	command: "check" | "update";
 	dirs: string[];
 	diff: boolean;
+	/** For update: the message to commit each AGENTS.md's existing changes with, first; undefined refuses such files. */
+	commit_existing_changes: string | undefined;
 	verbose: boolean;
 }
 
@@ -43,15 +47,25 @@ class UsageError extends Error {}
  * @throws UsageError for anything else.
  */
 function parse_cli(argv: string[]): Cli {
-	const { values, positionals } = parseArgs({
-		args: argv,
-		allowPositionals: true,
-		options: {
-			"diff":    { type: "boolean", default: false },
-			"verbose": { type: "boolean", default: false },
-			"help":    { type: "boolean", default: false },
-		},
-	});
+	let parsed;
+	try {
+		parsed = parseArgs({
+			args: argv,
+			allowPositionals: true,
+			options: {
+				"diff":                    { type: "boolean", default: false },
+				"commit-existing-changes": { type: "string" },
+				"verbose":                 { type: "boolean", default: false },
+				"help":                    { type: "boolean", default: false },
+			},
+		});
+	} catch (error) {
+		if (error instanceof Error && "code" in error && String(error.code).startsWith("ERR_PARSE_ARGS_")) {
+			throw new UsageError(`${error.message}\n\n${USAGE}`);
+		}
+		throw error;
+	}
+	const { values, positionals } = parsed;
 	const [command, ...dirs] = positionals;
 	if (values.help || command === undefined) {
 		throw new UsageError(USAGE);
@@ -62,7 +76,14 @@ function parse_cli(argv: string[]): Cli {
 	if (values.diff && command !== "check") {
 		throw new UsageError(`--diff only applies to check\n\n${USAGE}`);
 	}
-	return { command, dirs, diff: values.diff, verbose: values.verbose };
+	const commit_existing_changes = values["commit-existing-changes"];
+	if (commit_existing_changes !== undefined && command !== "update") {
+		throw new UsageError(`--commit-existing-changes only applies to update\n\n${USAGE}`);
+	}
+	if (commit_existing_changes?.trim() === "") {
+		throw new UsageError(`--commit-existing-changes needs a commit message\n\n${USAGE}`);
+	}
+	return { command, dirs, diff: values.diff, commit_existing_changes, verbose: values.verbose };
 }
 
 /**
@@ -140,30 +161,36 @@ async function check(dirs: string[], show_diff: boolean): Promise<number> {
 
 /**
  * @param dirs Repositories to update.
+ * @param existing_message When given, each AGENTS.md that differs from HEAD is first committed as it is, with this message.
  * @returns The exit status: 0 only when every repository is now clean.
  */
-async function update_all(dirs: string[]): Promise<number> {
+async function update_all(dirs: string[], existing_message: string | undefined): Promise<number> {
 	const version = await describe(TOOL_DIR);
 	const message = `${AGENTS_MD}: regenerate from clank-right template (${version})`;
 	let failures = 0;
 	for (const dir of dirs) {
-		const status = await inspect(dir);
-		if (status.kind !== "dirty") {
-			console.log(`${tilde(dir)}: ${describe_status(status)}`);
-			failures += status.kind === "clean" ? 0 : 1;
-			continue;
-		}
 		try {
+			if (existing_message !== undefined) {
+				const existing = await commit_existing(dir, existing_message);
+				if (existing !== null) {
+					console.log(`${tilde(dir)}: committed ${existing} (existing changes)`);
+				}
+			}
+			const status = await inspect(dir);
+			if (status.kind !== "dirty") {
+				console.log(`${tilde(dir)}: ${describe_status(status)}`);
+				failures += status.kind === "clean" ? 0 : 1;
+				continue;
+			}
 			const sha = await update(dir, status.rendered, message);
 			const dropped = status.dropped.length > 0 ? ` (dropped: ${status.dropped.join(", ")})` : "";
 			console.log(`${tilde(dir)}: committed ${sha}${dropped}`);
 		} catch (error) {
-			if (error instanceof ProjectError || error instanceof GitError) {
-				console.log(`${tilde(dir)}: error: ${error.message}`);
-				failures++;
-				continue;
+			if (!(error instanceof ProjectError || error instanceof GitError)) {
+				throw error;
 			}
-			throw error;
+			console.log(`${tilde(dir)}: error: ${error.message}`);
+			failures++;
 		}
 	}
 	return failures === 0 ? 0 : 1;
@@ -183,7 +210,7 @@ async function main(argv: string[]): Promise<number> {
 		const dirs = await project_dirs(cli.dirs);
 		return cli.command === "check"
 			? await check(dirs, cli.diff)
-			: await update_all(dirs);
+			: await update_all(dirs, cli.commit_existing_changes);
 	} catch (error) {
 		if (error instanceof UsageError) {
 			console.error(error.message);

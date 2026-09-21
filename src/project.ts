@@ -96,6 +96,24 @@ export async function inspect(dir: string): Promise<Status> {
 }
 
 /**
+ * Commits AGENTS.md as it is, alone, so that a regeneration can follow as its
+ * own commit; whatever else is staged stays staged.
+ * @param dir The repository's working directory.
+ * @param message The commit message.
+ * @returns The new commit's short hash, or null when AGENTS.md already matched HEAD and there was nothing to commit.
+ * @throws GitError when git refuses the commit (a hook, signing); the file is then left staged.
+ */
+export async function commit_existing(dir: string, message: string): Promise<string | null> {
+	const state = await file_state(dir, AGENTS_MD);
+	if (state === "clean") {
+		return null;
+	}
+	const sha = await commit_only(dir, AGENTS_MD, message);
+	log.info("committed the {state} {file} as {sha} in {dir}", { state, file: AGENTS_MD, sha, dir });
+	return sha;
+}
+
+/**
  * Writes the regenerated AGENTS.md and commits it alone.
  * @param dir The repository's working directory.
  * @param rendered The text to write, from `inspect`.
@@ -108,7 +126,7 @@ export async function inspect(dir: string): Promise<Status> {
 export async function update(dir: string, rendered: string, message: string): Promise<string> {
 	const state = await file_state(dir, AGENTS_MD);
 	if (state === "modified") {
-		throw new ProjectError(`${AGENTS_MD} has uncommitted changes; commit or stash them first`);
+		throw new ProjectError(`${AGENTS_MD} has uncommitted changes; commit or stash them first, or pass --commit-existing-changes`);
 	}
 	await writeFile(join(dir, AGENTS_MD), rendered);
 	let sha: string;

@@ -10,15 +10,17 @@ sections that are the repository's own.
 Put `bin/` on your `PATH` (or run `pnpm clank-right ...` from this directory).
 
 	clank-right check [--diff] [DIR...]
-	clank-right update [DIR...]
+	clank-right update [--commit-existing-changes MESSAGE] [DIR...]
 
 `check` reports which repositories' `AGENTS.md` differ from what the template
 generates, or match it but aren't committed; `--diff` shows how. `update`
 regenerates each differing `AGENTS.md` and commits it, alone: other staged
 changes stay staged, and if `AGENTS.md` itself already has uncommitted changes,
-that repository is skipped so nothing gets committed unreviewed. If git refuses
-the commit (a hook, signing), the regenerated file stays in place and staged,
-and both commands report it as not committed until you commit it.
+that repository is skipped so nothing gets committed unreviewed. Once you've
+reviewed them, `update --commit-existing-changes MESSAGE` commits them first,
+alone, with `MESSAGE`, and the regeneration follows as its own commit. If git
+refuses a commit (a hook, signing), the regenerated file stays in place and
+staged, and both commands report it as not committed until you commit it.
 
 Without `DIR`s, both commands go through every repository listed in
 `~/.config/clank-right/projects.txt` (`$XDG_CONFIG_HOME` is honoured when set).
@@ -76,10 +78,11 @@ curl-impersonate binary) are `set` at the top of `templates/AGENTS.md.vto`.
 ## Adding a repository
 
 1. Put a header at the top of its `AGENTS.md` (or create the file with just a
-   header) and commit that.
+   header).
 2. Add the repository's path to `~/.config/clank-right/projects.txt`, one per
    line; `~` is your home directory and `#` starts a comment line.
-3. Run `clank-right update .` in it.
+3. Run `clank-right update . --commit-existing-changes "AGENTS.md: add clank-right header"`
+   in it.
 
 ## Changing the template
 
