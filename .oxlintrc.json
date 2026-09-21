@@ -1,0 +1,74 @@
+{
+	"$schema": "./node_modules/oxlint/configuration_schema.json",
+
+	"options": {
+		"typeAware": true,
+		"typeCheck": true
+	},
+
+	"plugins": [
+		"eslint",
+		"typescript",
+		"unicorn",
+		"oxc",
+		"import",
+		"promise",
+		"vitest"
+	],
+
+	"categories": {
+		"correctness": "error",
+		"suspicious": "warn",
+		"perf": "warn"
+	},
+
+	"ignorePatterns": [
+		"**/dist/**"
+	],
+
+	"jsPlugins": [
+		{ "name": "@logtape", "specifier": "@logtape/lint/eslint" }
+	],
+
+	"overrides": [
+		{
+			"files": ["src/main.ts"],
+			"rules": {
+				// The CLI's report goes to the human on stdout; that's its job.
+				"no-console": "off"
+			}
+		}
+	],
+
+	"rules": {
+		"typescript/no-floating-promises": "error",
+		"import/no-cycle": ["error", { "maxDepth": 8 }],
+		"no-console": ["warn", { "allow": ["warn", "error"] }],
+		"no-debugger": "error",
+		// https://oxc.rs/docs/guide/usage/linter/rules/eslint/no-underscore-dangle.html
+		// This is just annoying.
+		"no-underscore-dangle": "off",
+		// https://oxc.rs/docs/guide/usage/linter/rules/eslint/no-unused-vars.html
+		// Should be a warning, not an error.
+		"no-unused-vars": "warn",
+		// https://oxc.rs/docs/guide/usage/linter/rules/unicorn/no-useless-spread.html
+		// A bad rule: it will stop you from doing [...something] to copy e.g. a Set
+		// to avoid issues with it being mutated as you iterate it.
+		"unicorn/no-useless-spread": "off",
+		// https://oxc.rs/docs/guide/usage/linter/rules/promise/always-return.html
+		// seems to be a silly rule for novice users of Promise who e.g. unnecessarily
+		// use more than one `then(...)`.
+		"promise/always-return": "off",
+		// https://oxc.rs/docs/guide/usage/linter/rules/eslint/no-await-in-loop
+		// Silly rule for novices who don't know what they're doing.
+		"no-await-in-loop": "off",
+		// https://typescript-eslint.io/rules/no-unsafe-type-assertion/
+		// We cast deliberately at I/O boundaries (TOML tables, subprocess output).
+		"typescript/no-unsafe-type-assertion": "off",
+		"@logtape/prefer-lazy-evaluation": "warn",
+		"@logtape/no-unawaited-log": "error",
+		"@logtape/require-meta-sink": "warn",
+		// We know; sometimes we need to interpolate to pluralize a word.
+		"@logtape/no-message-interpolation": "off"
+	}
+}

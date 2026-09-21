@@ -1,0 +1,31 @@
+{
+	"name": "for-agents",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"description": "Keep AGENTS.md in many repositories in sync with one Vento template",
+	"bin": {
+		"for-agents": "bin/for-agents"
+	},
+	"scripts": {
+		"lint": "oxlint",
+		"check": "tsc --noEmit",
+		"test": "vitest run",
+		"for-agents": "node src/main.ts"
+	},
+	"dependencies": {
+		"@logtape/logtape": "^2.3.6",
+		"ayy": "^4.1.0",
+		"smol-toml": "^1.8.0",
+		"ventojs": "^2.4.0"
+	},
+	"devDependencies": {
+		"@logtape/lint": "^2.3.6",
+		"@types/node": "^26.6.2",
+		"fast-check": "^4.10.2",
+		"oxlint": "^1.83.0",
+		"oxlint-tsgolint": "^7.0.2002",
+		"typescript": "^7.0.2",
+		"vitest": "^5.0.1"
+	}
+}

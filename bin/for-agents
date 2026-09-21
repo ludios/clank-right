@@ -1,0 +1,4 @@
+#!/bin/sh
+# Model-output: Claude Fable 5.1
+# Runs the CLI from this checkout, wherever this script is linked from.
+exec node "$(dirname "$(readlink -f "$0")")/../src/main.ts" "$@"
