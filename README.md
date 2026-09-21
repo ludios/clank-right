@@ -1,3 +1,5 @@
+(LLM-authored slop README)
+
 # clank-right
 
 One [Vento](https://vento.js.org/) template for the `AGENTS.md` of many
