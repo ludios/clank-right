@@ -3,7 +3,6 @@
 	"include": ["src"],
 	"compilerOptions": {
 		"module": "nodenext",
-		"moduleResolution": "nodenext",
 		"target": "esnext",
 		"lib": ["esnext"],
 		"types": ["node"],
@@ -12,8 +11,6 @@
 		"skipLibCheck": true,
 
 		"allowImportingTsExtensions": true,
-		"forceConsistentCasingInFileNames": true,
-		"rewriteRelativeImportExtensions": true,
 		"noUncheckedSideEffectImports": true,
 		"verbatimModuleSyntax": true,
 		"isolatedModules": true,

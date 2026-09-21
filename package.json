@@ -9,7 +9,7 @@
 	},
 	"scripts": {
 		"lint": "oxlint",
-		"check": "tsc --noEmit",
+		"check": "tsc",
 		"test": "vitest run",
 		"clank-right": "node src/main.ts"
 	},
