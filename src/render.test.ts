@@ -1,4 +1,5 @@
 // Model-output: Claude Fable 5.1
+// Model-output: Claude Opus 5
 
 import { describe, expect, it } from "vitest";
 import { DEFAULT_OPTIONS, type ProjectOptions } from "./config.ts";
@@ -120,7 +121,7 @@ describe("render", () => {
 	it("carries the options text through verbatim, blank lines included", async () => {
 		const options_text = "languages = [\"rust\"]\n\n\n[extra]\nchecks = \"\"\"\nA\n\n\nB\"\"\"";
 		const text = await render_with({}, { options_text });
-		expect(text).toContain(`# overwritten.\n\n${options_text}\n-->\n\n# Environment\n`);
+		expect(text).toContain(`is overwritten.\n\n${options_text}\n-->\n\n# Environment\n`);
 	});
 
 	it("never leaves runs of blank lines and ends with one newline", async () => {
