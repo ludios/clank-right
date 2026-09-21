@@ -69,9 +69,6 @@ function describe_type(value: unknown): string {
 	if (Array.isArray(value)) {
 		return "an array";
 	}
-	if (value === null) {
-		return "null";
-	}
 	return `a ${typeof value}`;
 }
 
