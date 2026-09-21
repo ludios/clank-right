@@ -1,4 +1,5 @@
 // Model-output: Claude Fable 5.1
+// Model-output: Claude Opus 5
 //
 // The command line: `clank-right check` reports which repositories' AGENTS.md
 // no longer match the template; `clank-right update` regenerates and commits
@@ -9,12 +10,12 @@ import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { ansiColorFormatter, configureSync, getConsoleSink } from "@logtape/logtape";
 import { GitError, describe } from "./git.ts";
-import { tilde, untilde } from "./paths.ts";
+import { config_home, tilde, untilde } from "./paths.ts";
 import { run_process } from "./process.ts";
 import { AGENTS_MD, ProjectError, inspect, update, type Status } from "./project.ts";
 import { TOOL_DIR } from "./render.ts";
 
-const PROJECTS_FILE = join(TOOL_DIR, "projects.txt");
+const PROJECTS_FILE = join(config_home(), "clank-right", "projects.txt");
 
 const USAGE = `clank-right check [--diff] [DIR...]
 clank-right update [DIR...]
@@ -33,7 +34,7 @@ interface Cli {
 	verbose: boolean;
 }
 
-/** The command line makes no sense; the message says why, or is the usage. */
+/** Nothing can be run: the command line makes no sense, or the projects file is missing. The message says which. */
 class UsageError extends Error {}
 
 /**
@@ -66,13 +67,22 @@ function parse_cli(argv: string[]): Cli {
 
 /**
  * @param dirs Repositories named on the command line, as written.
- * @returns Absolute paths of the repositories to work on: `dirs`, or every entry of projects.txt when there are none.
+ * @returns Absolute paths of the repositories to work on: `dirs`, or every entry of the projects file when there are none.
+ * @throws UsageError when there are no `dirs` and no projects file.
  */
 async function project_dirs(dirs: string[]): Promise<string[]> {
 	if (dirs.length > 0) {
 		return dirs.map(untilde);
 	}
-	const text = await readFile(PROJECTS_FILE, "utf8");
+	let text: string;
+	try {
+		text = await readFile(PROJECTS_FILE, "utf8");
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+			throw error;
+		}
+		throw new UsageError(`no ${tilde(PROJECTS_FILE)}; create it, one repository per line, or name the repositories on the command line`);
+	}
 	return text
 		.split("\n")
 		.map((line) => line.trim())
@@ -161,9 +171,19 @@ async function update_all(dirs: string[]): Promise<number> {
 
 /** @returns The process's exit status. */
 async function main(argv: string[]): Promise<number> {
-	let cli: Cli;
 	try {
-		cli = parse_cli(argv);
+		const cli = parse_cli(argv);
+		configureSync({
+			sinks:   { console: getConsoleSink({ formatter: ansiColorFormatter }) },
+			loggers: [
+				{ category: ["clank-right"],     sinks: ["console"], lowestLevel: cli.verbose ? "debug" : "warning" },
+				{ category: ["logtape", "meta"], sinks: ["console"], lowestLevel: "warning" },
+			],
+		});
+		const dirs = await project_dirs(cli.dirs);
+		return cli.command === "check"
+			? await check(dirs, cli.diff)
+			: await update_all(dirs);
 	} catch (error) {
 		if (error instanceof UsageError) {
 			console.error(error.message);
@@ -171,17 +191,6 @@ async function main(argv: string[]): Promise<number> {
 		}
 		throw error;
 	}
-	configureSync({
-		sinks:   { console: getConsoleSink({ formatter: ansiColorFormatter }) },
-		loggers: [
-			{ category: ["clank-right"],      sinks: ["console"], lowestLevel: cli.verbose ? "debug" : "warning" },
-			{ category: ["logtape", "meta"], sinks: ["console"], lowestLevel: "warning" },
-		],
-	});
-	const dirs = await project_dirs(cli.dirs);
-	return cli.command === "check"
-		? await check(dirs, cli.diff)
-		: await update_all(dirs);
 }
 
 process.exitCode = await main(process.argv.slice(2));

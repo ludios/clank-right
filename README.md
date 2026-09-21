@@ -20,7 +20,8 @@ that repository is skipped so nothing gets committed unreviewed. If git refuses
 the commit (a hook, signing), the regenerated file stays in place and staged,
 and both commands report it as not committed until you commit it.
 
-Without `DIR`s, both commands go through every repository in `projects.txt`.
+Without `DIR`s, both commands go through every repository listed in
+`~/.config/clank-right/projects.txt` (`$XDG_CONFIG_HOME` is honoured when set).
 `clank-right update .` regenerates the repository you're in.
 
 ## What a managed AGENTS.md looks like
@@ -76,7 +77,8 @@ curl-impersonate binary) are `set` at the top of `templates/AGENTS.md.vto`.
 
 1. Put a header at the top of its `AGENTS.md` (or create the file with just a
    header) and commit that.
-2. Add the repository to `projects.txt`.
+2. Add the repository's path to `~/.config/clank-right/projects.txt`, one per
+   line; `~` is your home directory and `#` starts a comment line.
 3. Run `clank-right update .` in it.
 
 ## Changing the template
