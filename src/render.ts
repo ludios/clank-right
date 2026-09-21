@@ -8,7 +8,6 @@ import { A } from "ayy";
 import vento from "ventojs";
 import auto_trim from "ventojs/plugins/auto_trim.js";
 import { HEADER_OPEN, type ProjectOptions } from "./config.ts";
-import { tilde } from "./paths.ts";
 import type { Section } from "./sections.ts";
 
 /** This checkout of clank-right. */
@@ -39,7 +38,6 @@ export async function render(input: RenderInput): Promise<string> {
 		options_text:     input.options_text.trim(),
 		project_sections: input.project_sections,
 		web_design_body:  input.web_design_body,
-		tool_dir:         tilde(TOOL_DIR),
 	};
 	const { content } = await env.run(TEMPLATE_FILE, data);
 	const open = HEADER_OPEN + "\n";
