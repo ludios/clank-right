@@ -9,7 +9,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { ansiColorFormatter, configureSync, getConsoleSink } from "@logtape/logtape";
-import { GitError, describe } from "./git.ts";
+import { GitError, git } from "./git.ts";
 import { config_home, tilde, untilde } from "./paths.ts";
 import { run_process } from "./process.ts";
 import { AGENTS_MD, ProjectError, commit_existing, inspect, update, type Status } from "./project.ts";
@@ -165,7 +165,8 @@ async function check(dirs: string[], show_diff: boolean): Promise<number> {
  * @returns The exit status: 0 only when every repository is now clean.
  */
 async function update_all(dirs: string[], existing_message: string | undefined): Promise<number> {
-	const version = await describe(TOOL_DIR);
+	// `--always --dirty`: enough to find this checkout's commit later, and whether its tree was clean.
+	const version = await git(TOOL_DIR, "describe", "--always", "--dirty");
 	const message = `${AGENTS_MD}: regenerate from clank-right template (${version})`;
 	let failures = 0;
 	for (const dir of dirs) {

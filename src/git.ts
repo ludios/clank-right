@@ -63,11 +63,3 @@ export async function commit_only(repo: string, path: string, message: string): 
 	await git(repo, "commit", "--quiet", "--only", "--message", message, "--", path);
 	return await git(repo, "rev-parse", "--short", "HEAD");
 }
-
-/**
- * @param repo The repository's working directory.
- * @returns `git describe --always --dirty`: enough to find the commit later, and whether the tree was clean.
- */
-export async function describe(repo: string): Promise<string> {
-	return await git(repo, "describe", "--always", "--dirty");
-}
