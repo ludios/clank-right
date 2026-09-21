@@ -233,5 +233,24 @@ describe("in a repository", () => {
 			expect(await commit_existing(repo, "m")).toBeNull();
 			expect(await git(repo, "log", "--format=%s")).toBe("initial");
 		});
+
+		it("commits nothing for a staged edit that the working tree reverted, and update still follows", async () => {
+			const before = await readFile(agents(), "utf8");
+			await writeFile(agents(), before + "\n# Staged\n\nx\n");
+			await git(repo, "add", "--", AGENTS_MD);
+			await writeFile(agents(), before);
+			expect(await git(repo, "status", "--porcelain", "--", AGENTS_MD)).toBe(`MM ${AGENTS_MD}`);
+
+			expect(await commit_existing(repo, "m")).toBeNull();
+			expect(await git(repo, "log", "--format=%s")).toBe("initial");
+			const status = await inspect(repo);
+			expect(status.kind).toBe("dirty");
+			if (status.kind !== "dirty") {
+				return;
+			}
+			await update(repo, status.rendered, "regenerate");
+			expect(await git(repo, "log", "--format=%s")).toBe("regenerate\ninitial");
+			expect(await inspect(repo)).toEqual({ kind: "clean" });
+		});
 	});
 });

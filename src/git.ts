@@ -25,13 +25,14 @@ export async function git(repo: string, ...args: string[]): Promise<string> {
 	return result.stdout.trim();
 }
 
-/** How a file's index and working-tree contents relate to HEAD. */
+/** How a file's working-tree contents relate to HEAD. */
 export type FileState = "clean" | "untracked" | "modified";
 
 /**
  * @param repo The repository's working directory.
  * @param path A file path relative to it.
- * @returns "modified" when the file is tracked and differs from HEAD, whether or not the change is staged.
+ * @returns "modified" when the file is tracked and its working-tree contents differ from HEAD's, whether or not
+ * that change is staged. A change that is only staged, with the working tree back at HEAD, counts as clean.
  */
 export async function file_state(repo: string, path: string): Promise<FileState> {
 	const status = await git(repo, "status", "--porcelain", "--", path);
@@ -41,7 +42,12 @@ export async function file_state(repo: string, path: string): Promise<FileState>
 	if (status.startsWith("??")) {
 		return "untracked";
 	}
-	return "modified";
+	if (status.startsWith("A")) {
+		// Added to the index but not in HEAD, which may not even exist yet.
+		return "modified";
+	}
+	const differing = await git(repo, "diff", "--name-only", "HEAD", "--", path);
+	return differing === "" ? "clean" : "modified";
 }
 
 /**
