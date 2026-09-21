@@ -87,12 +87,12 @@ checks      = "plus the bank steps"
 describe("split_header", () => {
 	it("returns null when the file does not start with a header", () => {
 		expect(split_header("# Environment\n")).toBeNull();
-		expect(split_header("\n<!-- for-agents\n-->\n")).toBeNull();
-		expect(split_header("<!-- for-agents -->\n")).toBeNull();
+		expect(split_header("\n<!-- clank-right\n-->\n")).toBeNull();
+		expect(split_header("<!-- clank-right -->\n")).toBeNull();
 	});
 
 	it("separates the tool's comment lines from the options and the body", () => {
-		const text = "<!-- for-agents\n# generated, see README\n# more\n\nlanguages = [\"rust\"]\n# a note on checks\nchecks = [\"cargo\"]\n-->\n\n# Environment\n\nHi.\n";
+		const text = "<!-- clank-right\n# generated, see README\n# more\n\nlanguages = [\"rust\"]\n# a note on checks\nchecks = [\"cargo\"]\n-->\n\n# Environment\n\nHi.\n";
 		expect(split_header(text)).toEqual({
 			options_text: "languages = [\"rust\"]\n# a note on checks\nchecks = [\"cargo\"]",
 			body:         "\n# Environment\n\nHi.\n",
@@ -100,15 +100,15 @@ describe("split_header", () => {
 	});
 
 	it("handles a header with nothing but the tool's comments", () => {
-		expect(split_header("<!-- for-agents\n# generated\n-->\n# Environment\n")).toEqual({ options_text: "", body: "# Environment\n" });
-		expect(split_header("<!-- for-agents\n-->\n")).toEqual({ options_text: "", body: "" });
+		expect(split_header("<!-- clank-right\n# generated\n-->\n# Environment\n")).toEqual({ options_text: "", body: "# Environment\n" });
+		expect(split_header("<!-- clank-right\n-->\n")).toEqual({ options_text: "", body: "" });
 	});
 
 	it("tolerates a missing final newline", () => {
-		expect(split_header("<!-- for-agents\nx = 1\n-->")).toEqual({ options_text: "x = 1", body: "" });
+		expect(split_header("<!-- clank-right\nx = 1\n-->")).toEqual({ options_text: "x = 1", body: "" });
 	});
 
 	it("throws when the header is never closed", () => {
-		expect(() => split_header("<!-- for-agents\nx = 1\n\n# Environment\n")).toThrow(OptionsError);
+		expect(() => split_header("<!-- clank-right\nx = 1\n\n# Environment\n")).toThrow(OptionsError);
 	});
 });

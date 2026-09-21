@@ -13,7 +13,7 @@ import { TEMPLATE_HEADINGS, join_sections, split_sections, type Section } from "
 
 /** @returns A file that is nothing but a header with `toml` as its options. */
 function header(toml: string): string {
-	return `<!-- for-agents\n${toml}\n-->\n\n`;
+	return `<!-- clank-right\n${toml}\n-->\n\n`;
 }
 
 /** @returns The H1 headings of a managed file, in order. */
@@ -116,7 +116,7 @@ describe("update", () => {
 	const agents = () => join(repo, AGENTS_MD);
 
 	beforeEach(async () => {
-		repo = await mkdtemp(join(tmpdir(), "for-agents-"));
+		repo = await mkdtemp(join(tmpdir(), "clank-right-"));
 		await git(repo, "init", "--quiet", "--initial-branch=master");
 		await git(repo, "config", "user.email", "test@example.com");
 		await git(repo, "config", "user.name", "Test");

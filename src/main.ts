@@ -1,7 +1,7 @@
 // Model-output: Claude Fable 5.1
 //
-// The command line: `for-agents check` reports which repositories' AGENTS.md
-// no longer match the template; `for-agents update` regenerates and commits
+// The command line: `clank-right check` reports which repositories' AGENTS.md
+// no longer match the template; `clank-right update` regenerates and commits
 // the ones that don't.
 
 import { readFile } from "node:fs/promises";
@@ -16,8 +16,8 @@ import { TOOL_DIR } from "./render.ts";
 
 const PROJECTS_FILE = join(TOOL_DIR, "projects.txt");
 
-const USAGE = `for-agents check [--diff] [DIR...]
-for-agents update [DIR...]
+const USAGE = `clank-right check [--diff] [DIR...]
+clank-right update [DIR...]
 
 check   Report which repositories' ${AGENTS_MD} differ from what the template
         generates, or are not committed; --diff shows how. Exits 1 if any.
@@ -134,7 +134,7 @@ async function check(dirs: string[], show_diff: boolean): Promise<number> {
  */
 async function update_all(dirs: string[]): Promise<number> {
 	const version = await describe(TOOL_DIR);
-	const message = `${AGENTS_MD}: regenerate from for-agents template (${version})`;
+	const message = `${AGENTS_MD}: regenerate from clank-right template (${version})`;
 	let failures = 0;
 	for (const dir of dirs) {
 		const status = await inspect(dir);
@@ -174,7 +174,7 @@ async function main(argv: string[]): Promise<number> {
 	configureSync({
 		sinks:   { console: getConsoleSink({ formatter: ansiColorFormatter }) },
 		loggers: [
-			{ category: ["for-agents"],      sinks: ["console"], lowestLevel: cli.verbose ? "debug" : "warning" },
+			{ category: ["clank-right"],      sinks: ["console"], lowestLevel: cli.verbose ? "debug" : "warning" },
 			{ category: ["logtape", "meta"], sinks: ["console"], lowestLevel: "warning" },
 		],
 	});

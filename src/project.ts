@@ -13,7 +13,7 @@ import { render } from "./render.ts";
 import { TEMPLATE_HEADINGS, split_sections } from "./sections.ts";
 
 export const AGENTS_MD = "AGENTS.md";
-const log = getLogger(["for-agents"]);
+const log = getLogger(["clank-right"]);
 
 /** The file can't be regenerated as it is; the human has to act. */
 export class ProjectError extends Error {}
@@ -32,7 +32,7 @@ export interface Regenerated {
 export async function regenerate(current: string): Promise<Regenerated> {
 	const split = split_header(current);
 	if (split === null) {
-		throw new ProjectError("no `<!-- for-agents` header on line 1; see README.md");
+		throw new ProjectError("no `<!-- clank-right` header on line 1; see README.md");
 	}
 	const options = parse_options(split.options_text);
 	const { preamble, sections } = split_sections(split.body);

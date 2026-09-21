@@ -10,7 +10,7 @@ import { HEADER_OPEN, type ProjectOptions } from "./config.ts";
 import { tilde } from "./paths.ts";
 import type { Section } from "./sections.ts";
 
-/** This checkout of for-agents. */
+/** This checkout of clank-right. */
 export const TOOL_DIR = join(import.meta.dirname, "..");
 export const TEMPLATE_DIR = join(TOOL_DIR, "templates");
 export const TEMPLATE_FILE = "AGENTS.md.vto";

@@ -1,17 +1,17 @@
 {
-	"name": "for-agents",
+	"name": "clank-right",
 	"version": "0.1.0",
 	"private": true,
 	"type": "module",
 	"description": "Keep AGENTS.md in many repositories in sync with one Vento template",
 	"bin": {
-		"for-agents": "bin/for-agents"
+		"clank-right": "bin/clank-right"
 	},
 	"scripts": {
 		"lint": "oxlint",
 		"check": "tsc --noEmit",
 		"test": "vitest run",
-		"for-agents": "node src/main.ts"
+		"clank-right": "node src/main.ts"
 	},
 	"dependencies": {
 		"@logtape/logtape": "^2.3.6",

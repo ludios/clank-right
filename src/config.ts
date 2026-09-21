@@ -1,6 +1,6 @@
 // Model-output: Claude Fable 5.1
 //
-// The `<!-- for-agents ... -->` header that starts every managed AGENTS.md.
+// The `<!-- clank-right ... -->` header that starts every managed AGENTS.md.
 // The tool owns the leading comment lines (how to regenerate the file); the
 // project owns the TOML after them, which selects what the template emits.
 
@@ -195,7 +195,7 @@ export function parse_options(toml: string): ProjectOptions {
 	return options;
 }
 
-export const HEADER_OPEN  = "<!-- for-agents";
+export const HEADER_OPEN  = "<!-- clank-right";
 export const HEADER_CLOSE = "-->";
 
 export interface SplitFile {
@@ -220,7 +220,7 @@ function strip_tool_comments(inside: string): string {
 
 /**
  * @param text A whole AGENTS.md.
- * @returns Its header's options and the rest of the file, or null when the file doesn't start with a for-agents header.
+ * @returns Its header's options and the rest of the file, or null when the file doesn't start with a clank-right header.
  * @throws OptionsError when the header is opened but never closed.
  */
 export function split_header(text: string): SplitFile | null {

@@ -5,7 +5,7 @@
 import { getLogger } from "@logtape/logtape";
 import { run_process } from "./process.ts";
 
-const log = getLogger(["for-agents", "git"]);
+const log = getLogger(["clank-right", "git"]);
 
 /** git itself refused or failed; its stderr is in the message. */
 export class GitError extends Error {}
