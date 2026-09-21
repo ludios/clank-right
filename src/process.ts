@@ -4,7 +4,7 @@
 
 import { spawn } from "node:child_process";
 
-export interface ProcessResult {
+interface ProcessResult {
 	/** The exit status, or -1 when the process died from a signal. */
 	code: number;
 	stdout: string;

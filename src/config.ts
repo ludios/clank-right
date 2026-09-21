@@ -11,14 +11,14 @@ export const CHECKS        = ["sqlx", "pnpm", "cargo"] as const;
 export const WEB_DESIGNS   = ["none", "2010", "custom"] as const;
 export const COLOR_SCHEMES = ["light", "dark", "both"] as const;
 export const COMMIT_STYLES = ["template", "nixpkgs"] as const;
-export const EXTRA_SLOTS   = ["environment", "code_conventions", "web_design", "checks"] as const;
+const EXTRA_SLOTS          = ["environment", "code_conventions", "web_design", "checks"] as const;
 
-export type Language    = (typeof LANGUAGES)[number];
-export type Check       = (typeof CHECKS)[number];
-export type WebDesign   = (typeof WEB_DESIGNS)[number];
-export type ColorScheme = (typeof COLOR_SCHEMES)[number];
-export type CommitStyle = (typeof COMMIT_STYLES)[number];
-export type ExtraSlot   = (typeof EXTRA_SLOTS)[number];
+type Language    = (typeof LANGUAGES)[number];
+type Check       = (typeof CHECKS)[number];
+type WebDesign   = (typeof WEB_DESIGNS)[number];
+type ColorScheme = (typeof COLOR_SCHEMES)[number];
+type CommitStyle = (typeof COMMIT_STYLES)[number];
+type ExtraSlot   = (typeof EXTRA_SLOTS)[number];
 
 /** What a project's header selects. Every field has a default, so the template can rely on all of them. */
 export interface ProjectOptions {
@@ -192,10 +192,10 @@ export function parse_options(toml: string): ProjectOptions {
 	return options;
 }
 
-export const HEADER_OPEN  = "<!-- clank-right";
-export const HEADER_CLOSE = "-->";
+export const HEADER_OPEN = "<!-- clank-right";
+const HEADER_CLOSE = "-->";
 
-export interface SplitFile {
+interface SplitFile {
 	/** The project's TOML options, without the tool's leading comment lines; may be empty. */
 	options_text: string;
 	/** Everything after the header's closing line. */

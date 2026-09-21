@@ -18,7 +18,7 @@ const log = getLogger(["clank-right"]);
 /** The file can't be regenerated as it is; the human has to act. */
 export class ProjectError extends Error {}
 
-export interface Regenerated {
+interface Regenerated {
 	/** The AGENTS.md the template makes of the existing one. */
 	rendered: string;
 	/** Template-owned headings present in the existing file that the template no longer emits, so their content is about to disappear. */

@@ -12,8 +12,8 @@ import type { Section } from "./sections.ts";
 
 /** This checkout of clank-right. */
 export const TOOL_DIR = join(import.meta.dirname, "..");
-export const TEMPLATE_DIR = join(TOOL_DIR, "templates");
-export const TEMPLATE_FILE = "AGENTS.md.vto";
+const TEMPLATE_DIR = join(TOOL_DIR, "templates");
+const TEMPLATE_FILE = "AGENTS.md.vto";
 
 const env = vento({ includes: TEMPLATE_DIR, strict: true });
 env.use(auto_trim());

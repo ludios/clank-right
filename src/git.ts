@@ -26,7 +26,7 @@ export async function git(repo: string, ...args: string[]): Promise<string> {
 }
 
 /** How a file's working-tree contents relate to HEAD. */
-export type FileState = "clean" | "untracked" | "modified";
+type FileState = "clean" | "untracked" | "modified";
 
 /**
  * @param repo The repository's working directory.

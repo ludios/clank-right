@@ -26,7 +26,7 @@ export const TEMPLATE_HEADINGS: ReadonlySet<string> = new Set([
 	"Thank you for your hard work on this project",
 ]);
 
-export interface SplitMarkdown {
+interface SplitMarkdown {
 	/** Text before the first H1, without surrounding blank lines; normally empty. */
 	preamble: string;
 	sections: Section[];
