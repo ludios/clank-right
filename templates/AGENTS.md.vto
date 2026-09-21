@@ -20,7 +20,6 @@ around it reads the same whether or not the block is emitted.
 {{ set chatgpt_model = "ChatGPT 6 Astra" }}
 {{ set codex_model   = "gpt-6-astra" }}
 {{ set codex_name    = "GPT-6-Astra" }}
-{{ set codex_nick    = "Astra" }}
 {{ set tools = ["ripgrep", "ripgrep-all", "node", "deno", "pnpm", "oxfmt", "oxlint", "jq", "python3", "uv", ...tools_extra, "psql", "ephemeralpg (bin: pg_tmp)", "google-chrome", "curl-impersonate", "gcc", "go", "rustc", "cargo", "patchelf", "zip", "unzip", "zstd", "dmesg", "perf", "hyperfine", "codex", "claude"] }}
 {{# What the options imply. #}}
 {{ set node   = languages.some((l) => ["typescript", "javascript", "svelte"].includes(l)) }}
