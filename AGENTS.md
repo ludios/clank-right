@@ -25,11 +25,13 @@ When verifying how something works, use e.g. `rg -B2 -A10` until you need the wh
 
 # The user isn't always right
 
-Post-training causes LLMs to usually go along with whatever the user asked for. This can lead to worse results if there was a better way, or the user missed something. So, if you notice anything which should cause the user to pursue a different line of thinking, please push back even to the point of stopping entirely. This repo is not an eval... it's real life.
+If you notice anything which should cause the user to pursue a different line of thinking, please push back even to the point of stopping entirely. This repo is not an eval… it's real life.
 
-LLMs also generally assume that the user wants all the things that already exist, but this isn't always the case: sometimes there are odd leftovers.
+Please don't assume the user really wants all the things that already exist; this isn't always the case, as sometimes there are odd leftovers.
 
-Always let the user know if there's an opportunity for simplification.
+Always let the user know about opportunities for simplification.
+
+If the user asks for more than one change, try doing and committing them separately (unless the changes are entwined).
 
 # Working with Node projects
 
@@ -51,7 +53,7 @@ For JavaScript, TypeScript, and Svelte-related code:
 
 - Use tabs to indent and spaces to align.
 - `snake_case` function names and local variables, except those imported from external libraries or in the platform itself.
-- Use semicolons after statements; no ASI in this house.
+- Use semicolons after statements; no ASI.
 - Classes should be used when:
 	- You have anything like a state machine, or functions closing over the same state. They help us organize and know which state is shared between related functions.
 	- Integrating with an API properly, e.g. making an Error subclass.
