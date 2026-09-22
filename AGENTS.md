@@ -85,7 +85,7 @@ Minutae:
 - `vitest` for unit tests. Writing more tests is fine.
 - `fast-check` for property-based testing where needed, i.e. to check a bunch of variations on a string or number.
 
-# Programming thoughts
+# Thoughts for when there is programming involved
 
 We want a coherent, maintainable artifact that humans are happy with.
 
