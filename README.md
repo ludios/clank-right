@@ -57,9 +57,10 @@ The header is an HTML comment whose leading `#` lines belong to the tool and
 whose remaining lines are the repository's options, in TOML. Everything after
 the header is H1 sections. Sections whose heading the template emits are
 regenerated from the template; any other section is the repository's own and
-is kept verbatim, in order, between "Thoughts for when there is programming involved" and "After making
-changes". (`check` and `update` tell you when a template-owned section is
-about to disappear because the options no longer produce it.)
+is kept verbatim, in order, between "Thoughts for when there is programming
+involved" and "After making changes". (`check` and `update` tell you when a
+template-owned section is about to disappear because the options no longer
+produce it, or because the template renamed it.)
 
 ### Options
 
@@ -111,6 +112,11 @@ Edit the templates in `templates/`, run `clank-right chatbots`, and commit the
 templates together with any change it made to `chatbots/`, which is then yours
 to paste. Then `clank-right check --diff` shows what changes where, and
 `clank-right update` commits it everywhere.
+
+To rename a heading that the template emits, rename it in `TEMPLATE_HEADINGS`
+in `src/sections.ts` too, and add the old name to `FORMER_TEMPLATE_HEADINGS`
+there. Otherwise every file still under the old heading keeps that section as
+its own, next to the same text under the new one.
 
 ## Development
 
