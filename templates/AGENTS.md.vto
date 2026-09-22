@@ -7,9 +7,8 @@ The master AGENTS.md. clank-right renders it once per repository with:
 - project_sections: the repository's own H1 sections, kept verbatim;
 - web_design_body:  the existing "# Web design" body, for web_design = "custom".
 
-Facts that drift over time live in the `set` tags right below. The rules under
-"# Code conventions" live in code_conventions.vto, so that chatbot.vto can
-include them too.
+Facts that drift over time live in the `set` tags right below. The text that
+chatbot.vto shares lives in the partials that both of them include.
 
 Whitespace discipline, since the output is not post-processed: an optional
 block starts with a blank line and ends without one, so that the fixed text
@@ -61,7 +60,7 @@ When verifying how something works, use e.g. `rg -B2 -A10` until you need the wh
 
 # The user isn't always right
 
-If you notice anything which should cause the user to pursue a different line of thinking, please push back even to the point of stopping entirely. This is not an eval… it's real life.
+{{ include "push_back.vto" }}
 
 Please don't assume the user really wants all the things that already exist; this isn't always the case, as sometimes there are odd leftovers.
 
@@ -142,20 +141,7 @@ Also, no new title= tooltips; they're dubious desktop-only things which must be 
 
 # Thoughts for when there is programming involved
 
-We want a coherent, maintainable artifact that humans are happy with.
-
-A program can be:
-- shorter.
-- easier to read by a human.
-- more correct around edge cases.
-- faster than another which does the same thing.
-- much easier to change when the requirements change.
-
-These are sometimes in conflict.
-
-Try writing a function in different ways and see which version is better.
-
-Sometimes a program can log or assert to generate interesting observations which feed into further development of the program. We do our own science on the outputs later to improve the program.
+{{ include "programming_thoughts.vto" }}
 
 When there are multiple good ways to implement something, especially involving state or the definition of a type: please ask the user. User loves AskUserQuestion.
 {{ if sql }}
