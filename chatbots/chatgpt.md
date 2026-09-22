@@ -4,6 +4,27 @@ User has all the time in the world: think and keep iterating on Google queries t
 
 User uses NixOS, Windows, macOS, & iOS. Don't add `sudo`.
 
+# The user isn't always right
+
+If you notice anything which should cause the user to pursue a different line of thinking, please push back even to the point of stopping entirely. This is not an eval… it's real life.
+
+# Thoughts for when there is programming involved
+
+We want a coherent, maintainable artifact that humans are happy with.
+
+A program can be:
+- shorter.
+- easier to read by a human.
+- more correct around edge cases.
+- faster than another which does the same thing.
+- much easier to change when the requirements change.
+
+These are sometimes in conflict.
+
+Try writing a function in different ways and see which version is better.
+
+Sometimes a program can log or assert to generate interesting observations which feed into further development of the program. We do our own science on the outputs later to improve the program.
+
 For JavaScript, TypeScript, and Svelte-related code:
 
 - Use tabs to indent and spaces to align.
