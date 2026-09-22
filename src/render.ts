@@ -1,12 +1,13 @@
 // Model-output: Claude Fable 5.1
 // Model-output: Claude Opus 5
+// Model-output: Claude Opus 5.5
 //
 // Renders the master template into a complete AGENTS.md for one project.
 
 import { join } from "node:path";
 import { A } from "ayy";
 import vento from "ventojs";
-import auto_trim from "ventojs/plugins/auto_trim.js";
+import auto_trim, { defaultTags } from "ventojs/plugins/auto_trim.js";
 import { HEADER_OPEN, type ProjectOptions } from "./config.ts";
 import type { Section } from "./sections.ts";
 
@@ -16,7 +17,8 @@ const TEMPLATE_DIR = join(TOOL_DIR, "templates");
 const TEMPLATE_FILE = "AGENTS.md.vto";
 
 const env = vento({ includes: TEMPLATE_DIR, strict: true });
-env.use(auto_trim());
+// With `include` trimmed like the block tags, a partial included on a line of its own leaves no extra newline.
+env.use(auto_trim({ tags: [...defaultTags, "include"] }));
 
 export interface RenderInput {
 	/** The project's TOML options as the human wrote them, to carry into the new header. */

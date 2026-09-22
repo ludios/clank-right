@@ -1,4 +1,5 @@
 {{# Model-output: Claude Fable 5.1 #}}
+{{# Model-output: Claude Opus 5.5 #}}
 {{#
 The master AGENTS.md. clank-right renders it once per repository with:
 
@@ -8,7 +9,9 @@ The master AGENTS.md. clank-right renders it once per repository with:
 - project_sections: the repository's own H1 sections, kept verbatim;
 - web_design_body:  the existing "# Web design" body, for web_design = "custom".
 
-Facts that drift over time live in the `set` tags right below.
+Facts that drift over time live in the `set` tags right below. The rules under
+"# Code conventions" live in code_conventions.vto, so that other templates can
+include them too.
 
 Whitespace discipline, since the output is not post-processed: an optional
 block starts with a blank line and ends without one, so that the fixed text
@@ -85,39 +88,7 @@ If you can't fetch something, use google-chrome or {{ curl_chrome }} on this mac
 Files with any LLM-authored code (not counting mechanistic sed-like changes) begin with a comment like `// Model-output: <model name>`, one per model that contributed (e.g. "{{ claude_model }}", "{{ chatgpt_model }}"); keep existing lines.
 
 # Code conventions
-{{ if node }}
-
-For JavaScript, TypeScript, and Svelte-related code:
-
-- Use tabs to indent and spaces to align.
-- `snake_case` function names and local variables, except those imported from external libraries or in the platform itself.
-- Use semicolons after statements; no ASI.
-- Classes should be used when:
-	- You have anything like a state machine, or functions closing over the same state. They help us organize and know which state is shared between related functions.
-	- Integrating with an API properly, e.g. making an Error subclass.
-  Otherwise, plain functions are generally fine.
-
-When writing _any_ kind of code, including for the above:
-{{ else }}
-
-When writing _any_ kind of code:
-{{ /if }}
-
-- Think about invariants and add asserts or domain-specific errors where they might prevent misbehavior.
-- Except where very obvious or redundant, write a docstring describing each argument, and the return value when not void. What do they really represent?
-- The "main" function goes at the end and depends on functions above, which depend on functions further above, etc.
-- Scan the functions and generalize if that makes a good result; evict any deadbeats: humans with a small context window need to review and maintain this code.
-- Abstraction boundaries are important. Comments should reflect the current abstraction and generally avoid talking about other things.
-
-Minutae:
-
-{{ if braces }}
-- Use the { } curlies even for one-statement blocks.
-- Block contents should not be on the same line that opened the block.
-- Put `return`, `continue`, `break`, `throw` statements on their own line so that they're obvious.
-{{ /if }}
-- Blank lines inside functions should only be used to separate different ideas or groups of steps.
-- Use space-based alignment but only where it looks good: on adjacent lines with a very similar structure, add spaces after shorter identifiers (or the syntax to the right of them) to align things.
+{{ include "code_conventions.vto" }}
 {{ if extra.code_conventions }}
 
 {{ extra.code_conventions }}
