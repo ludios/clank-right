@@ -20,7 +20,7 @@ export const TEMPLATE_HEADINGS: ReadonlySet<string> = new Set([
 	"Code conventions",
 	"Libraries to use",
 	"Web design",
-	"Programming thoughts",
+	"Thoughts for when there is programming involved",
 	"After making changes",
 	"Codex code review after each commit",
 	"Thank you for your hard work on this project",

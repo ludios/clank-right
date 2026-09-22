@@ -69,7 +69,7 @@ describe("render", () => {
 		expect(await render_with({ web_design: "2010", color_scheme: "light" })).toContain("\"light mode\"-only project");
 		expect(await render_with({ web_design: "2010" })).toContain("native HTML elements.\n\nPlease keep things working well in both light mode and dark mode.\n\nWrite CSS");
 		const custom = await render_with({ web_design: "custom" }, { web_design_body: "Bespoke.\n\n- rules" });
-		expect(custom).toContain("# Web design\n\nBespoke.\n\n- rules\n\n# Programming thoughts");
+		expect(custom).toContain("# Web design\n\nBespoke.\n\n- rules\n\n# Thoughts for when there is programming involved");
 		expect(custom).not.toContain("2010 styling");
 	});
 
@@ -89,7 +89,7 @@ describe("render", () => {
 
 	it("ignores extra.web_design for a custom design, which is the project's own already", async () => {
 		const custom = await render_with({ web_design: "custom", extra: { ...DEFAULT_OPTIONS.extra, web_design: "(Note.)" } }, { web_design_body: "Bespoke." });
-		expect(custom).toContain("# Web design\n\nBespoke.\n\n# Programming thoughts");
+		expect(custom).toContain("# Web design\n\nBespoke.\n\n# Thoughts for when there is programming involved");
 		expect(custom).not.toContain("(Note.)");
 	});
 
@@ -108,11 +108,11 @@ describe("render", () => {
 		expect(text).toContain("edit this file.\n\nA questdb is around.\n\n# Avoid consuming");
 		expect(text).toContain("keep existing lines.\n\n# Code conventions");
 		expect(text).toContain("to align things.\n\nMatch upstream style.\n\n# Libraries to use");
-		expect(text).toContain("written by humans.\n\n(Existing code violates this.)\n\n# Programming thoughts");
+		expect(text).toContain("written by humans.\n\n(Existing code violates this.)\n\n# Thoughts for when there is programming involved");
 		expect(text).toContain("\tpnpm test  # runs vitest\n\nplus the bank steps above when bank/ changed.\n\nThen automatically commit");
 	});
 
-	it("places project sections between Programming thoughts and After making changes, verbatim", async () => {
+	it("places project sections between Thoughts for when there is programming involved and After making changes, verbatim", async () => {
 		const sections = [{ heading: "Project map", body: "- a/\n- b/" }, { heading: "The app", body: "Text.\n\n\n\n```\n\n\n# code\n```" }];
 		const text = await render_with({}, { project_sections: sections });
 		expect(text).toContain("User loves AskUserQuestion.\n\n# Project map\n\n- a/\n- b/\n\n# The app\n\nText.\n\n\n\n```\n\n\n# code\n```\n\n# After making changes\n");

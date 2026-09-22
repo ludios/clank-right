@@ -46,7 +46,7 @@ Without `DIR`s, both commands go through every repository listed in
 
 	# Environment
 	...
-	# Programming thoughts
+	# Thoughts for when there is programming involved
 	...
 	# Project map            <- the repository's own sections go here
 	...
@@ -57,7 +57,7 @@ The header is an HTML comment whose leading `#` lines belong to the tool and
 whose remaining lines are the repository's options, in TOML. Everything after
 the header is H1 sections. Sections whose heading the template emits are
 regenerated from the template; any other section is the repository's own and
-is kept verbatim, in order, between "Programming thoughts" and "After making
+is kept verbatim, in order, between "Thoughts for when there is programming involved" and "After making
 changes". (`check` and `update` tell you when a template-owned section is
 about to disappear because the options no longer produce it.)
 

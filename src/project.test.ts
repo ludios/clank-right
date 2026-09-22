@@ -71,8 +71,8 @@ describe("regenerate", () => {
 		const file = header("languages = [\"rust\"]") + "# Project map\n\n- a/\n\n# Environment\n\nold\n\n# The app\n\nText.\n";
 		const { rendered, dropped } = await regenerate(file);
 		const headings = headings_of(rendered);
-		expect(headings.slice(headings.indexOf("Programming thoughts"), headings.indexOf("After making changes") + 1))
-			.toEqual(["Programming thoughts", "Project map", "The app", "After making changes"]);
+		expect(headings.slice(headings.indexOf("Thoughts for when there is programming involved"), headings.indexOf("After making changes") + 1))
+			.toEqual(["Thoughts for when there is programming involved", "Project map", "The app", "After making changes"]);
 		expect(rendered).toContain("# Project map\n\n- a/\n\n# The app\n\nText.\n\n# After making changes");
 		expect(dropped).toEqual([]);
 	});
@@ -85,11 +85,11 @@ describe("regenerate", () => {
 	});
 
 	it("keeps a custom Web design section in the template's place", async () => {
-		const file = header("web_design = \"custom\"") + "# Web design\n\nBespoke.\n\n# Programming thoughts\n\nold\n";
+		const file = header("web_design = \"custom\"") + "# Web design\n\nBespoke.\n\n# Thoughts for when there is programming involved\n\nold\n";
 		const { rendered } = await regenerate(file);
 		const headings = headings_of(rendered);
-		expect(headings.indexOf("Web design")).toBe(headings.indexOf("Programming thoughts") - 1);
-		expect(rendered).toContain("# Web design\n\nBespoke.\n\n# Programming thoughts");
+		expect(headings.indexOf("Web design")).toBe(headings.indexOf("Thoughts for when there is programming involved") - 1);
+		expect(rendered).toContain("# Web design\n\nBespoke.\n\n# Thoughts for when there is programming involved");
 	});
 
 	it("emits exactly the template headings when every option is on", async () => {
