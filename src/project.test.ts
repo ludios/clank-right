@@ -1,5 +1,6 @@
 // Model-output: Claude Fable 5.1
 // Model-output: Claude Opus 5
+// Model-output: Claude Opus 5.5
 
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -82,6 +83,14 @@ describe("regenerate", () => {
 		const { rendered, dropped } = await regenerate(file);
 		expect(dropped).toEqual(["Web design", "Working with Node projects"]);
 		expect(rendered).not.toContain("Old rules.");
+	});
+
+	it("drops a section under a heading the template used to emit instead of keeping it as the project's own", async () => {
+		const file = header("") + "# Programming thoughts\n\nOld thoughts.\n";
+		const { rendered, dropped } = await regenerate(file);
+		expect(headings_of(rendered)).not.toContain("Programming thoughts");
+		expect(rendered).not.toContain("Old thoughts.");
+		expect(dropped).toEqual(["Programming thoughts"]);
 	});
 
 	it("keeps a custom Web design section in the template's place", async () => {

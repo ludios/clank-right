@@ -1,4 +1,5 @@
 // Model-output: Claude Fable 5.1
+// Model-output: Claude Opus 5.5
 //
 // AGENTS.md as a sequence of H1 sections, and which of them the template owns.
 
@@ -9,7 +10,7 @@ export interface Section {
 	body: string;
 }
 
-/** Headings the template can emit; any other H1 in a managed file is the project's own and is kept verbatim. */
+/** Headings the template can emit. */
 export const TEMPLATE_HEADINGS: ReadonlySet<string> = new Set([
 	"Environment",
 	"Avoid consuming tokens in excess",
@@ -25,6 +26,23 @@ export const TEMPLATE_HEADINGS: ReadonlySet<string> = new Set([
 	"Codex code review after each commit",
 	"Thank you for your hard work on this project",
 ]);
+
+/**
+ * Headings the template used to emit. A file regenerated before a rename still has its section under the old
+ * heading, which must go like any other template section instead of staying as the project's own.
+ */
+const FORMER_TEMPLATE_HEADINGS: ReadonlySet<string> = new Set([
+	"Programming thoughts",
+]);
+
+/**
+ * @param heading An H1 heading in a managed file.
+ * @returns Whether the section under it is the template's, to regenerate or drop, rather than the project's own, to
+ * keep verbatim.
+ */
+export function is_template_heading(heading: string): boolean {
+	return TEMPLATE_HEADINGS.has(heading) || FORMER_TEMPLATE_HEADINGS.has(heading);
+}
 
 interface SplitMarkdown {
 	/** Text before the first H1, without surrounding blank lines; normally empty. */

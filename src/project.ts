@@ -10,7 +10,7 @@ import { getLogger } from "@logtape/logtape";
 import { OptionsError, parse_options, split_header } from "./config.ts";
 import { GitError, commit_only, file_state } from "./git.ts";
 import { render } from "./render.ts";
-import { TEMPLATE_HEADINGS, split_sections } from "./sections.ts";
+import { is_template_heading, split_sections } from "./sections.ts";
 
 export const AGENTS_MD = "AGENTS.md";
 const log = getLogger(["clank-right"]);
@@ -46,14 +46,14 @@ export async function regenerate(current: string): Promise<Regenerated> {
 	const rendered = await render({
 		options_text:     split.options_text,
 		options,
-		project_sections: sections.filter((section) => !TEMPLATE_HEADINGS.has(section.heading)),
+		project_sections: sections.filter((section) => !is_template_heading(section.heading)),
 		web_design_body:  web_design?.body ?? "",
 	});
 	const rendered_split = split_header(rendered);
 	A(rendered_split !== null, "the template must emit the header it was given");
 	const emitted = new Set(split_sections(rendered_split.body).sections.map((section) => section.heading));
 	const dropped = sections
-		.filter((section) => TEMPLATE_HEADINGS.has(section.heading) && !emitted.has(section.heading))
+		.filter((section) => is_template_heading(section.heading) && !emitted.has(section.heading))
 		.map((section) => section.heading);
 	return { rendered, dropped };
 }
