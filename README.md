@@ -7,12 +7,16 @@ repositories. The template lives here; what each repository wants from it
 lives in a comment at the top of that repository's `AGENTS.md`, next to the
 sections that are the repository's own.
 
+Its code conventions also go into the account-wide instructions for claude.ai
+and chatgpt.com; see [Chatbots](#chatbots).
+
 ## Usage
 
 Put `bin/` on your `PATH` (or run `pnpm clank-right ...` from this directory).
 
 	clank-right check [--diff] [DIR...]
 	clank-right update [--commit-existing-changes MESSAGE] [DIR...]
+	clank-right chatbots
 
 `check` reports which repositories' `AGENTS.md` differ from what the template
 generates, or match it but aren't committed; `--diff` shows how. `update`
@@ -86,10 +90,27 @@ curl-impersonate binary) are `set` at the top of `templates/AGENTS.md.vto`.
 3. Run `clank-right update . --commit-existing-changes "AGENTS.md: add clank-right header"`
    in it.
 
+## Chatbots
+
+`templates/chatbot.vto` holds the account-wide instructions for claude.ai and
+chatgpt.com, ending with `templates/code_conventions.vto`: the rules under every
+`AGENTS.md`'s "Code conventions", with the Node and brace rules on.
+`clank-right chatbots` renders it into `chatbots/claude.md` (where the
+template's `claude` is true) and `chatbots/chatgpt.md` in this checkout. Neither
+site has an API for these settings, so paste each file by hand: claude.ai's
+Settings → "Instructions for Claude", and chatgpt.com's Settings →
+Personalization → Custom instructions. The latter takes at most 5,000
+characters on the paid plans, and `clank-right chatbots` refuses to write more.
+
+The files are committed, so their history tells you when to paste again.
+`pnpm test` fails while they don't match the templates.
+
 ## Changing the template
 
-Edit `templates/AGENTS.md.vto`, commit, then `clank-right check --diff` to see
-what changes where, and `clank-right update` to commit it everywhere.
+Edit the templates in `templates/`, run `clank-right chatbots`, and commit the
+templates together with any change it made to `chatbots/`, which is then yours
+to paste. Then `clank-right check --diff` shows what changes where, and
+`clank-right update` commits it everywhere.
 
 ## Development
 

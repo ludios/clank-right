@@ -1,14 +1,17 @@
 // Model-output: Claude Fable 5.1
 // Model-output: Claude Opus 5
+// Model-output: Claude Opus 5.5
 //
 // The command line: `clank-right check` reports which repositories' AGENTS.md
 // no longer match the template; `clank-right update` regenerates and commits
-// the ones that don't.
+// the ones that don't; `clank-right chatbots` rewrites the chatbots'
+// instructions in this checkout.
 
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { ansiColorFormatter, configureSync, getConsoleSink } from "@logtape/logtape";
+import { CHATBOTS, chatbot_file, write_chatbot } from "./chatbots.ts";
 import { GitError, git } from "./git.ts";
 import { config_home, tilde, untilde } from "./paths.ts";
 import { run_process } from "./process.ts";
@@ -19,18 +22,22 @@ const PROJECTS_FILE = join(config_home(), "clank-right", "projects.txt");
 
 const USAGE = `clank-right check [--diff] [DIR...]
 clank-right update [--commit-existing-changes MESSAGE] [DIR...]
+clank-right chatbots
 
-check   Report which repositories' ${AGENTS_MD} differ from what the template
-        generates, or are not committed; --diff shows how. Exits 1 if any.
-update  Regenerate each differing ${AGENTS_MD} and commit it, alone. One that
-        already has uncommitted changes is refused, unless
-        --commit-existing-changes first commits it as it is, alone, with MESSAGE.
+check     Report which repositories' ${AGENTS_MD} differ from what the template
+          generates, or are not committed; --diff shows how. Exits 1 if any.
+update    Regenerate each differing ${AGENTS_MD} and commit it, alone. One that
+          already has uncommitted changes is refused, unless
+          --commit-existing-changes first commits it as it is, alone, with MESSAGE.
+chatbots  Rewrite chatbots/claude.md and chatbots/chatgpt.md in this checkout
+          from templates/chatbot.vto, for pasting into each chatbot's settings.
 
 DIR defaults to every repository listed in ${tilde(PROJECTS_FILE)}.
 --verbose logs each git invocation.`;
 
 interface Cli {
-	command: "check" | "update";
+	command: "check" | "update" | "chatbots";
+	/** For check and update: the repositories named on the command line. */
 	dirs: string[];
 	diff: boolean;
 	/** For update: the message to commit each AGENTS.md's existing changes with, first; undefined refuses such files. */
@@ -70,8 +77,11 @@ function parse_cli(argv: string[]): Cli {
 	if (values.help || command === undefined) {
 		throw new UsageError(USAGE);
 	}
-	if (command !== "check" && command !== "update") {
+	if (command !== "check" && command !== "update" && command !== "chatbots") {
 		throw new UsageError(`unknown command ${JSON.stringify(command)}\n\n${USAGE}`);
+	}
+	if (command === "chatbots" && dirs.length > 0) {
+		throw new UsageError(`chatbots takes no DIR\n\n${USAGE}`);
 	}
 	if (values.diff && command !== "check") {
 		throw new UsageError(`--diff only applies to check\n\n${USAGE}`);
@@ -197,6 +207,14 @@ async function update_all(dirs: string[], existing_message: string | undefined):
 	return failures === 0 ? 0 : 1;
 }
 
+/** Rewrites every chatbot's instructions file from the template. */
+async function write_chatbots(): Promise<void> {
+	for (const chatbot of CHATBOTS) {
+		const text = await write_chatbot(chatbot);
+		console.log(`${tilde(chatbot_file(chatbot))}: ${text.length} characters`);
+	}
+}
+
 /** @returns The process's exit status. */
 async function main(argv: string[]): Promise<number> {
 	try {
@@ -208,6 +226,10 @@ async function main(argv: string[]): Promise<number> {
 				{ category: ["logtape", "meta"], sinks: ["console"], lowestLevel: "warning" },
 			],
 		});
+		if (cli.command === "chatbots") {
+			await write_chatbots();
+			return 0;
+		}
 		const dirs = await project_dirs(cli.dirs);
 		return cli.command === "check"
 			? await check(dirs, cli.diff)

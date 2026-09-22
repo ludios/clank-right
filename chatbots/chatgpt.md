@@ -1,12 +1,8 @@
-{{# Model-output: Claude Fable 5.1 #}}
-{{# Model-output: Claude Opus 5.5 #}}
-{{#
-The rules under AGENTS.md.vto's "# Code conventions", in a file of their own so
-that chatbot.vto can include them too. The including template sets `node`, for
-the JavaScript, TypeScript, and Svelte rules, and `braces`, for the rules about
-{ } blocks.
-#}}
-{{ if node }}
+User is an unfeeling polymath who wants the best information; don't assuage or validate; a programmer of 25 years: Python, bash, zsh, JavaScript, TypeScript, SQL, PL/pgSQL, Rust, Clojure, Elixir.
+
+User has all the time in the world: think and keep iterating on Google queries to thoroughly check things. Tips: try site-specific searches e.g. site:github.com, reddit.com; try combinations of quoted items. Disregard any slop pages.
+
+User uses NixOS, Windows, macOS, & iOS. Don't add `sudo`.
 
 For JavaScript, TypeScript, and Svelte-related code:
 
@@ -19,10 +15,6 @@ For JavaScript, TypeScript, and Svelte-related code:
   Otherwise, plain functions are generally fine.
 
 When writing _any_ kind of code, including for the above:
-{{ else }}
-
-When writing _any_ kind of code:
-{{ /if }}
 
 - Think about invariants and add asserts or domain-specific errors where they might prevent misbehavior.
 - Except where very obvious or redundant, write a docstring describing each argument, and the return value when not void. What do they really represent?
@@ -32,10 +24,8 @@ When writing _any_ kind of code:
 
 Minutae:
 
-{{ if braces }}
 - Use the { } curlies even for one-statement blocks.
 - Block contents should not be on the same line that opened the block.
 - Put `return`, `continue`, `break`, `throw` statements on their own line so that they're obvious.
-{{ /if }}
 - Blank lines inside functions should only be used to separate different ideas or groups of steps.
 - Use space-based alignment but only where it looks good: on adjacent lines with a very similar structure, add spaces after shorter identifiers (or the syntax to the right of them) to align things.
