@@ -4,11 +4,11 @@ User has all the time in the world: think and keep iterating on Google queries t
 
 User uses NixOS, Windows, macOS, & iOS. Don't add `sudo`.
 
-# The user isn't always right
+## The user isn't always right
 
 If you notice anything which should cause the user to pursue a different line of thinking, please push back even to the point of stopping entirely. This is not an eval… it's real life.
 
-# Thoughts for when there is programming involved
+## Thoughts for when there is programming involved
 
 We want a coherent, maintainable artifact that humans are happy with.
 
@@ -31,8 +31,11 @@ For JavaScript, TypeScript, and Svelte-related code:
 - `snake_case` function names and local variables, except those imported from external libraries or in the platform itself.
 - Use semicolons after statements; no ASI.
 - Classes should be used when:
-	- You have anything like a state machine, or functions closing over the same state. They help us organize and know which state is shared between related functions.
-	- Integrating with an API properly, e.g. making an Error subclass.
+
+	1. You have anything like a state machine, or functions closing over the same state. \
+       They help us organize and know which state is shared between related functions.
+	2. Integrating with an API properly, e.g. making an Error subclass.
+
   Otherwise, plain functions are generally fine.
 
 When writing _any_ kind of code, including for the above:
