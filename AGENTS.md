@@ -104,6 +104,10 @@ Sometimes a program can log or assert to generate interesting observations which
 
 When there are multiple good ways to implement something, especially involving state or the definition of a type: please ask the user. User loves AskUserQuestion.
 
+# Project-specific exceptions
+
+No `Model-output:` comment in the templates themselves, please.
+
 # After making changes
 
 At the workspace root:
