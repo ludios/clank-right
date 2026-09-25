@@ -81,7 +81,7 @@ describe("render", () => {
 
 	it("replaces the commit template for nixpkgs-style commits, keeping the checks", async () => {
 		const text = await render_with({ commit_style: "nixpkgs" });
-		expect(text).toContain("# After making changes\n\nAutomatically commit them as per the standard nixpkgs style for doing commits. Check the git log for a particular directory if uncertain.\n\n# Codex code review after each commit");
+		expect(text).toContain("# After making changes\n\nAutomatically commit them as per the standard nixpkgs style for doing commits. Check the git log for a particular directory if uncertain.\n\n# Code review after each commit");
 		expect(text).not.toContain("<prompt>");
 		const checked = await render_with({ commit_style: "nixpkgs", checks: ["cargo"] });
 		expect(checked).toContain("# After making changes\n\nAt the workspace root:\n\n\tcargo test\n\nThen automatically commit them as per the standard nixpkgs style");
