@@ -119,6 +119,9 @@ At the workspace root:
 	pnpm check # runs tsc
 	pnpm test  # runs vitest
 
+Never `git commit -a` because there may other sessions; stage changes manually.
+
+
 Then automatically commit your changes with this commit template:
 
 	subsystem: short one-line description; semicolon if multiple changes
