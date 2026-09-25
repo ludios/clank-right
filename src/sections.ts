@@ -23,7 +23,7 @@ export const TEMPLATE_HEADINGS: ReadonlySet<string> = new Set([
 	"Web design",
 	"Thoughts for when there is programming involved",
 	"After making changes",
-	"Codex code review after each commit",
+	"Code review after each commit",
 	"Thank you for your hard work on this project",
 ]);
 
@@ -33,6 +33,7 @@ export const TEMPLATE_HEADINGS: ReadonlySet<string> = new Set([
  */
 const FORMER_TEMPLATE_HEADINGS: ReadonlySet<string> = new Set([
 	"Programming thoughts",
+	"Codex code review after each commit",
 ]);
 
 /**
