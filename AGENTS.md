@@ -81,8 +81,8 @@ Minutae:
 # Libraries to use
 
 - `ayy` to assert things (when it's okay to throw `AssertionError` instead of a domain-specific error).
-  - Always use the most specific assertion function, so that the error message shows the unexpected value when possible.
-    - e.g. A.gte(x, 1); A.lte(x, 3) instead of A(x >= 1 && x <= 3);
+	- Always use the most specific assertion function, so that the error message shows the unexpected value when possible.
+		- e.g. A.gte(x, 1); A.lte(x, 3) instead of A(x >= 1 && x <= 3);
 - `logtape` for logging. Logs teach us about anomalies and the causes of things; log what a human operator would probably be interested in when observing the system.
 - `ventojs` for plain text templating.
 - `vitest` for unit tests. Writing more tests is fine.
