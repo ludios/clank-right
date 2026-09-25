@@ -180,6 +180,9 @@ At the workspace root:
 
 {{ extra.checks }}
 {{ /if }}
+
+Never `git commit -a` because there may other sessions; stage changes manually.
+
 {{ if commit_style == "nixpkgs" }}
 
 {{ commit_verb }} commit them as per the standard nixpkgs style for doing commits. Check the git log for a particular directory if uncertain.
