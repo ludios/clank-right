@@ -141,7 +141,7 @@ Then automatically commit your changes with this commit template:
 
 "(mid-turn)" if user added something mid-turn; multiple &lt;prompt>&lt;/prompt> &lt;slop>&lt;/slop> ... if the conversation had several real turns.
 
-If acting on a code review from Codex or some other agent, inside the beginning of &lt;slop>, add:
+If acting on code reviews from Codex, Claude, or some other agent, inside the beginning of &lt;slop>, add one per review:
 
 	<review model="model e.g. gpt-6-astra" reasoning_effort="effort e.g. xhigh">
 
@@ -149,20 +149,22 @@ If acting on a code review from Codex or some other agent, inside the beginning 
 
 	</review>
 
-# Codex code review after each commit
+# Code review after each commit
 
-After each commit you make, get it reviewed by Codex (GPT-6-Astra at xhigh reasoning):
+After each commit you make, get it reviewed by Codex (GPT-6-Astra) and by Claude (Fable 5.1 and Opus 5.5), all at xhigh reasoning:
 
 	codex review --commit <sha> -c model="gpt-6-astra" -c model_reasoning_effort="xhigh"
+	claude -p --model claude-fable-5-1 "/code-review xhigh commit <sha>"
+	claude -p --model claude-opus-5-5 "/code-review xhigh commit <sha>"
 
 Notes:
 
 - Codex is configured globally in `~/.codex/config.toml` (`approval_policy = "never"`, `sandbox_mode = "danger-full-access"`) to never ask for permission and run unsandboxed, so reviews and `codex exec` runs never block on prompts. If codex ever stalls waiting for approval, check that file.
-- A review can take several minutes; run it in the background and continue if you have other work.
-- The findings are from a **fallible machine**: think hard before adding a bunch of code to handle an irrelevant edge case.
-- For oversights that are really worth fixing, fix them and make another commit (using the usual commit template). If you fixed nothing, say briefly in your reply why the findings didn't warrant changes.
-- Do _not_ send that follow-up fix commit through another Codex review — the review cycle for a change ends after one round of findings and fixes. (Exception: the follow-up grew into something substantial beyond addressing the findings.)
-- If you made several commits in a row, make sure the reviews cover all of them: either review each commit, or run one ranged review of the whole batch with `codex review --base <sha before your first commit>` plus the same `-c` options.
+- A review can take several minutes; run them all in the background at once and continue if you have other work.
+- The findings are from **fallible machines**: think hard before adding a bunch of code to handle an irrelevant edge case.
+- Once all the reviews are in, fix the oversights that are really worth fixing and make one more commit (using the usual commit template). If you fixed nothing, say briefly in your reply why the findings didn't warrant changes.
+- Do _not_ send that follow-up fix commit through another review — the review cycle for a change ends after one round of findings and fixes. (Exception: the follow-up grew into something substantial beyond addressing the findings.)
+- If you made several commits in a row, make sure the reviews cover all of them: either review each commit, or review the whole batch at once with `codex review --base <sha before your first commit>` plus the same `-c` options, and `"/code-review xhigh commits <sha before your first commit>..HEAD"` for Claude.
 
 # Thank you for your hard work on this project
 
