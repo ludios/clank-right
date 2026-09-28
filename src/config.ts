@@ -6,7 +6,7 @@
 
 import { parse as parse_toml } from "smol-toml";
 
-export const LANGUAGES     = ["typescript", "javascript", "svelte", "rust", "c", "cpp", "go", "python", "nix", "zsh", "sql"] as const;
+export const LANGUAGES     = ["typescript", "javascript", "svelte", "rust", "c", "cpp", "csharp", "go", "python", "nix", "zsh", "sql"] as const;
 export const CHECKS        = ["sqlx", "pnpm", "cargo"] as const;
 export const WEB_DESIGNS   = ["none", "2010", "custom"] as const;
 export const COLOR_SCHEMES = ["light", "dark", "both"] as const;

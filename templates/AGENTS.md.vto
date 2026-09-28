@@ -24,7 +24,7 @@ around it reads the same whether or not the block is emitted.
 {{# What the options imply. #}}
 {{ set node   = languages.some((l) => ["typescript", "javascript", "svelte"].includes(l)) }}
 {{ set svelte = languages.includes("svelte") }}
-{{ set braces = node || languages.includes("c") || languages.includes("cpp") }}
+{{ set braces = node || languages.some((l) => ["c", "cpp", "csharp"].includes(l)) }}
 {{ set sql    = languages.includes("sql") }}
 {{ set sandbox     = sandbox_note ? sandbox_note + "; " : "" }}
 {{ set checker     = svelte ? "svelte-check" : "tsc" }}
