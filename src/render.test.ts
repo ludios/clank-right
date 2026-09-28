@@ -51,18 +51,17 @@ describe("render", () => {
 		expect(text).toContain("(unless needed).\n- `ventojs` for templating.\n- `ws` for sockets.\n- `vitest` for unit tests");
 	});
 
-	it("adds the brace rules for C and the DDL paragraph for SQL", async () => {
-		const text = await render_with({ languages: ["c", "sql"] });
-		expect(text).toContain("- Use the { } curlies");
+	it.each(["c", "cpp", "csharp"] as const)("adds the brace rules for %s without the Node material", async (language) => {
+		const text = await render_with({ languages: [language] });
+		expect(text).toContain("\nWhen writing _any_ kind of code:\n\n- Think about invariants");
+		expect(text).toContain("Minutae:\n\n- Use the { } curlies even for one-statement blocks.\n- Block contents");
 		expect(text).not.toContain("# Working with Node projects");
-		expect(text).toContain("User loves AskUserQuestion.\n\nFor CREATE TABLE i.e. DDL work");
+		expect(text).not.toContain("# Libraries to use");
 	});
 
-	it("adds the brace rules for C# without the Node sections", async () => {
-		const text = await render_with({ languages: ["csharp"] });
-		expect(text).toContain("When writing _any_ kind of code:\n");
-		expect(text).toContain("- Use the { } curlies");
-		expect(text).not.toContain("# Working with Node projects");
+	it("adds the DDL paragraph for SQL", async () => {
+		const text = await render_with({ languages: ["sql"] });
+		expect(text).toContain("User loves AskUserQuestion.\n\nFor CREATE TABLE i.e. DDL work");
 	});
 
 	it("puts the sandbox note in the hostname bullet and extra tools after uv", async () => {
