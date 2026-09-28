@@ -1,9 +1,13 @@
 // Model-output: Claude Fable 5.1
 // Model-output: Claude Opus 5
+// Model-output: Claude Opus 5.5
 
 import { describe, expect, it } from "vitest";
 import { DEFAULT_OPTIONS, type ProjectOptions } from "./config.ts";
 import { render, type RenderInput } from "./render.ts";
+
+/** The paragraph that the template puts between the check steps and the commit instructions. */
+const NO_COMMIT_ALL = "Never `git commit -a` because there may others working; stage changes manually.\n\n";
 
 const BASE: RenderInput = { options_text: "", options: DEFAULT_OPTIONS, project_sections: [], web_design_body: "" };
 
@@ -75,16 +79,16 @@ describe("render", () => {
 
 	it("orders the check steps as given", async () => {
 		const text = await render_with({ checks: ["sqlx", "cargo"] });
-		expect(text).toContain("# After making changes\n\nOnly if any sqlx queries were modified:\n\n\t./make-sqlx-data\n\nAt the workspace root:\n\n\tcargo test\n\nThen automatically commit");
-		expect(await render_with({})).toContain("# After making changes\n\nAutomatically commit your changes");
+		expect(text).toContain("# After making changes\n\nOnly if any sqlx queries were modified:\n\n\t./make-sqlx-data\n\nAt the workspace root:\n\n\tcargo test\n\n" + NO_COMMIT_ALL + "Then automatically commit");
+		expect(await render_with({})).toContain("# After making changes\n\n" + NO_COMMIT_ALL + "Automatically commit your changes");
 	});
 
 	it("replaces the commit template for nixpkgs-style commits, keeping the checks", async () => {
 		const text = await render_with({ commit_style: "nixpkgs" });
-		expect(text).toContain("# After making changes\n\nAutomatically commit them as per the standard nixpkgs style for doing commits. Check the git log for a particular directory if uncertain.\n\n# Code review after each commit");
+		expect(text).toContain("# After making changes\n\n" + NO_COMMIT_ALL + "Automatically commit them as per the standard nixpkgs style for doing commits. Check the git log for a particular directory if uncertain.\n\n# Code review after each commit");
 		expect(text).not.toContain("<prompt>");
 		const checked = await render_with({ commit_style: "nixpkgs", checks: ["cargo"] });
-		expect(checked).toContain("# After making changes\n\nAt the workspace root:\n\n\tcargo test\n\nThen automatically commit them as per the standard nixpkgs style");
+		expect(checked).toContain("# After making changes\n\nAt the workspace root:\n\n\tcargo test\n\n" + NO_COMMIT_ALL + "Then automatically commit them as per the standard nixpkgs style");
 	});
 
 	it("ignores extra.web_design for a custom design, which is the project's own already", async () => {
@@ -109,7 +113,7 @@ describe("render", () => {
 		expect(text).toContain("keep existing lines.\n\n# Code conventions");
 		expect(text).toContain("to align things.\n\nMatch upstream style.\n\n# Libraries to use");
 		expect(text).toContain("written by humans.\n\n(Existing code violates this.)\n\n# Thoughts for when there is programming involved");
-		expect(text).toContain("\tpnpm test  # runs vitest\n\nplus the bank steps above when bank/ changed.\n\nThen automatically commit");
+		expect(text).toContain("\tpnpm test  # runs vitest\n\nplus the bank steps above when bank/ changed.\n\n" + NO_COMMIT_ALL + "Then automatically commit");
 	});
 
 	it("places project sections between Thoughts for when there is programming involved and After making changes, verbatim", async () => {
