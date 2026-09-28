@@ -66,7 +66,7 @@ describe("render", () => {
 
 	it("puts the sandbox note in the hostname bullet and extra tools after uv", async () => {
 		const text = await render_with({ sandbox_note: "you're unable to hit production", tools_extra: ["ffmpeg", "nm"] });
-		expect(text).toContain("- If it ends in \"clank\", you're unable to hit production; run whatever commands you need.\n- If any other hostname");
+		expect(text).toContain("- If it ends in \"clank\", you're unable to hit production; run whatever commands you need.\n- Otherwise, stop");
 		expect(text).toContain(", uv, ffmpeg, nm, psql, ");
 		expect(await render_with({})).toContain("- If it ends in \"clank\", run whatever commands you need.");
 	});
@@ -115,7 +115,7 @@ describe("render", () => {
 				checks:           "plus the bank steps above when bank/ changed.",
 			},
 		});
-		expect(text).toContain("edit this file.\n\nA questdb is around.\n\n# Avoid consuming");
+		expect(text).toContain("edit this file.\n\nA questdb is around.\n\nWhen waiting on something");
 		expect(text).toContain("keep existing lines.\n\n# Code conventions");
 		expect(text).toContain("to align things.\n\nMatch upstream style.\n\n# Libraries to use");
 		expect(text).toContain("written by humans.\n\n(Existing code violates this.)\n\n# Thoughts for when there is programming involved");
