@@ -58,6 +58,13 @@ describe("render", () => {
 		expect(text).toContain("User loves AskUserQuestion.\n\nFor CREATE TABLE i.e. DDL work");
 	});
 
+	it("adds the brace rules for C# without the Node sections", async () => {
+		const text = await render_with({ languages: ["csharp"] });
+		expect(text).toContain("When writing _any_ kind of code:\n");
+		expect(text).toContain("- Use the { } curlies");
+		expect(text).not.toContain("# Working with Node projects");
+	});
+
 	it("puts the sandbox note in the hostname bullet and extra tools after uv", async () => {
 		const text = await render_with({ sandbox_note: "you're unable to hit production", tools_extra: ["ffmpeg", "nm"] });
 		expect(text).toContain("- If it ends in \"clank\", you're unable to hit production; run whatever commands you need.\n- If any other hostname");
