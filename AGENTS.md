@@ -123,7 +123,7 @@ At the workspace root:
 	pnpm check # runs tsc
 	pnpm test  # runs vitest
 
-Never `git commit -a` because there may others working; stage changes manually.
+Never `git commit -a` because there may be others working; stage changes manually.
 
 Then automatically commit your changes with this commit template:
 
