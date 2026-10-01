@@ -8,7 +8,7 @@ import { join } from "node:path";
 import { array, assert, asyncProperty, boolean, constantFrom, record, uniqueArray, type Arbitrary } from "fast-check";
 import { stringify as stringify_toml } from "smol-toml";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { CHECKS, COLOR_SCHEMES, COMMIT_STYLES, LANGUAGES, WEB_DESIGNS, split_header, type ProjectOptions } from "./config.ts";
+import { CHECKS, COLOR_SCHEMES, COMMIT_STYLES, LANGUAGES, PACKAGE_MANAGERS, WEB_DESIGNS, split_header, type ProjectOptions } from "./config.ts";
 import { file_state, git } from "./git.ts";
 import { AGENTS_MD, ProjectError, commit_existing, inspect, regenerate, update, type Status } from "./project.ts";
 import { TEMPLATE_HEADINGS, join_sections, split_sections, type Section } from "./sections.ts";
@@ -36,6 +36,7 @@ const TEXT = constantFrom("", "A note.", "Two\n\nparagraphs, one with `code`.");
 
 const options_arb: Arbitrary<ProjectOptions> = record({
 	languages:       uniqueArray(constantFrom(...LANGUAGES)),
+	package_manager: constantFrom(...PACKAGE_MANAGERS),
 	effection:       boolean(),
 	libraries_extra: array(constantFrom("`ventojs` for templating.", "`ws` for sockets."), { maxLength: 2 }),
 	web_design:      constantFrom(...WEB_DESIGNS),
