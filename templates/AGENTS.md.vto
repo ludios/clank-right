@@ -75,7 +75,7 @@ If the user asks for more than one change, try doing and committing them separat
 # Working with Node projects
 
 {{ if package_manager == "bun" }}
-This project uses bun; please don't run npm or pnpm here, since a second package manager in the same node_modules mixes their layouts.
+This project uses bun; avoid running npm or pnpm.
 {{ else }}
 npm sux; please use pnpm instead.
 {{ /if }}
