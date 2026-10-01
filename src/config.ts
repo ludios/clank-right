@@ -1,4 +1,5 @@
 // Model-output: Claude Fable 5.1
+// Model-output: Claude Opus 5.5
 //
 // The `<!-- clank-right ... -->` header that starts every managed AGENTS.md.
 // The tool owns the leading comment lines (how to regenerate the file); the
@@ -6,24 +7,28 @@
 
 import { parse as parse_toml } from "smol-toml";
 
-export const LANGUAGES     = ["typescript", "javascript", "svelte", "rust", "c", "cpp", "csharp", "go", "python", "nix", "zsh", "sql"] as const;
-export const CHECKS        = ["sqlx", "pnpm", "cargo"] as const;
-export const WEB_DESIGNS   = ["none", "2010", "custom"] as const;
-export const COLOR_SCHEMES = ["light", "dark", "both"] as const;
-export const COMMIT_STYLES = ["template", "nixpkgs"] as const;
-const EXTRA_SLOTS          = ["environment", "code_conventions", "web_design", "checks"] as const;
+export const LANGUAGES        = ["typescript", "javascript", "svelte", "rust", "c", "cpp", "csharp", "go", "python", "nix", "zsh", "sql"] as const;
+export const PACKAGE_MANAGERS = ["pnpm", "bun"] as const;
+export const CHECKS           = ["sqlx", "pnpm", "cargo"] as const;
+export const WEB_DESIGNS      = ["none", "2010", "custom"] as const;
+export const COLOR_SCHEMES    = ["light", "dark", "both"] as const;
+export const COMMIT_STYLES    = ["template", "nixpkgs"] as const;
+const EXTRA_SLOTS             = ["environment", "code_conventions", "web_design", "checks"] as const;
 
-type Language    = (typeof LANGUAGES)[number];
-type Check       = (typeof CHECKS)[number];
-type WebDesign   = (typeof WEB_DESIGNS)[number];
-type ColorScheme = (typeof COLOR_SCHEMES)[number];
-type CommitStyle = (typeof COMMIT_STYLES)[number];
-type ExtraSlot   = (typeof EXTRA_SLOTS)[number];
+type Language       = (typeof LANGUAGES)[number];
+type PackageManager = (typeof PACKAGE_MANAGERS)[number];
+type Check          = (typeof CHECKS)[number];
+type WebDesign      = (typeof WEB_DESIGNS)[number];
+type ColorScheme    = (typeof COLOR_SCHEMES)[number];
+type CommitStyle    = (typeof COMMIT_STYLES)[number];
+type ExtraSlot      = (typeof EXTRA_SLOTS)[number];
 
 /** What a project's header selects. Every field has a default, so the template can rely on all of them. */
 export interface ProjectOptions {
 	/** Languages that LLM-written code in the repository is likely to be in; they select the conventions, libraries, and checks. */
 	languages: Language[];
+	/** The package manager that the Node code's lockfile belongs to; "Working with Node projects" tells agents to use it. */
+	package_manager: PackageManager;
 	/** Whether the Node code uses effection, which adds it to "Libraries to use". */
 	effection: boolean;
 	/** Further "Libraries to use" items for the Node code, each as the text after the bullet, e.g. "`ventojs` for templating." */
@@ -49,6 +54,7 @@ export class OptionsError extends Error {}
 
 export const DEFAULT_OPTIONS: Readonly<ProjectOptions> = {
 	languages:       [],
+	package_manager: "pnpm",
 	effection:       false,
 	libraries_extra: [],
 	web_design:      "none",
@@ -157,6 +163,9 @@ export function parse_options(toml: string): ProjectOptions {
 		switch (key) {
 			case "languages":
 				options.languages = expect_list_of(key, value, LANGUAGES);
+				break;
+			case "package_manager":
+				options.package_manager = expect_one_of(key, value, PACKAGE_MANAGERS);
 				break;
 			case "effection":
 				options.effection = expect_boolean(key, value);

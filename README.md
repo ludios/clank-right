@@ -69,6 +69,7 @@ Every option has a default, so an empty header is valid.
 | Option         | Default      | Effect                                                                                               |
 | -------------- | ------------ | ---------------------------------------------------------------------------------------------------- |
 | `languages`    | `[]`         | `typescript`/`javascript`/`svelte` select the Node sections; `svelte` picks `svelte-check`; `c`/`cpp`/`csharp` add the brace rules; `sql` adds the DDL paragraph. Also `rust`, `go`, `python`, `nix`, `zsh`. |
+| `package_manager` | `"pnpm"`  | `"bun"` tells agents to use bun, not npm or pnpm, in the Node code; `"pnpm"` tells them to use pnpm, not npm. |
 | `effection`    | `false`      | Lists `effection` under "Libraries to use".                                                          |
 | `libraries_extra` | `[]`      | More "Libraries to use" items, each as the text after the bullet, e.g. `` ["`ventojs` for templating."] ``. |
 | `web_design`   | `"none"`     | `"2010"` for the standard section; `"custom"` keeps the repository's own `# Web design` section.     |

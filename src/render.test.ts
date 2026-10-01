@@ -44,6 +44,13 @@ describe("render", () => {
 		expect(text).toContain("\n\nThen automatically commit your changes with this commit template:");
 	});
 
+	it("tells agents to use bun, not pnpm, in a bun project", async () => {
+		const text = await render_with({ languages: ["typescript"], package_manager: "bun" });
+		expect(text).toContain("# Working with Node projects\n\nThis project uses bun; please don't run npm or pnpm here");
+		expect(text).toContain("mixes their layouts.\n\n# There's plenty of time");
+		expect(text).not.toContain("npm sux");
+	});
+
 	it("uses svelte-check for Svelte and adds effection and extra libraries when asked", async () => {
 		const text = await render_with({ languages: ["svelte"], effection: true, libraries_extra: ["`ventojs` for templating.", "`ws` for sockets."], checks: ["pnpm"] });
 		expect(text).toContain("\tpnpm check # runs svelte-check\n");
