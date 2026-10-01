@@ -7,7 +7,7 @@ import { DEFAULT_OPTIONS, type ProjectOptions } from "./config.ts";
 import { render, type RenderInput } from "./render.ts";
 
 /** The paragraph that the template puts between the check steps and the commit instructions. */
-const NO_COMMIT_ALL = "Never `git commit -a` because there may others working; stage changes manually.\n\n";
+const NO_COMMIT_ALL = "Never `git commit -a` because there may be others working; stage changes manually.\n\n";
 
 const BASE: RenderInput = { options_text: "", options: DEFAULT_OPTIONS, project_sections: [], web_design_body: "" };
 
