@@ -20,7 +20,7 @@ web_design      = "2010"
 color_scheme    = "dark"
 sandbox_note    = "you're unable to hit production"
 tools_extra     = ["natscli (bin: nats)", "nats-server"]
-checks          = ["sqlx", "pnpm"]
+checks          = ["sqlx", "cargo"]
 commit_style    = "nixpkgs"
 
 [extra]
@@ -36,7 +36,7 @@ checks      = "plus the bank steps"
 			color_scheme:    "dark",
 			sandbox_note:    "you're unable to hit production",
 			tools_extra:     ["natscli (bin: nats)", "nats-server"],
-			checks:          ["sqlx", "pnpm"],
+			checks:          ["sqlx", "cargo"],
 			commit_style:    "nixpkgs",
 			extra: {
 				environment:      "There's a questdb.",
@@ -65,6 +65,11 @@ checks      = "plus the bank steps"
 		expect(() => parse_options("package_manager = \"npm\"")).toThrow("`package_manager` must be one of");
 		expect(() => parse_options("checks = [\"make\"]")).toThrow(OptionsError);
 		expect(() => parse_options("commit_style = \"svn\"")).toThrow(OptionsError);
+	});
+
+	it("rejects the pnpm check for a project that uses another package manager", () => {
+		expect(() => parse_options("package_manager = \"bun\"\nchecks = [\"pnpm\"]")).toThrow("the \"pnpm\" check runs pnpm");
+		expect(parse_options("package_manager = \"bun\"\nchecks = [\"cargo\"]").checks).toEqual(["cargo"]);
 	});
 
 	it("rejects values of the wrong shape", () => {

@@ -76,7 +76,7 @@ Every option has a default, so an empty header is valid.
 | `color_scheme` | `"both"`     | `"light"`, `"dark"`, or `"both"`, for the `"2010"` web design.                                       |
 | `sandbox_note` | `""`         | Appended to the sandbox hostname bullet, e.g. `"you're unable to hit production"`.                   |
 | `tools_extra`  | `[]`         | Installed tools worth mentioning, e.g. `["ffmpeg"]`; listed after `uv`.                              |
-| `checks`       | `[]`         | Steps before committing, in order: `"sqlx"` (`./make-sqlx-data`), `"pnpm"` (lint/check/test), `"cargo"` (`cargo test`). |
+| `checks`       | `[]`         | Steps before committing, in order: `"sqlx"` (`./make-sqlx-data`), `"pnpm"` (lint/check/test; needs `package_manager = "pnpm"`), `"cargo"` (`cargo test`). |
 | `commit_style` | `"template"` | `"nixpkgs"` replaces the commit template with nixpkgs-style commits.                                  |
 | `extra`        | `{}`         | A table of markdown (no `# ` headings) appended at named points: `environment`, `code_conventions`, `web_design` (for the `"2010"` design only; a `"custom"` section already is the project's), `checks`. |
 
