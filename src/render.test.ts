@@ -49,6 +49,8 @@ describe("render", () => {
 		expect(text).toContain("# Working with Node projects\n\nThis project uses bun; please don't run npm or pnpm here");
 		expect(text).toContain("mixes their layouts.\n\n# There's plenty of time");
 		expect(text).not.toContain("npm sux");
+		expect(text).toContain(", pnpm, bun, oxfmt, ");
+		expect(await render_with({ languages: ["typescript"] })).toContain(", pnpm, oxfmt, ");
 	});
 
 	it("uses svelte-check for Svelte and adds effection and extra libraries when asked", async () => {
