@@ -46,7 +46,7 @@ const options_arb: Arbitrary<ProjectOptions> = record({
 	checks:          uniqueArray(constantFrom(...CHECKS)),
 	commit_style:    constantFrom(...COMMIT_STYLES),
 	extra:           record({ environment: TEXT, code_conventions: TEXT, web_design: TEXT, checks: TEXT }),
-});
+}).filter((options) => options.package_manager === "pnpm" || !options.checks.includes("pnpm")); // what parse_options accepts
 
 const section_arb: Arbitrary<Section> = record({
 	heading: constantFrom("Project map", "The app", "This fork", "Upstream conventions (still binding)"),

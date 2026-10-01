@@ -198,6 +198,9 @@ export function parse_options(toml: string): ProjectOptions {
 				throw new OptionsError(`unknown option \`${key}\``);
 		}
 	}
+	if (options.checks.includes("pnpm") && options.package_manager !== "pnpm") {
+		throw new OptionsError(`the "pnpm" check runs pnpm, which \`package_manager = ${JSON.stringify(options.package_manager)}\` tells agents not to run`);
+	}
 	return options;
 }
 
