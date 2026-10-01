@@ -19,7 +19,7 @@ around it reads the same whether or not the block is emitted.
 {{ set claude_model  = "Claude Fable 5.1" }}
 {{ set chatgpt_model = "ChatGPT 6 Astra" }}
 {{ set claude_reviewers = ["claude-fable-5-1", "claude-opus-5-5"] }}
-{{ set tools = ["ripgrep", "ripgrep-all", "node", "deno", "pnpm", "oxfmt", "oxlint", "jq", "python3", "uv", ...tools_extra, "psql", "ephemeralpg (bin: pg_tmp)", "google-chrome", "curl-impersonate", "gcc", "go", "rustc", "cargo", "patchelf", "zip", "unzip", "zstd", "dmesg", "perf", "hyperfine", "codex", "claude"] }}
+{{ set tools = ["ripgrep", "ripgrep-all", "node", "deno", "pnpm", ...(package_manager == "bun" ? ["bun"] : []), "oxfmt", "oxlint", "jq", "python3", "uv", ...tools_extra, "psql", "ephemeralpg (bin: pg_tmp)", "google-chrome", "curl-impersonate", "gcc", "go", "rustc", "cargo", "patchelf", "zip", "unzip", "zstd", "dmesg", "perf", "hyperfine", "codex", "claude"] }}
 {{# What the options imply. #}}
 {{ set node   = languages.some((l) => ["typescript", "javascript", "svelte"].includes(l)) }}
 {{ set svelte = languages.includes("svelte") }}
