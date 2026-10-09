@@ -23,6 +23,7 @@ around it reads the same whether or not the block is emitted.
 {{# What the options imply. #}}
 {{ set node   = languages.some((l) => ["typescript", "javascript", "svelte"].includes(l)) }}
 {{ set svelte = languages.includes("svelte") }}
+{{ set python = languages.includes("python") }}
 {{ set braces = node || languages.some((l) => ["c", "cpp", "csharp"].includes(l)) }}
 {{ set sql    = languages.includes("sql") }}
 {{ set sandbox     = sandbox_note ? sandbox_note + "; " : "" }}
@@ -82,6 +83,12 @@ This project uses bun; avoid running npm or pnpm.
 npm sux; please use pnpm instead.
 {{ /if }}
 {{ /if }}
+{{ if python }}
+
+# Working with Python projects
+
+Use `uv`: `uv run` to run things, `uv add` for dependencies, `uvx` for one-off tools; never `pip install` into the system Python. A standalone script with dependencies declares them in a PEP 723 `# /// script` block, so that `uv run script.py` just works.
+{{ /if }}
 
 # There's plenty of time
 
@@ -99,10 +106,11 @@ Files with any LLM-authored code (not counting mechanistic sed-like changes) beg
 
 {{ extra.code_conventions }}
 {{ /if }}
-{{ if node }}
+{{ if node || python }}
 
 # Libraries to use
 
+{{ if node }}
 - `ayy` to assert things (when it's okay to throw `AssertionError` instead of a domain-specific error).
 	- Always use the most specific assertion function, so that the error message shows the unexpected value when possible.
 		- e.g. `A.gte(x, 1); A.lte(x, 3)` instead of `A(x >= 1 && x <= 3);`
@@ -110,11 +118,17 @@ Files with any LLM-authored code (not counting mechanistic sed-like changes) beg
 {{ if effection }}
 - `effection`. We like structured programming and async/await is lacking; prefer to write an Operation instead of a Promise-returning function (unless needed).
 {{ /if }}
+- `vitest` for unit tests. Writing more tests is fine.
+- `fast-check` for property-based testing where needed, i.e. to check a bunch of variations on a string or number.
+{{ /if }}
+{{ if python }}
+- `logging` from the standard library, one `logging.getLogger(__name__)` per module. Logs teach us about anomalies and the causes of things; log what a human operator would probably be interested in when observing the system.
+- `pytest` for unit tests. Writing more tests is fine.
+- `hypothesis` for property-based testing where needed, i.e. to check a bunch of variations on a string or number.
+{{ /if }}
 {{ for library of libraries_extra }}
 - {{ library }}
 {{ /for }}
-- `vitest` for unit tests. Writing more tests is fine.
-- `fast-check` for property-based testing where needed, i.e. to check a bunch of variations on a string or number.
 {{ /if }}
 {{ if web_design == "2010" }}
 

@@ -16,6 +16,7 @@ export const TEMPLATE_HEADINGS: ReadonlySet<string> = new Set([
 	"Avoid consuming tokens in excess",
 	"The user isn't always right",
 	"Working with Node projects",
+	"Working with Python projects",
 	"There's plenty of time",
 	"Tracking AI authorship",
 	"Code conventions",

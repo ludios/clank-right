@@ -16,6 +16,7 @@ languages       = ["typescript", "svelte", "sql"]
 package_manager = "bun"
 effection       = true
 libraries_extra = ["ventojs for templating."]
+python_indent   = "tabs"
 web_design      = "2010"
 color_scheme    = "dark"
 sandbox_note    = "you're unable to hit production"
@@ -32,6 +33,7 @@ checks      = "plus the bank steps"
 			package_manager: "bun",
 			effection:       true,
 			libraries_extra: ["ventojs for templating."],
+			python_indent:   "tabs",
 			web_design:      "2010",
 			color_scheme:    "dark",
 			sandbox_note:    "you're unable to hit production",
@@ -63,6 +65,7 @@ checks      = "plus the bank steps"
 		expect(() => parse_options("languages = [\"cobol\"]")).toThrow("`languages` must be one of");
 		expect(() => parse_options("web_design = \"2015\"")).toThrow("`web_design` must be one of");
 		expect(() => parse_options("package_manager = \"npm\"")).toThrow("`package_manager` must be one of");
+		expect(() => parse_options("python_indent = \"2\"")).toThrow("`python_indent` must be one of");
 		expect(() => parse_options("checks = [\"make\"]")).toThrow(OptionsError);
 		expect(() => parse_options("commit_style = \"svn\"")).toThrow(OptionsError);
 	});

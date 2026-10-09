@@ -1,3 +1,4 @@
+// Model-output: Claude Fable 5.1
 // Model-output: Claude Opus 5.5
 
 import { readFile } from "node:fs/promises";
@@ -11,10 +12,10 @@ describe("chatbots", () => {
 		expect(await readFile(chatbot_file(chatbot), "utf8")).toBe(await render_chatbot(chatbot));
 	});
 
-	it("carry the partials that a TypeScript project's AGENTS.md shares with them", async () => {
-		const agents_md = await render({ options_text: "", options: { ...DEFAULT_OPTIONS, languages: ["typescript"] }, project_sections: [], web_design_body: "" });
+	it("carry the partials that a TypeScript + Python project's AGENTS.md shares with them", async () => {
+		const agents_md = await render({ options_text: "", options: { ...DEFAULT_OPTIONS, languages: ["typescript", "python"] }, project_sections: [], web_design_body: "" });
 		for (const partial of ["push_back.vto", "programming_thoughts.vto", "code_conventions.vto"]) {
-			const shared = await render_template(partial, { node: true, braces: true });
+			const shared = await render_template(partial, { node: true, braces: true, python: true, python_indent: "spaces" });
 			expect(agents_md).toContain(shared);
 			for (const chatbot of CHATBOTS) {
 				expect(await render_chatbot(chatbot)).toContain(shared);

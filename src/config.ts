@@ -9,6 +9,7 @@ import { parse as parse_toml } from "smol-toml";
 
 export const LANGUAGES        = ["typescript", "javascript", "svelte", "rust", "c", "cpp", "csharp", "go", "python", "nix", "zsh", "sql"] as const;
 export const PACKAGE_MANAGERS = ["pnpm", "bun"] as const;
+export const PYTHON_INDENTS   = ["spaces", "tabs"] as const;
 export const CHECKS           = ["sqlx", "pnpm", "cargo"] as const;
 export const WEB_DESIGNS      = ["none", "2010", "custom"] as const;
 export const COLOR_SCHEMES    = ["light", "dark", "both"] as const;
@@ -17,6 +18,7 @@ const EXTRA_SLOTS             = ["environment", "code_conventions", "web_design"
 
 type Language       = (typeof LANGUAGES)[number];
 type PackageManager = (typeof PACKAGE_MANAGERS)[number];
+type PythonIndent   = (typeof PYTHON_INDENTS)[number];
 type Check          = (typeof CHECKS)[number];
 type WebDesign      = (typeof WEB_DESIGNS)[number];
 type ColorScheme    = (typeof COLOR_SCHEMES)[number];
@@ -31,8 +33,10 @@ export interface ProjectOptions {
 	package_manager: PackageManager;
 	/** Whether the Node code uses effection, which adds it to "Libraries to use". */
 	effection: boolean;
-	/** Further "Libraries to use" items for the Node code, each as the text after the bullet, e.g. "`ventojs` for templating." */
+	/** Further "Libraries to use" items, listed after the standard ones, each as the text after the bullet, e.g. "`ventojs` for templating." */
 	libraries_extra: string[];
+	/** How the Python code is indented: "spaces" (four, as PEP 8 says) or "tabs", for the older projects written that way. */
+	python_indent: PythonIndent;
 	/** "2010" for the standard web design section, "custom" to keep the repository's own "# Web design" section, "none" for no section. */
 	web_design: WebDesign;
 	/** Which color schemes the "2010" web design must support. */
@@ -57,6 +61,7 @@ export const DEFAULT_OPTIONS: Readonly<ProjectOptions> = {
 	package_manager: "pnpm",
 	effection:       false,
 	libraries_extra: [],
+	python_indent:   "spaces",
 	web_design:      "none",
 	color_scheme:    "both",
 	sandbox_note:    "",
@@ -172,6 +177,9 @@ export function parse_options(toml: string): ProjectOptions {
 				break;
 			case "libraries_extra":
 				options.libraries_extra = expect_line_list(key, value);
+				break;
+			case "python_indent":
+				options.python_indent = expect_one_of(key, value, PYTHON_INDENTS);
 				break;
 			case "web_design":
 				options.web_design = expect_one_of(key, value, WEB_DESIGNS);
