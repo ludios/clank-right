@@ -89,6 +89,7 @@ describe("render", () => {
 		expect(text).toContain("# Working with Python projects");
 		expect(text).toContain("For JavaScript, TypeScript, and Svelte-related code:");
 		expect(text).toContain("no ASI.\n\nFor Python code:");
+		expect(text).toContain("Minutae:\n\n- Use the { } curlies even for one-statement blocks.\n- Block contents");
 		expect(text).toContain("`break`, `throw`, `raise`, `yield`, `await` statements");
 		expect(text).toContain("string or number.\n- `logging` from the standard library");
 		expect(text).toContain("string or number.\n- `ws` for sockets.\n\n# Thoughts for when");
@@ -98,6 +99,7 @@ describe("render", () => {
 		const text = await render_with({ languages: [language] });
 		expect(text).toContain("\nWhen writing _any_ kind of code:\n\n- Think about invariants");
 		expect(text).toContain("Minutae:\n\n- Use the { } curlies even for one-statement blocks.\n- Block contents");
+		expect(text).toContain("`break`, `throw`, `yield`, `await` statements");
 		expect(text).not.toContain("# Working with Node projects");
 		expect(text).not.toContain("# Libraries to use");
 	});
