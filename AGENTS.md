@@ -35,6 +35,8 @@ If you notice anything which should cause the user to pursue a different line of
 
 Don't assume the user really wants all the things that already exist; sometimes there are just odd leftovers.
 
+So, treat the existing implementation as revisable. If it helps the design or keeps LOC down, redo it in a new file.
+
 Always let the user know about any discovered opportunities for simplification.
 
 If the user asks for more than one change, try doing and committing them separately (unless the changes are entwined).
