@@ -34,22 +34,11 @@ For JavaScript, TypeScript, and Svelte-related code:
 - Use tabs to indent and spaces to align.
 - `snake_case` function names and local variables, except those imported from external libraries or in the platform itself.
 - Use semicolons after statements; no ASI.
-- Classes should be used when:
-
-	1. You have anything like a state machine, or functions closing over the same state. \
-	   They help us organize and know which state is shared between related functions.
-	2. Integrating with an API properly, e.g. making an Error subclass.
-
-  Otherwise, plain functions are generally fine.
 
 For Python code:
 
 - Use 4 spaces to indent and spaces to align.
-- Type-hint every parameter and return value; the docstring then says what a value means, not what type it is.
-- The body of a compound statement goes on its own line: no `if x: return`.
-- `assert` is for invariants that only a bug could break; it vanishes under `python -O`, so bad input or external state gets an explicit `raise`.
-- Classes when functions share state (a state machine, a client) or an API wants one (an `Exception` subclass); plain functions otherwise. A plain record is a frozen `@dataclass`, not a dict or a tuple.
-- `main()` runs under `if __name__ == "__main__":` at the very end of the file.
+- Type-hint every parameter and return value.
 
 When writing _any_ kind of code, including for the above:
 
@@ -58,11 +47,18 @@ When writing _any_ kind of code, including for the above:
 - The "main" function goes at the end and depends on functions above, which depend on functions further above, etc.
 - Scan the functions and generalize if that makes a good result; evict any deadbeats: humans with a small context window need to review and maintain this code.
 - Abstraction boundaries are important. Comments should reflect the current abstraction and generally avoid talking about other things.
+- Classes should be used when:
+
+	1. You have anything like a state machine, or functions closing over the same state. \
+	   They help us organize and know which state is shared between related functions.
+	2. Integrating with an API properly, e.g. making an Error subclass.
+
+  Otherwise, plain functions are generally fine.
 
 Minutae:
 
 - Use the { } curlies even for one-statement blocks.
 - Block contents should not be on the same line that opened the block.
-- Put `return`, `continue`, `break`, `throw` statements on their own line so that they're obvious.
+- Put `return`, `continue`, `break`, `throw`, `raise`, `yield`, `await` statements on their own line so that they're obvious.
 - Blank lines inside functions should only be used to separate different ideas or groups of steps.
 - Use space-based alignment but only where it looks good: on adjacent lines with a very similar structure, add spaces after shorter identifiers (or the syntax to the right of them) to align things.

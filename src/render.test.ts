@@ -30,7 +30,7 @@ describe("render", () => {
 		expect(text).not.toContain("# Working with Python projects");
 		expect(text).not.toContain("# Libraries to use");
 		expect(text).toContain("\nWhen writing _any_ kind of code:\n\n- Think about invariants");
-		expect(text).not.toContain("curlies");
+		expect(text).toContain("Minutae:\n\n- Blank lines inside functions");
 		expect(text).not.toContain("For CREATE TABLE");
 	});
 
@@ -39,6 +39,7 @@ describe("render", () => {
 		expect(text).toContain("# Working with Node projects\n\nnpm sux");
 		expect(text).toContain("When writing _any_ kind of code, including for the above:");
 		expect(text).toContain("Minutae:\n\n- Use the { } curlies even for one-statement blocks.\n- Block contents");
+		expect(text).toContain("`break`, `throw`, `yield`, `await` statements");
 		expect(text).toContain("# Libraries to use\n\n- `ayy`");
 		expect(text).not.toContain("`effection`");
 		expect(text).toContain("\tpnpm check # runs tsc\n");
@@ -63,11 +64,11 @@ describe("render", () => {
 
 	it("adds the Python material, indented with spaces unless asked for tabs", async () => {
 		const text = await render_with({ languages: ["python"] });
-		expect(text).toContain("# Working with Python projects\n\nUse `uv`");
+		expect(text).toContain("# Working with Python projects\n\nUse `uv run`");
 		expect(text).not.toContain("# Working with Node projects");
 		expect(text).toContain("# Code conventions\n\nFor Python code:\n\n- Use 4 spaces to indent and spaces to align.\n");
 		expect(text).toContain("When writing _any_ kind of code, including for the above:");
-		expect(text).not.toContain("curlies");
+		expect(text).toContain("Minutae:\n\n- Block contents should not be on the same line that opened the block.\n- Put `return`, `continue`, `break`, `raise`, `yield`, `await` statements");
 		expect(text).toContain("# Libraries to use\n\n- `logging` from the standard library");
 		expect(text).not.toContain("`ayy`");
 		const tabs = await render_with({ languages: ["python"], python_indent: "tabs", checks: ["pytest"] });
@@ -87,7 +88,8 @@ describe("render", () => {
 		expect(text).toContain("# Working with Node projects\n\nnpm sux");
 		expect(text).toContain("# Working with Python projects");
 		expect(text).toContain("For JavaScript, TypeScript, and Svelte-related code:");
-		expect(text).toContain("plain functions are generally fine.\n\nFor Python code:");
+		expect(text).toContain("no ASI.\n\nFor Python code:");
+		expect(text).toContain("`break`, `throw`, `raise`, `yield`, `await` statements");
 		expect(text).toContain("string or number.\n- `logging` from the standard library");
 		expect(text).toContain("string or number.\n- `ws` for sockets.\n\n# Thoughts for when");
 	});

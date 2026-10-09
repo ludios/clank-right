@@ -38,8 +38,10 @@ Minutae:
 
 {{ if braces }}
 - Use the { } curlies even for one-statement blocks.
+{{ /if }}
+{{ if braces || python }}
 - Block contents should not be on the same line that opened the block.
-- Put `return`, `continue`, `break`, `{{ if python }}raise{{ else }}throw{{ /if }}`, `yield`, `await` statements on their own line so that they're obvious.
+- Put `return`, `continue`, `break`, {{ if braces }}`throw`, {{ /if }}{{ if python }}`raise`, {{ /if }}`yield`, `await` statements on their own line so that they're obvious.
 {{ /if }}
 - Blank lines inside functions should only be used to separate different ideas or groups of steps.
 - Use space-based alignment but only where it looks good: on adjacent lines with a very similar structure, add spaces after shorter identifiers (or the syntax to the right of them) to align things.
