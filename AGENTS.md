@@ -60,13 +60,6 @@ For JavaScript, TypeScript, and Svelte-related code:
 - Use tabs to indent and spaces to align.
 - `snake_case` function names and local variables, except those imported from external libraries or in the platform itself.
 - Use semicolons after statements; no ASI.
-- Classes should be used when:
-
-	1. You have anything like a state machine, or functions closing over the same state. \
-	   They help us organize and know which state is shared between related functions.
-	2. Integrating with an API properly, e.g. making an Error subclass.
-
-  Otherwise, plain functions are generally fine.
 
 When writing _any_ kind of code, including for the above:
 
@@ -75,12 +68,19 @@ When writing _any_ kind of code, including for the above:
 - The "main" function goes at the end and depends on functions above, which depend on functions further above, etc.
 - Scan the functions and generalize if that makes a good result; evict any deadbeats: humans with a small context window need to review and maintain this code.
 - Abstraction boundaries are important. Comments should reflect the current abstraction and generally avoid talking about other things.
+- Classes should be used when:
+
+	1. You have anything like a state machine, or functions closing over the same state. \
+	   They help us organize and know which state is shared between related functions.
+	2. Integrating with an API properly, e.g. making an Error subclass.
+
+  Otherwise, plain functions are generally fine.
 
 Minutae:
 
 - Use the { } curlies even for one-statement blocks.
 - Block contents should not be on the same line that opened the block.
-- Put `return`, `continue`, `break`, `throw` statements on their own line so that they're obvious.
+- Put `return`, `continue`, `break`, `throw`, `yield`, `await` statements on their own line so that they're obvious.
 - Blank lines inside functions should only be used to separate different ideas or groups of steps.
 - Use space-based alignment but only where it looks good: on adjacent lines with a very similar structure, add spaces after shorter identifiers (or the syntax to the right of them) to align things.
 
