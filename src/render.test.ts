@@ -64,7 +64,7 @@ describe("render", () => {
 
 	it("adds the Python material, indented with spaces unless asked for tabs", async () => {
 		const text = await render_with({ languages: ["python"] });
-		expect(text).toContain("# Working with Python projects\n\nUse `uv run`");
+		expect(text).toContain("# Working with Python projects\n\nPrefer `uv` and `uvx` over pip.");
 		expect(text).not.toContain("# Working with Node projects");
 		expect(text).toContain("# Code conventions\n\nFor Python code:\n\n- Use 4 spaces to indent and spaces to align.\n");
 		expect(text).toContain("When writing _any_ kind of code, including for the above:");
