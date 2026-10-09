@@ -8,7 +8,7 @@ import { join } from "node:path";
 import { array, assert, asyncProperty, boolean, constantFrom, record, uniqueArray, type Arbitrary } from "fast-check";
 import { stringify as stringify_toml } from "smol-toml";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { CHECKS, COLOR_SCHEMES, COMMIT_STYLES, LANGUAGES, PACKAGE_MANAGERS, WEB_DESIGNS, split_header, type ProjectOptions } from "./config.ts";
+import { CHECKS, COLOR_SCHEMES, COMMIT_STYLES, LANGUAGES, PACKAGE_MANAGERS, PYTHON_INDENTS, WEB_DESIGNS, split_header, type ProjectOptions } from "./config.ts";
 import { file_state, git } from "./git.ts";
 import { AGENTS_MD, ProjectError, commit_existing, inspect, regenerate, update, type Status } from "./project.ts";
 import { TEMPLATE_HEADINGS, join_sections, split_sections, type Section } from "./sections.ts";
@@ -39,6 +39,7 @@ const options_arb: Arbitrary<ProjectOptions> = record({
 	package_manager: constantFrom(...PACKAGE_MANAGERS),
 	effection:       boolean(),
 	libraries_extra: array(constantFrom("`ventojs` for templating.", "`ws` for sockets."), { maxLength: 2 }),
+	python_indent:   constantFrom(...PYTHON_INDENTS),
 	web_design:      constantFrom(...WEB_DESIGNS),
 	color_scheme:    constantFrom(...COLOR_SCHEMES),
 	sandbox_note:    constantFrom("", "you're unable to hit production"),
@@ -103,7 +104,7 @@ describe("regenerate", () => {
 	});
 
 	it("emits exactly the template headings when every option is on", async () => {
-		const everything = "languages = [\"typescript\", \"c\", \"sql\"]\nweb_design = \"2010\"\nchecks = [\"pnpm\"]";
+		const everything = "languages = [\"typescript\", \"c\", \"python\", \"sql\"]\nweb_design = \"2010\"\nchecks = [\"pnpm\"]";
 		const { rendered } = await regenerate(header(everything));
 		expect(new Set(headings_of(rendered))).toEqual(TEMPLATE_HEADINGS);
 	});

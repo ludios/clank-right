@@ -24,9 +24,10 @@ describe("render", () => {
 		expect(text).toContain("\n\nlanguages = [\"rust\"]\n-->\n\n# Environment\n");
 	});
 
-	it("omits Node material for a non-Node project", async () => {
-		const text = await render_with({ languages: ["python"] });
+	it("omits Node and Python material for a project in neither", async () => {
+		const text = await render_with({ languages: ["rust"] });
 		expect(text).not.toContain("# Working with Node projects");
+		expect(text).not.toContain("# Working with Python projects");
 		expect(text).not.toContain("# Libraries to use");
 		expect(text).toContain("\nWhen writing _any_ kind of code:\n\n- Think about invariants");
 		expect(text).not.toContain("curlies");
@@ -56,7 +57,31 @@ describe("render", () => {
 		const text = await render_with({ languages: ["svelte"], effection: true, libraries_extra: ["`ventojs` for templating.", "`ws` for sockets."], checks: ["pnpm"] });
 		expect(text).toContain("\tpnpm check # runs svelte-check\n");
 		expect(text).toContain("when observing the system.\n- `effection`. We like structured programming");
-		expect(text).toContain("(unless needed).\n- `ventojs` for templating.\n- `ws` for sockets.\n- `vitest` for unit tests");
+		expect(text).toContain("(unless needed).\n- `vitest` for unit tests");
+		expect(text).toContain("string or number.\n- `ventojs` for templating.\n- `ws` for sockets.\n\n# Thoughts for when");
+	});
+
+	it("adds the Python material, indented with spaces unless asked for tabs", async () => {
+		const text = await render_with({ languages: ["python"] });
+		expect(text).toContain("# Working with Python projects\n\nUse `uv`");
+		expect(text).not.toContain("# Working with Node projects");
+		expect(text).toContain("# Code conventions\n\nFor Python code:\n\n- Use 4 spaces to indent and spaces to align.\n");
+		expect(text).toContain("When writing _any_ kind of code, including for the above:");
+		expect(text).not.toContain("curlies");
+		expect(text).toContain("# Libraries to use\n\n- `logging` from the standard library");
+		expect(text).not.toContain("`ayy`");
+		const tabs = await render_with({ languages: ["python"], python_indent: "tabs" });
+		expect(tabs).toContain("\nFor Python code:\n\n- Use tabs to indent and spaces to align.\n");
+	});
+
+	it("lists the Node libraries, then the Python ones, then the extras in a mixed project", async () => {
+		const text = await render_with({ languages: ["typescript", "python"], libraries_extra: ["`ws` for sockets."] });
+		expect(text).toContain("# Working with Node projects\n\nnpm sux");
+		expect(text).toContain("# Working with Python projects");
+		expect(text).toContain("For JavaScript, TypeScript, and Svelte-related code:");
+		expect(text).toContain("plain functions are generally fine.\n\nFor Python code:");
+		expect(text).toContain("string or number.\n- `logging` from the standard library");
+		expect(text).toContain("string or number.\n- `ws` for sockets.\n\n# Thoughts for when");
 	});
 
 	it.each(["c", "cpp", "csharp"] as const)("adds the brace rules for %s without the Node material", async (language) => {

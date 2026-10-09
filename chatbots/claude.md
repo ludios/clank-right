@@ -42,6 +42,15 @@ For JavaScript, TypeScript, and Svelte-related code:
 
   Otherwise, plain functions are generally fine.
 
+For Python code:
+
+- Use 4 spaces to indent and spaces to align.
+- Type-hint every parameter and return value; the docstring then says what a value means, not what type it is.
+- The body of a compound statement goes on its own line: no `if x: return`.
+- `assert` is for invariants that only a bug could break; it vanishes under `python -O`, so bad input or external state gets an explicit `raise`.
+- Classes when functions share state (a state machine, a client) or an API wants one (an `Exception` subclass); plain functions otherwise. A plain record is a frozen `@dataclass`, not a dict or a tuple.
+- `main()` runs under `if __name__ == "__main__":` at the very end of the file.
+
 When writing _any_ kind of code, including for the above:
 
 - Think about invariants and add asserts or domain-specific errors where they might prevent misbehavior.
