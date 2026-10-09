@@ -90,9 +90,9 @@ Minutae:
 	- Always use the most specific assertion function, so that the error message shows the unexpected value when possible.
 		- e.g. `A.gte(x, 1); A.lte(x, 3)` instead of `A(x >= 1 && x <= 3);`
 - `logtape` for logging. Logs teach us about anomalies and the causes of things; log what a human operator would probably be interested in when observing the system.
-- `ventojs` for plain text templating.
 - `vitest` for unit tests. Writing more tests is fine.
 - `fast-check` for property-based testing where needed, i.e. to check a bunch of variations on a string or number.
+- `ventojs` for plain text templating.
 
 # Thoughts for when there is programming involved
 
