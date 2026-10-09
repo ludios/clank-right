@@ -70,14 +70,14 @@ Every option has a default, so an empty header is valid.
 | -------------- | ------------ | ---------------------------------------------------------------------------------------------------- |
 | `languages`    | `[]`         | `typescript`/`javascript`/`svelte` select the Node sections; `svelte` picks `svelte-check`; `python` selects the Python sections; `c`/`cpp`/`csharp` add the brace rules; `sql` adds the DDL paragraph. Also `rust`, `go`, `nix`, `zsh`. |
 | `package_manager` | `"pnpm"`  | `"bun"` tells agents to use bun, not npm or pnpm, in the Node code; `"pnpm"` tells them to use pnpm, not npm. |
-| `effection`    | `false`      | Lists `effection` under "Libraries to use".                                                          |
+| `effection`    | `false`      | Lists `effection` among the Node "Libraries to use".                                                 |
 | `libraries_extra` | `[]`      | More "Libraries to use" items after the standard ones, each as the text after the bullet, e.g. `` ["`ventojs` for templating."] ``. |
 | `python_indent` | `"spaces"` | `"tabs"` indents the Python code with tabs instead of four spaces, for the older projects written that way.          |
 | `web_design`   | `"none"`     | `"2010"` for the standard section; `"custom"` keeps the repository's own `# Web design` section.     |
 | `color_scheme` | `"both"`     | `"light"`, `"dark"`, or `"both"`, for the `"2010"` web design.                                       |
 | `sandbox_note` | `""`         | Appended to the sandbox hostname bullet, e.g. `"you're unable to hit production"`.                   |
 | `tools_extra`  | `[]`         | Installed tools worth mentioning, e.g. `["ffmpeg"]`; listed after `uv`.                              |
-| `checks`       | `[]`         | Steps before committing, in order: `"sqlx"` (`./make-sqlx-data`), `"pnpm"` (lint/check/test; needs `package_manager = "pnpm"`), `"cargo"` (`cargo test`). |
+| `checks`       | `[]`         | Steps before committing, in order: `"sqlx"` (`./make-sqlx-data`), `"pnpm"` (lint/check/test; needs `package_manager = "pnpm"`), `"cargo"` (`cargo test`), `"pytest"` (`uv run pytest`). |
 | `commit_style` | `"template"` | `"nixpkgs"` replaces the commit template with nixpkgs-style commits.                                  |
 | `extra`        | `{}`         | A table of markdown (no `# ` headings) appended at named points: `environment`, `code_conventions`, `web_design` (for the `"2010"` design only; a `"custom"` section already is the project's), `checks`. |
 
