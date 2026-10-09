@@ -70,8 +70,16 @@ describe("render", () => {
 		expect(text).not.toContain("curlies");
 		expect(text).toContain("# Libraries to use\n\n- `logging` from the standard library");
 		expect(text).not.toContain("`ayy`");
-		const tabs = await render_with({ languages: ["python"], python_indent: "tabs" });
+		const tabs = await render_with({ languages: ["python"], python_indent: "tabs", checks: ["pytest"] });
 		expect(tabs).toContain("\nFor Python code:\n\n- Use tabs to indent and spaces to align.\n");
+		expect(tabs).toContain("# After making changes\n\nAt the workspace root:\n\n\tuv run pytest\n\nNever `git commit -a`");
+		expect(tabs).toContain("\n\nThen automatically commit your changes");
+	});
+
+	it("lists the extra libraries for a project in neither Node nor Python, and no section without them", async () => {
+		const text = await render_with({ languages: ["rust"], libraries_extra: ["`tokio` for async."] });
+		expect(text).toContain("# Libraries to use\n\n- `tokio` for async.\n\n# Thoughts for when");
+		expect(await render_with({ languages: ["rust"] })).not.toContain("# Libraries to use");
 	});
 
 	it("lists the Node libraries, then the Python ones, then the extras in a mixed project", async () => {

@@ -106,7 +106,7 @@ Files with any LLM-authored code (not counting mechanistic sed-like changes) beg
 
 {{ extra.code_conventions }}
 {{ /if }}
-{{ if node || python }}
+{{ if node || python || libraries_extra.length > 0 }}
 
 # Libraries to use
 
@@ -197,6 +197,11 @@ At the workspace root:
 At the workspace root:
 
 	cargo test
+{{ else if check == "pytest" }}
+
+At the workspace root:
+
+	uv run pytest
 {{ /if }}
 {{ /for }}
 {{ if extra.checks }}
