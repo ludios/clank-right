@@ -31,6 +31,7 @@ describe("render", () => {
 		expect(text).not.toContain("# Libraries to use");
 		expect(text).toContain("\nWhen writing _any_ kind of code:\n\n- Think about invariants");
 		expect(text).toContain("Minutae:\n\n- Blank lines inside functions");
+		expect(text).toContain("avoid talking about other things.\n\nMinutae:");
 		expect(text).not.toContain("For CREATE TABLE");
 	});
 
@@ -102,6 +103,12 @@ describe("render", () => {
 		expect(text).toContain("`break`, `throw`, `yield`, `await` statements");
 		expect(text).not.toContain("# Working with Node projects");
 		expect(text).not.toContain("# Libraries to use");
+	});
+
+	it.each(["typescript", "javascript", "svelte", "python", "cpp", "csharp"] as const)("advises on classes for %s", async (language) => {
+		const text = await render_with({ languages: [language] });
+		expect(text).toContain("avoid talking about other things.\n- Classes should be used when:");
+		expect(text).toContain("plain functions are generally fine.\n\nMinutae:");
 	});
 
 	it("adds the DDL paragraph for SQL", async () => {
