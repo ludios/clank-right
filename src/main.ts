@@ -15,7 +15,7 @@ import { CHATBOTS, chatbot_file, write_chatbot } from "./chatbots.ts";
 import { GitError, git } from "./git.ts";
 import { config_home, tilde, untilde } from "./paths.ts";
 import { run_process } from "./process.ts";
-import { AGENTS_MD, ProjectError, commit_existing, inspect, update, type Status } from "./project.ts";
+import { AGENTS_MD, ProjectError, commit_existing, inspect, update, type Status, type Updated } from "./project.ts";
 import { TOOL_DIR } from "./render.ts";
 
 const PROJECTS_FILE = join(config_home(), "clank-right", "projects.txt");
@@ -26,8 +26,9 @@ clank-right chatbots
 
 check     Report which repositories' ${AGENTS_MD} differ from what the template
           generates, or are not committed; --diff shows how. Exits 1 if any.
-update    Regenerate each differing ${AGENTS_MD} and commit it, alone. One that
-          already has uncommitted changes is refused, unless
+update    Regenerate each differing ${AGENTS_MD} and commit it, alone, amending
+          the previous regeneration instead when that's an unpushed HEAD. One
+          that already has uncommitted changes is refused, unless
           --commit-existing-changes first commits it as it is, alone, with MESSAGE.
 chatbots  Rewrite chatbots/claude.md and chatbots/chatgpt.md in this checkout
           from templates/chatbot.vto, for pasting into each chatbot's settings.
@@ -149,6 +150,17 @@ function describe_status(status: Status): string {
 	return status.dropped.length > 0 ? `dirty (drops: ${status.dropped.join(", ")})` : "dirty";
 }
 
+/** @returns One line's worth of words about what `update` did. */
+function describe_updated(updated: Updated): string {
+	if (updated.kind === "committed") {
+		return `committed ${updated.sha}`;
+	}
+	if (updated.kind === "replaced") {
+		return `committed ${updated.sha}, replacing unpushed ${updated.replaced}`;
+	}
+	return `removed unpushed ${updated.replaced}; ${AGENTS_MD} is back to what its parent had`;
+}
+
 /**
  * @param dirs Repositories to inspect.
  * @param show_diff Whether to print each dirty repository's diff.
@@ -177,7 +189,6 @@ async function check(dirs: string[], show_diff: boolean): Promise<number> {
 async function update_all(dirs: string[], existing_message: string | undefined): Promise<number> {
 	// `--always --dirty`: enough to find this checkout's commit later, and whether its tree was clean.
 	const version = await git(TOOL_DIR, "describe", "--always", "--dirty");
-	const message = `${AGENTS_MD}: regenerate from clank-right template (${version})`;
 	let failures = 0;
 	for (const dir of dirs) {
 		try {
@@ -193,9 +204,9 @@ async function update_all(dirs: string[], existing_message: string | undefined):
 				failures += status.kind === "clean" ? 0 : 1;
 				continue;
 			}
-			const sha = await update(dir, status.rendered, message);
+			const updated = await update(dir, status.rendered, version);
 			const dropped = status.dropped.length > 0 ? ` (dropped: ${status.dropped.join(", ")})` : "";
-			console.log(`${tilde(dir)}: committed ${sha}${dropped}`);
+			console.log(`${tilde(dir)}: ${describe_updated(updated)}${dropped}`);
 		} catch (error) {
 			if (!(error instanceof ProjectError || error instanceof GitError)) {
 				throw error;

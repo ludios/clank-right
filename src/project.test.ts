@@ -54,6 +54,9 @@ const section_arb: Arbitrary<Section> = record({
 	body:    constantFrom("Text.", "- a/ - things\n- b/ - stuff", "## Sub\n\nMore.\n\n\tcode", "Gaps.\n\n\n\nWide.", "~~~\n# fenced\n\n\n~~~"),
 });
 
+/** The subject `update` gives its commit for the template version `version`. */
+const subject = (version: string) => `${AGENTS_MD}: regenerate from clank-right template (${version})`;
+
 /** A "custom" web design needs a section to keep, so the file gets one. */
 const WEB_DESIGN_SECTION: Section = { heading: "Web design", body: "Bespoke rules.\n\n- one" };
 
@@ -135,6 +138,7 @@ describe("in a repository", () => {
 	/** @returns The paths in the commit `ref` touches. */
 	const touched = (ref: string) => git(repo, "show", "--name-only", "--format=", ref);
 	const agents = () => join(repo, AGENTS_MD);
+	const head_sha = () => git(repo, "rev-parse", "--short", "HEAD");
 
 	beforeEach(async () => {
 		repo = await mkdtemp(join(tmpdir(), "clank-right-"));
@@ -160,10 +164,10 @@ describe("in a repository", () => {
 
 			const status = await inspect(repo);
 			assert_dirty(status);
-			const sha = await update(repo, status.rendered, "AGENTS.md: regenerate");
+			const updated = await update(repo, status.rendered, "v1");
 			expect(await touched("HEAD")).toBe(AGENTS_MD);
-			expect(await git(repo, "rev-parse", "--short", "HEAD")).toBe(sha);
-			expect(await git(repo, "log", "--format=%s", "-1")).toBe("AGENTS.md: regenerate");
+			expect(updated).toEqual({ kind: "committed", sha: await head_sha() });
+			expect(await git(repo, "log", "--format=%s")).toBe(`${subject("v1")}\ninitial`);
 			expect(await readFile(agents(), "utf8")).toBe(status.rendered);
 			expect(await inspect(repo)).toEqual({ kind: "clean" });
 			expect(await git(repo, "diff", "--cached", "--name-only")).toBe("other.txt");
@@ -174,7 +178,7 @@ describe("in a repository", () => {
 			await writeFile(join(repo, ".git", "hooks", "pre-commit"), "#!/bin/sh\nexit 1\n", { mode: 0o755 });
 			const status = await inspect(repo);
 			assert_dirty(status);
-			await expect(update(repo, status.rendered, "m")).rejects.toThrow("regenerated and staged but not committed");
+			await expect(update(repo, status.rendered, "v1")).rejects.toThrow("regenerated and staged but not committed");
 			expect(await readFile(agents(), "utf8")).toBe(status.rendered);
 			expect(await inspect(repo)).toEqual({ kind: "uncommitted" });
 			expect(await git(repo, "log", "--format=%s")).toBe("initial");
@@ -185,7 +189,7 @@ describe("in a repository", () => {
 			await writeFile(agents(), before + "\n# Hand edit\n\nx\n");
 			const status = await inspect(repo);
 			assert_dirty(status);
-			await expect(update(repo, status.rendered, "m")).rejects.toThrow("uncommitted changes");
+			await expect(update(repo, status.rendered, "v1")).rejects.toThrow("uncommitted changes");
 			expect(await readFile(agents(), "utf8")).toBe(before + "\n# Hand edit\n\nx\n");
 		});
 
@@ -196,9 +200,75 @@ describe("in a repository", () => {
 			await writeFile(agents(), header(""));
 			const status = await inspect(repo);
 			assert_dirty(status);
-			await update(repo, status.rendered, "add");
+			await update(repo, status.rendered, "v1");
 			expect(await touched("HEAD")).toBe(AGENTS_MD);
 			expect(await inspect(repo)).toEqual({ kind: "clean" });
+		});
+
+		describe("after an unpushed regeneration of its own", () => {
+			/**
+			 * Commits AGENTS.md as an earlier template version made it.
+			 * @param text What that template made of the file.
+			 * @param also More paths the commit changes, which an `update` never would.
+			 * @returns The commit's short hash.
+			 */
+			async function commit_stale(text: string, ...also: string[]): Promise<string> {
+				await writeFile(agents(), text);
+				await git(repo, "commit", "--quiet", "--message", subject("v0"), "--", AGENTS_MD, ...also);
+				return await head_sha();
+			}
+
+			it("amends it instead of piling another on top", async () => {
+				const stale = await commit_stale(await readFile(agents(), "utf8") + "\n# Environment\n\nStale.\n");
+				await writeFile(join(repo, "other.txt"), "two\n");
+				await git(repo, "add", "other.txt");
+
+				const status = await inspect(repo);
+				assert_dirty(status);
+				const updated = await update(repo, status.rendered, "v1");
+				expect(updated).toEqual({ kind: "replaced", sha: await head_sha(), replaced: stale });
+				expect(await git(repo, "log", "--format=%s")).toBe(`${subject("v1")}\ninitial`);
+				expect(await touched("HEAD")).toBe(AGENTS_MD);
+				expect(await inspect(repo)).toEqual({ kind: "clean" });
+				expect(await git(repo, "diff", "--cached", "--name-only")).toBe("other.txt");
+			});
+
+			it("removes it when the file is back to what its parent had", async () => {
+				const { rendered } = await regenerate(await readFile(agents(), "utf8"));
+				await writeFile(agents(), rendered);
+				await git(repo, "commit", "--quiet", "--message", "by hand", "--", AGENTS_MD);
+				const stale_text = rendered.replace("# Environment\n\n", "# Environment\n\nStale.\n\n");
+				expect(stale_text).not.toBe(rendered);
+				const stale = await commit_stale(stale_text);
+				await writeFile(join(repo, "other.txt"), "two\n");
+				await git(repo, "add", "other.txt");
+
+				const status = await inspect(repo);
+				assert_dirty(status);
+				expect(status.rendered).toBe(rendered);
+				expect(await update(repo, status.rendered, "v1")).toEqual({ kind: "undone", replaced: stale });
+				expect(await git(repo, "log", "--format=%s")).toBe("by hand\ninitial");
+				expect(await inspect(repo)).toEqual({ kind: "clean" });
+				expect(await git(repo, "status", "--porcelain")).toBe("M  other.txt");
+			});
+
+			it("piles another on top once a remote-tracking branch has it", async () => {
+				await commit_stale(await readFile(agents(), "utf8") + "\n# Environment\n\nStale.\n");
+				await git(repo, "update-ref", "refs/remotes/origin/master", "HEAD");
+				const status = await inspect(repo);
+				assert_dirty(status);
+				expect(await update(repo, status.rendered, "v1")).toEqual({ kind: "committed", sha: await head_sha() });
+				expect(await git(repo, "log", "--format=%s")).toBe(`${subject("v1")}\n${subject("v0")}\ninitial`);
+			});
+
+			it("piles another on top when it changes more than AGENTS.md", async () => {
+				await writeFile(join(repo, "other.txt"), "two\n");
+				await commit_stale(await readFile(agents(), "utf8") + "\n# Environment\n\nStale.\n", "other.txt");
+				const status = await inspect(repo);
+				assert_dirty(status);
+				expect(await update(repo, status.rendered, "v1")).toMatchObject({ kind: "committed" });
+				expect(await git(repo, "log", "--format=%s")).toBe(`${subject("v1")}\n${subject("v0")}\ninitial`);
+			});
 		});
 	});
 
@@ -218,8 +288,8 @@ describe("in a repository", () => {
 
 			const status = await inspect(repo);
 			assert_dirty(status);
-			await update(repo, status.rendered, "regenerate");
-			expect(await git(repo, "log", "--format=%s")).toBe("regenerate\nhand edit\ninitial");
+			await update(repo, status.rendered, "v1");
+			expect(await git(repo, "log", "--format=%s")).toBe(`${subject("v1")}\nhand edit\ninitial`);
 			expect(await touched("HEAD")).toBe(AGENTS_MD);
 			expect(await readFile(agents(), "utf8")).toContain("# Hand edit\n\nx\n");
 			expect(await inspect(repo)).toEqual({ kind: "clean" });
@@ -251,8 +321,8 @@ describe("in a repository", () => {
 			expect(await git(repo, "log", "--format=%s")).toBe("initial");
 			const status = await inspect(repo);
 			assert_dirty(status);
-			await update(repo, status.rendered, "regenerate");
-			expect(await git(repo, "log", "--format=%s")).toBe("regenerate\ninitial");
+			await update(repo, status.rendered, "v1");
+			expect(await git(repo, "log", "--format=%s")).toBe(`${subject("v1")}\ninitial`);
 			expect(await inspect(repo)).toEqual({ kind: "clean" });
 		});
 	});
