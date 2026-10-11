@@ -28,6 +28,12 @@ alone, with `MESSAGE`, and the regeneration follows as its own commit. If git
 refuses a commit (a hook, signing), the regenerated file stays in place and
 staged, and both commands report it as not committed until you commit it.
 
+So that template edits don't pile up regeneration commits between pushes, when
+`HEAD` is already one of `update`'s commits, changes only `AGENTS.md`, and no
+ref but the checked-out branch has it (no remote-tracking branch as of your
+last fetch or push, no tag, no other branch), `update` amends it instead. If
+the file is back to what that commit's parent had, `update` removes the commit.
+
 Without `DIR`s, both commands go through every repository listed in
 `~/.config/clank-right/projects.txt` (`$XDG_CONFIG_HOME` is honoured when set).
 `clank-right update .` regenerates the repository you're in.

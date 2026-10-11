@@ -1,4 +1,5 @@
 // Model-output: Claude Fable 5.1
+// Model-output: Claude Opus 5.5
 //
 // One managed repository: reading its AGENTS.md, deciding whether it matches
 // the template, and committing a regenerated one.
@@ -8,11 +9,13 @@ import { join } from "node:path";
 import { A } from "ayy";
 import { getLogger } from "@logtape/logtape";
 import { OptionsError, parse_options, split_header } from "./config.ts";
-import { GitError, commit_only, file_state } from "./git.ts";
+import { GitError, commit_only, file_state, git, head_commit, other_refs_containing_head } from "./git.ts";
 import { render } from "./render.ts";
 import { is_template_heading, split_sections } from "./sections.ts";
 
 export const AGENTS_MD = "AGENTS.md";
+/** The subject of every commit `update` makes, up to the template's version in parentheses. */
+const UPDATE_SUBJECT = `${AGENTS_MD}: regenerate from clank-right template`;
 const log = getLogger(["clank-right"]);
 
 /** The file can't be regenerated as it is; the human has to act. */
@@ -114,30 +117,76 @@ export async function commit_existing(dir: string, message: string): Promise<str
 }
 
 /**
- * Writes the regenerated AGENTS.md and commits it alone.
+ * @param dir The repository's working directory.
+ * @returns HEAD's short hash when HEAD is a commit `update` made, changing only AGENTS.md, that no ref but the
+ * checked-out branch has, i.e. as far as this clone knows, it hasn't been pushed. A newer regeneration can then
+ * replace it instead of piling up on it. Otherwise null.
+ */
+async function replaceable_head(dir: string): Promise<string | null> {
+	const head = await head_commit(dir);
+	if (head === null || !head.subject.startsWith(`${UPDATE_SUBJECT} (`)) {
+		return null;
+	}
+	if (head.parents.length !== 1 || head.paths.length !== 1 || head.paths[0] !== AGENTS_MD) {
+		log.info("{sha} in {dir} has the subject of a regeneration but changes {paths} with {parents} parents; not replacing it", {
+			sha: head.sha, dir, paths: head.paths, parents: head.parents.length,
+		});
+		return null;
+	}
+	const refs = await other_refs_containing_head(dir);
+	if (refs.length > 0) {
+		log.info("not replacing {sha} in {dir}, which {refs} also contain", { sha: head.sha, dir, refs });
+		return null;
+	}
+	return head.sha;
+}
+
+/** What `update` did to the checked-out branch. */
+export type Updated =
+	| { kind: "committed"; sha: string }
+	/** HEAD was `replaced`, an unpushed regeneration; `sha` amends it. */
+	| { kind: "replaced"; sha: string; replaced: string }
+	/** HEAD was `replaced`, an unpushed regeneration, and the file is back to what its parent had, so it's gone. */
+	| { kind: "undone"; replaced: string };
+
+/**
+ * Writes the regenerated AGENTS.md and commits it alone. If HEAD is an unpushed commit of this function's, amends
+ * that instead, or removes it when the file is back to what its parent had; whatever else is staged stays staged.
  * @param dir The repository's working directory.
  * @param rendered The text to write, from `inspect`.
- * @param message The commit message.
- * @returns The new commit's short hash.
+ * @param version Which template made `rendered`, for the commit message.
+ * @returns What happened to the branch.
  * @throws ProjectError when AGENTS.md already has uncommitted changes, which the commit would otherwise sweep up
  * unreviewed, or when git refuses the commit (a hook, signing): the regenerated file is then left in place and
  * staged, and `inspect` reports it as "uncommitted" until the human commits it.
  */
-export async function update(dir: string, rendered: string, message: string): Promise<string> {
+export async function update(dir: string, rendered: string, version: string): Promise<Updated> {
 	const state = await file_state(dir, AGENTS_MD);
 	if (state === "modified") {
 		throw new ProjectError(`${AGENTS_MD} has uncommitted changes; commit or stash them first, or pass --commit-existing-changes`);
 	}
+	const replaced = await replaceable_head(dir);
 	await writeFile(join(dir, AGENTS_MD), rendered);
+	if (replaced !== null && await git(dir, "diff", "--name-only", "HEAD^", "--", AGENTS_MD) === "") {
+		await git(dir, "reset", "--quiet", "--soft", "HEAD^");
+		await git(dir, "add", "--", AGENTS_MD);
+		log.info("undid {sha} in {dir}, since {file} is back to what its parent had", { sha: replaced, dir, file: AGENTS_MD });
+		return { kind: "undone", replaced };
+	}
 	let sha: string;
 	try {
-		sha = await commit_only(dir, AGENTS_MD, message);
+		sha = await commit_only(dir, AGENTS_MD, `${UPDATE_SUBJECT} (${version})`, replaced !== null);
 	} catch (error) {
 		if (error instanceof GitError) {
-			throw new ProjectError(`${AGENTS_MD} was regenerated and staged but not committed; commit it yourself once this is fixed: ${error.message}`);
+			const remedy = replaced === null ? "commit it yourself" : `amend ${replaced} with it yourself`;
+			throw new ProjectError(`${AGENTS_MD} was regenerated and staged but not committed; ${remedy} once this is fixed: ${error.message}`);
 		}
 		throw error;
 	}
-	log.info("committed {sha} in {dir}", { sha, dir });
-	return sha;
+	if (replaced === null) {
+		log.info("committed {sha} in {dir}", { sha, dir });
+		return { kind: "committed", sha };
+	}
+	log.info("committed {sha} in {dir}, replacing {replaced}", { sha, dir, replaced });
+	return { kind: "replaced", sha, replaced };
 }
