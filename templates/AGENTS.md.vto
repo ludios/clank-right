@@ -21,11 +21,12 @@ around it reads the same whether or not the block is emitted.
 {{ set claude_reviewers = ["claude-fable-5-1", "claude-opus-5-5"] }}
 {{ set tools = ["ripgrep", "ripgrep-all", "node", "deno", "pnpm", ...(package_manager == "bun" ? ["bun"] : []), "oxfmt", "oxlint", "jq", "python3", "uv", ...tools_extra, "psql", "ephemeralpg (bin: pg_tmp)", "google-chrome", "curl-impersonate", "gcc", "go", "rustc", "cargo", "patchelf", "zip", "unzip", "zstd", "dmesg", "perf", "hyperfine", "codex", "claude"] }}
 {{# What the options imply. #}}
-{{ set node   = languages.some((l) => ["typescript", "javascript", "svelte"].includes(l)) }}
-{{ set svelte = languages.includes("svelte") }}
-{{ set python = languages.includes("python") }}
-{{ set braces = node || languages.some((l) => ["c", "cpp", "csharp"].includes(l)) }}
-{{ set sql    = languages.includes("sql") }}
+{{ set node    = languages.some((l) => ["typescript", "javascript", "svelte"].includes(l)) }}
+{{ set svelte  = languages.includes("svelte") }}
+{{ set python  = languages.includes("python") }}
+{{ set braces  = node || languages.some((l) => ["c", "cpp", "csharp"].includes(l)) }}
+{{ set classes = node || python || languages.some((l) => ["cpp", "csharp"].includes(l)) }}
+{{ set sql     = languages.includes("sql") }}
 {{ set sandbox     = sandbox_note ? sandbox_note + "; " : "" }}
 {{ set checker     = svelte ? "svelte-check" : "tsc" }}
 {{ set commit_verb = (checks.length > 0 || extra.checks) ? "Then automatically" : "Automatically" }}
