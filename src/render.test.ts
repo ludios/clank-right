@@ -3,11 +3,14 @@
 // Model-output: Claude Opus 5.5
 
 import { describe, expect, it } from "vitest";
-import { DEFAULT_OPTIONS, type ProjectOptions } from "./config.ts";
+import { DEFAULT_OPTIONS, LANGUAGES, type ProjectOptions } from "./config.ts";
 import { render, type RenderInput } from "./render.ts";
 
 /** The paragraph that the template puts between the check steps and the commit instructions. */
 const NO_COMMIT_ALL = "Never `git commit -a` because there may be others working; stage changes manually.\n\n";
+
+/** The languages that have classes, for which the template advises on when to use them. */
+const CLASS_LANGUAGES: ReadonlySet<string> = new Set(["typescript", "javascript", "svelte", "python", "cpp", "csharp"]);
 
 const BASE: RenderInput = { options_text: "", options: DEFAULT_OPTIONS, project_sections: [], web_design_body: "" };
 
@@ -31,7 +34,6 @@ describe("render", () => {
 		expect(text).not.toContain("# Libraries to use");
 		expect(text).toContain("\nWhen writing _any_ kind of code:\n\n- Think about invariants");
 		expect(text).toContain("Minutae:\n\n- Blank lines inside functions");
-		expect(text).toContain("avoid talking about other things.\n\nMinutae:");
 		expect(text).not.toContain("For CREATE TABLE");
 	});
 
@@ -105,10 +107,11 @@ describe("render", () => {
 		expect(text).not.toContain("# Libraries to use");
 	});
 
-	it.each(["typescript", "javascript", "svelte", "python", "cpp", "csharp"] as const)("advises on classes for %s", async (language) => {
+	it.each(LANGUAGES)("advises on classes only if %s has them", async (language) => {
 		const text = await render_with({ languages: [language] });
-		expect(text).toContain("avoid talking about other things.\n- Classes should be used when:");
-		expect(text).toContain("plain functions are generally fine.\n\nMinutae:");
+		const has_classes = CLASS_LANGUAGES.has(language);
+		expect(text.includes("avoid talking about other things.\n- Classes should be used when:")).toBe(has_classes);
+		expect(text).toContain((has_classes ? "plain functions are generally fine." : "avoid talking about other things.") + "\n\nMinutae:");
 	});
 
 	it("adds the DDL paragraph for SQL", async () => {
