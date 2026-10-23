@@ -201,7 +201,8 @@ describe("render", () => {
 	});
 
 	it("never leaves runs of blank lines and ends with one newline", async () => {
-		for (const text of [await render_with({}), await render_with({ languages: ["typescript", "c", "sql"], web_design: "2010", checks: ["pnpm"] })]) {
+		const upstream: Partial<ProjectOptions> = { languages: ["typescript"], conventions: "upstream", libraries_extra: ["`ws` for sockets."] };
+		for (const text of [await render_with({}), await render_with({ languages: ["typescript", "c", "sql"], web_design: "2010", checks: ["pnpm"] }), await render_with(upstream)]) {
 			expect(text).not.toMatch(/\n{3,}/);
 			expect(text.endsWith("\n")).toBe(true);
 			expect(text.endsWith("\n\n")).toBe(false);

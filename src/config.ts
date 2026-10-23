@@ -33,7 +33,8 @@ export interface ProjectOptions {
 	languages: Language[];
 	/**
 	 * "upstream" for a fork that follows upstream's conventions: "Code conventions" and "Libraries to use" then
-	 * leave out ours, and hold only what extra.code_conventions and libraries_extra add.
+	 * leave out ours, and hold only what extra.code_conventions and libraries_extra add; effection and python_indent do
+	 * nothing.
 	 */
 	conventions: Conventions;
 	/** The package manager that the Node code's lockfile belongs to; "Working with Node projects" tells agents to use it. */
