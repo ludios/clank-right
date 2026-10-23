@@ -75,6 +75,7 @@ Every option has a default, so an empty header is valid.
 | Option         | Default      | Effect                                                                                               |
 | -------------- | ------------ | ---------------------------------------------------------------------------------------------------- |
 | `languages`    | `[]`         | `typescript`/`javascript`/`svelte` select the Node sections; `svelte` picks `svelte-check`; `python` selects the Python sections; `c`/`cpp`/`csharp` add the brace rules; those with classes (`typescript`/`javascript`/`svelte`/`python`/`cpp`/`csharp`) add the advice on when to use them; `sql` adds the DDL paragraph. Also `rust`, `go`, `nix`, `zsh`. |
+| `conventions`  | `"ours"`     | `"upstream"`, for a fork that follows upstream's conventions, leaves ours out: "Code conventions" and "Libraries to use" then hold only what `extra.code_conventions` and `libraries_extra` add, if anything. |
 | `package_manager` | `"pnpm"`  | `"bun"` tells agents to use bun, not npm or pnpm, in the Node code; `"pnpm"` tells them to use pnpm, not npm. |
 | `effection`    | `false`      | Lists `effection` among the Node "Libraries to use".                                                 |
 | `libraries_extra` | `[]`      | More "Libraries to use" items after the standard ones, each as the text after the bullet, e.g. `` ["`ventojs` for templating."] ``. |

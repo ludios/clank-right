@@ -13,6 +13,7 @@ describe("parse_options", () => {
 	it("reads every option", () => {
 		const options = parse_options(`
 languages       = ["typescript", "svelte", "sql"]
+conventions     = "upstream"
 package_manager = "bun"
 effection       = true
 libraries_extra = ["ventojs for templating."]
@@ -30,6 +31,7 @@ checks      = "plus the bank steps"
 `);
 		expect(options).toEqual({
 			languages:       ["typescript", "svelte", "sql"],
+			conventions:     "upstream",
 			package_manager: "bun",
 			effection:       true,
 			libraries_extra: ["ventojs for templating."],
@@ -64,6 +66,7 @@ checks      = "plus the bank steps"
 	it("rejects values outside the enums", () => {
 		expect(() => parse_options("languages = [\"cobol\"]")).toThrow("`languages` must be one of");
 		expect(() => parse_options("web_design = \"2015\"")).toThrow("`web_design` must be one of");
+		expect(() => parse_options("conventions = \"theirs\"")).toThrow("`conventions` must be one of");
 		expect(() => parse_options("package_manager = \"npm\"")).toThrow("`package_manager` must be one of");
 		expect(() => parse_options("python_indent = \"2\"")).toThrow("`python_indent` must be one of");
 		expect(() => parse_options("checks = [\"make\"]")).toThrow(OptionsError);

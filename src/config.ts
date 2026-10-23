@@ -8,6 +8,7 @@
 import { parse as parse_toml } from "smol-toml";
 
 export const LANGUAGES        = ["typescript", "javascript", "svelte", "rust", "c", "cpp", "csharp", "go", "python", "nix", "zsh", "sql"] as const;
+export const CONVENTIONS      = ["ours", "upstream"] as const;
 export const PACKAGE_MANAGERS = ["pnpm", "bun"] as const;
 export const PYTHON_INDENTS   = ["spaces", "tabs"] as const;
 export const CHECKS           = ["sqlx", "pnpm", "cargo", "pytest"] as const;
@@ -17,6 +18,7 @@ export const COMMIT_STYLES    = ["template", "nixpkgs"] as const;
 const EXTRA_SLOTS             = ["environment", "code_conventions", "web_design", "checks"] as const;
 
 type Language       = (typeof LANGUAGES)[number];
+type Conventions    = (typeof CONVENTIONS)[number];
 type PackageManager = (typeof PACKAGE_MANAGERS)[number];
 type PythonIndent   = (typeof PYTHON_INDENTS)[number];
 type Check          = (typeof CHECKS)[number];
@@ -29,6 +31,11 @@ type ExtraSlot      = (typeof EXTRA_SLOTS)[number];
 export interface ProjectOptions {
 	/** Languages that LLM-written code in the repository is likely to be in; they select the conventions, libraries, and checks. */
 	languages: Language[];
+	/**
+	 * "upstream" for a fork that follows upstream's conventions: "Code conventions" and "Libraries to use" then
+	 * leave out ours, and hold only what extra.code_conventions and libraries_extra add.
+	 */
+	conventions: Conventions;
 	/** The package manager that the Node code's lockfile belongs to; "Working with Node projects" tells agents to use it. */
 	package_manager: PackageManager;
 	/** Whether the Node code uses effection, which adds it to "Libraries to use". */
@@ -58,6 +65,7 @@ export class OptionsError extends Error {}
 
 export const DEFAULT_OPTIONS: Readonly<ProjectOptions> = {
 	languages:       [],
+	conventions:     "ours",
 	package_manager: "pnpm",
 	effection:       false,
 	libraries_extra: [],
@@ -168,6 +176,9 @@ export function parse_options(toml: string): ProjectOptions {
 		switch (key) {
 			case "languages":
 				options.languages = expect_list_of(key, value, LANGUAGES);
+				break;
+			case "conventions":
+				options.conventions = expect_one_of(key, value, CONVENTIONS);
 				break;
 			case "package_manager":
 				options.package_manager = expect_one_of(key, value, PACKAGE_MANAGERS);

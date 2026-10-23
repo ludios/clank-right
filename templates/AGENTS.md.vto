@@ -21,6 +21,7 @@ around it reads the same whether or not the block is emitted.
 {{ set claude_reviewers = ["claude-fable-5-1", "claude-opus-5-5"] }}
 {{ set tools = ["ripgrep", "ripgrep-all", "node", "deno", "pnpm", ...(package_manager == "bun" ? ["bun"] : []), "oxfmt", "oxlint", "jq", "python3", "uv", ...tools_extra, "psql", "ephemeralpg (bin: pg_tmp)", "google-chrome", "curl-impersonate", "gcc", "go", "rustc", "cargo", "patchelf", "zip", "unzip", "zstd", "dmesg", "perf", "hyperfine", "codex", "claude"] }}
 {{# What the options imply. #}}
+{{ set ours    = conventions == "ours" }}
 {{ set node    = languages.some((l) => ["typescript", "javascript", "svelte"].includes(l)) }}
 {{ set svelte  = languages.includes("svelte") }}
 {{ set python  = languages.includes("python") }}
@@ -104,18 +105,22 @@ If you can't fetch something, use google-chrome or {{ curl_chrome }} on this mac
 # Tracking AI authorship
 
 Files with any LLM-authored code (not counting mechanistic sed-like changes) begin with a comment like `// Model-output: <model name>`, one per model that contributed (e.g. "{{ claude_model }}", "{{ chatgpt_model }}"); keep existing lines.
+{{ if ours || extra.code_conventions }}
 
 # Code conventions
+{{ if ours }}
 {{ include "code_conventions.vto" }}
+{{ /if }}
 {{ if extra.code_conventions }}
 
 {{ extra.code_conventions }}
 {{ /if }}
-{{ if node || python || libraries_extra.length > 0 }}
+{{ /if }}
+{{ if (ours && (node || python)) || libraries_extra.length > 0 }}
 
 # Libraries to use
 
-{{ if node }}
+{{ if ours && node }}
 - `ayy` to assert things (when it's okay to throw `AssertionError` instead of a domain-specific error).
 	- Always use the most specific assertion function, so that the error message shows the unexpected value when possible.
 		- e.g. `A.gte(x, 1); A.lte(x, 3)` instead of `A(x >= 1 && x <= 3);`
@@ -126,7 +131,7 @@ Files with any LLM-authored code (not counting mechanistic sed-like changes) beg
 - `vitest` for unit tests. Writing more tests is fine.
 - `fast-check` for property-based testing where needed, i.e. to check a bunch of variations on a string or number.
 {{ /if }}
-{{ if python }}
+{{ if ours && python }}
 - `logging` from the standard library, one `logging.getLogger(__name__)` per module. Logs teach us about anomalies and the causes of things; log what a human operator would probably be interested in when observing the system.
 - `pytest` for unit tests. Writing more tests is fine.
 - `hypothesis` for property-based testing where needed, i.e. to check a bunch of variations on a string or number.

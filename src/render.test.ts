@@ -152,6 +152,17 @@ describe("render", () => {
 		expect(checked).toContain("# After making changes\n\nAt the workspace root:\n\n\tcargo test\n\n" + NO_COMMIT_ALL + "Then automatically commit them as per the standard nixpkgs style");
 	});
 
+	it("leaves out our conventions and libraries for a fork that follows upstream's, but not the project's additions", async () => {
+		const text = await render_with({ languages: ["typescript", "python"], conventions: "upstream", effection: true });
+		expect(text).toContain("# Working with Node projects\n\nnpm sux");
+		expect(text).toContain("keep existing lines.\n\n# Thoughts for when there is programming involved");
+		expect(text).not.toContain("# Code conventions");
+		expect(text).not.toContain("# Libraries to use");
+		const extra = { ...DEFAULT_OPTIONS.extra, code_conventions: "Follow upstream." };
+		const added = await render_with({ languages: ["typescript", "python"], conventions: "upstream", libraries_extra: ["`ws` for sockets."], extra });
+		expect(added).toContain("keep existing lines.\n\n# Code conventions\n\nFollow upstream.\n\n# Libraries to use\n\n- `ws` for sockets.\n\n# Thoughts for when");
+	});
+
 	it("ignores extra.web_design for a custom design, which is the project's own already", async () => {
 		const custom = await render_with({ web_design: "custom", extra: { ...DEFAULT_OPTIONS.extra, web_design: "(Note.)" } }, { web_design_body: "Bespoke." });
 		expect(custom).toContain("# Web design\n\nBespoke.\n\n# Thoughts for when there is programming involved");
