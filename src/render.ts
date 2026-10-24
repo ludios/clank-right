@@ -3,19 +3,54 @@
 // Model-output: Claude Opus 5.5
 //
 // Renders the templates: any of them as it is, and the master template into a
-// complete AGENTS.md for one project.
+// complete AGENTS.md for one project. Knows which headings the master template
+// owns, so that a project's own sections can be told from its.
 
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { A } from "ayy";
 import vento from "ventojs";
 import auto_trim, { defaultTags } from "ventojs/plugins/auto_trim.js";
-import { HEADER_OPEN, type ProjectOptions } from "./config.ts";
-import type { Section } from "./sections.ts";
+import { HEADER_CLOSE, HEADER_OPEN, type ProjectOptions } from "./config.ts";
+import { split_sections, type Section } from "./sections.ts";
 
 /** This checkout of clank-right. */
 export const TOOL_DIR = join(import.meta.dirname, "..");
 const TEMPLATE_DIR = join(TOOL_DIR, "templates");
 const TEMPLATE_FILE = "AGENTS.md.vto";
+
+/**
+ * @param source The master template's text.
+ * @returns The headings it can emit: its literal `# ` lines after the header. The `# {{ section.heading }}` that
+ * emits the project's own sections is not one.
+ */
+function template_headings(source: string): ReadonlySet<string> {
+	const body_at = source.indexOf(`\n${HEADER_CLOSE}\n`);
+	A.neq(body_at, -1, "the template must close its header");
+	const headings = split_sections(source.slice(body_at)).sections.map((section) => section.heading);
+	return new Set(headings.filter((heading) => !heading.includes("{{")));
+}
+
+/** Headings the master template can emit, read from it once. */
+export const TEMPLATE_HEADINGS: ReadonlySet<string> = template_headings(readFileSync(join(TEMPLATE_DIR, TEMPLATE_FILE), "utf8"));
+
+/**
+ * Headings the template used to emit. A file regenerated before a rename still has its section under the old
+ * heading, which must go like any other template section instead of staying as the project's own.
+ */
+const FORMER_TEMPLATE_HEADINGS: ReadonlySet<string> = new Set([
+	"Programming thoughts",
+	"Codex code review after each commit",
+]);
+
+/**
+ * @param heading An H1 heading in a managed file.
+ * @returns Whether the section under it is the template's, to regenerate or drop, rather than the project's own, to
+ * keep verbatim.
+ */
+export function is_template_heading(heading: string): boolean {
+	return TEMPLATE_HEADINGS.has(heading) || FORMER_TEMPLATE_HEADINGS.has(heading);
+}
 
 const env = vento({ includes: TEMPLATE_DIR, strict: true });
 // With `include` trimmed like the block tags, a partial included on a line of its own leaves no extra newline.

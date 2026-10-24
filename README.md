@@ -122,10 +122,10 @@ templates together with any change it made to `chatbots/`, which is then yours
 to paste. Then `clank-right check --diff` shows what changes where, and
 `clank-right update` commits it everywhere.
 
-To rename a heading that the template emits, rename it in `TEMPLATE_HEADINGS`
-in `src/sections.ts` too, and add the old name to `FORMER_TEMPLATE_HEADINGS`
-there. Otherwise every file still under the old heading keeps that section as
-its own, next to the same text under the new one.
+To rename a heading that the template emits, add the old name to
+`FORMER_TEMPLATE_HEADINGS` in `src/render.ts`. Otherwise every file still under
+the old heading keeps that section as its own, next to the same text under the
+new one.
 
 ## Development
 

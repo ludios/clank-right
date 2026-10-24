@@ -225,7 +225,7 @@ export function parse_options(toml: string): ProjectOptions {
 }
 
 export const HEADER_OPEN = "<!-- clank-right";
-const HEADER_CLOSE = "-->";
+export const HEADER_CLOSE = "-->";
 
 interface SplitFile {
 	/** The project's TOML options, without the tool's leading comment lines; may be empty. */

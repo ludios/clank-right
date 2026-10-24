@@ -10,8 +10,8 @@ import { A } from "ayy";
 import { getLogger } from "@logtape/logtape";
 import { OptionsError, parse_options, split_header } from "./config.ts";
 import { GitError, commit_only, file_state, git, head_commit, other_refs_containing_head } from "./git.ts";
-import { render } from "./render.ts";
-import { is_template_heading, split_sections } from "./sections.ts";
+import { is_template_heading, render } from "./render.ts";
+import { split_sections } from "./sections.ts";
 
 export const AGENTS_MD = "AGENTS.md";
 /** The subject of every commit `update` makes, up to the template's version in parentheses. */

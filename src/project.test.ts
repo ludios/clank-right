@@ -11,7 +11,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { CHECKS, COLOR_SCHEMES, COMMIT_STYLES, CONVENTIONS, LANGUAGES, PACKAGE_MANAGERS, PYTHON_INDENTS, WEB_DESIGNS, split_header, type ProjectOptions } from "./config.ts";
 import { file_state, git } from "./git.ts";
 import { AGENTS_MD, ProjectError, commit_existing, inspect, regenerate, update, type Status } from "./project.ts";
-import { TEMPLATE_HEADINGS, join_sections, split_sections, type Section } from "./sections.ts";
+import { TEMPLATE_HEADINGS } from "./render.ts";
+import { join_sections, split_sections, type Section } from "./sections.ts";
 
 /** @returns A file that is nothing but a header with `toml` as its options. */
 function header(toml: string): string {
