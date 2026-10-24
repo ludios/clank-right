@@ -5,7 +5,6 @@
 
 languages       = ["typescript"]
 libraries_extra = ["`ventojs` for plain text templating."]
-checks          = ["pnpm"]
 -->
 
 # Environment
@@ -120,6 +119,14 @@ When there are multiple good ways to implement something, especially involving s
 # Project-specific exceptions
 
 No `Model-output:` comment in the templates themselves, please.
+
+# Before committing
+
+At the workspace root:
+
+	pnpm lint  # runs oxlint
+	pnpm check # runs tsc
+	pnpm test  # runs vitest
 
 # After making changes
 
