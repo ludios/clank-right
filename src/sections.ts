@@ -25,7 +25,7 @@ function trim_newlines(text: string): string {
 const FENCE = /^ {0,3}(`{3,}|~{3,})/;
 
 /**
- * @param markdown The part of an AGENTS.md after its header.
+ * @param markdown The part of an AGENTS.md, or of the template, after its header.
  * @returns Its H1 sections in order. A `# ` line inside a code fence never starts a section; a fence closes only at a line of the same character at least as long, as in CommonMark.
  */
 export function split_sections(markdown: string): SplitMarkdown {

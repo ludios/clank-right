@@ -81,7 +81,7 @@ Every option has a default, so an empty header is valid.
 | Option         | Default      | Effect                                                                                               |
 | -------------- | ------------ | ---------------------------------------------------------------------------------------------------- |
 | `languages`    | `[]`         | `typescript`/`javascript`/`svelte` select the Node sections; `python` selects the Python sections; `c`/`cpp`/`csharp` add the brace rules; those with classes (`typescript`/`javascript`/`svelte`/`python`/`cpp`/`csharp`) add the advice on when to use them; `sql` adds the DDL paragraph. Also `rust`, `go`, `nix`, `zsh`. |
-| `conventions`  | `"ours"`     | `"upstream"`, for a fork that follows upstream's conventions, leaves ours out: "Code conventions" is then absent, "Libraries to use" holds only `libraries_extra`, and `effection` and `python_indent` do nothing. |
+| `conventions`  | `"ours"`     | `"upstream"`, for a fork that follows upstream's conventions, leaves ours out: "Code conventions" is then absent (a fork's own rules go under another heading, e.g. `# This fork`), "Libraries to use" holds only `libraries_extra`, and `effection` and `python_indent` do nothing. |
 | `package_manager` | `"pnpm"`  | `"bun"` tells agents to use bun, not npm or pnpm, in the Node code; `"pnpm"` tells them to use pnpm, not npm. |
 | `effection`    | `false`      | Lists `effection` among the Node "Libraries to use".                                                 |
 | `libraries_extra` | `[]`      | More "Libraries to use" items after the standard ones, each as the text after the bullet, e.g. `` ["`ventojs` for templating."] ``. |
@@ -126,7 +126,7 @@ templates together with any change it made to `chatbots/`, which is then yours
 to paste. Then `clank-right check --diff` shows what changes where, and
 `clank-right update` commits it everywhere.
 
-To rename a heading that the template emits, add the old name to
+To rename or remove a heading that the template emits, add the old name to
 `FORMER_TEMPLATE_HEADINGS` in `src/render.ts`. Otherwise every file still under
 the old heading keeps that section as its own, next to the same text under the
 new one.

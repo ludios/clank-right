@@ -187,8 +187,6 @@ async function check(dirs: string[], show_diff: boolean): Promise<number> {
  * @returns The exit status: 0 only when every repository is now clean.
  */
 async function update_all(dirs: string[], existing_message: string | undefined): Promise<number> {
-	// `--always --dirty`: enough to find this checkout's commit later, and whether its tree was clean.
-	const version = await git(TOOL_DIR, "describe", "--always", "--dirty");
 	let failures = 0;
 	for (const dir of dirs) {
 		try {
@@ -204,6 +202,9 @@ async function update_all(dirs: string[], existing_message: string | undefined):
 				failures += status.kind === "clean" ? 0 : 1;
 				continue;
 			}
+			// `--always --dirty`: enough to find this checkout's commit later, and whether its tree was clean. After
+			// commit_existing, which may have just committed this checkout's own AGENTS.md.
+			const version = await git(TOOL_DIR, "describe", "--always", "--dirty");
 			const updated = await update(dir, status.rendered, version);
 			const dropped = status.dropped.length > 0 ? ` (dropped: ${status.dropped.join(", ")})` : "";
 			console.log(`${tilde(dir)}: ${describe_updated(updated)}${dropped}`);

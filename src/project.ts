@@ -42,6 +42,10 @@ export async function regenerate(current: string): Promise<Regenerated> {
 	if (preamble !== "") {
 		throw new ProjectError(`text before the first heading: ${JSON.stringify(preamble.slice(0, 60))}`);
 	}
+	const repeated = sections.find((section, i) => sections.slice(0, i).some((earlier) => earlier.heading === section.heading));
+	if (repeated !== undefined) {
+		throw new ProjectError(`two sections are titled ${JSON.stringify(repeated.heading)}`);
+	}
 	const web_design = sections.find((section) => section.heading === "Web design");
 	if (options.web_design === "custom" && web_design === undefined) {
 		throw new ProjectError("web_design = \"custom\" but there is no \"# Web design\" section to keep");
@@ -54,7 +58,9 @@ export async function regenerate(current: string): Promise<Regenerated> {
 	});
 	const rendered_split = split_header(rendered);
 	A(rendered_split !== null, "the template must emit the header it was given");
-	const emitted = new Set(split_sections(rendered_split.body).sections.map((section) => section.heading));
+	const emitted_headings = split_sections(rendered_split.body).sections.map((section) => section.heading);
+	const emitted = new Set(emitted_headings);
+	A.eq(emitted.size, emitted_headings.length, "a heading was emitted twice: does TEMPLATE_HEADINGS miss one the template emits?");
 	const dropped = sections
 		.filter((section) => is_template_heading(section.heading) && !emitted.has(section.heading))
 		.map((section) => section.heading);

@@ -11,7 +11,7 @@ import { join } from "node:path";
 import { A } from "ayy";
 import vento from "ventojs";
 import auto_trim, { defaultTags } from "ventojs/plugins/auto_trim.js";
-import { HEADER_CLOSE, HEADER_OPEN, type ProjectOptions } from "./config.ts";
+import { HEADER_OPEN, split_header, type ProjectOptions } from "./config.ts";
 import { split_sections, type Section } from "./sections.ts";
 
 /** This checkout of clank-right. */
@@ -25,9 +25,11 @@ const TEMPLATE_FILE = "AGENTS.md.vto";
  * emits the project's own sections is not one.
  */
 function template_headings(source: string): ReadonlySet<string> {
-	const body_at = source.indexOf(`\n${HEADER_CLOSE}\n`);
-	A.neq(body_at, -1, "the template must close its header");
-	const headings = split_sections(source.slice(body_at)).sections.map((section) => section.heading);
+	const header_at = source.indexOf(`\n${HEADER_OPEN}\n`);
+	A.neq(header_at, -1, "the template must open the header on a line of its own");
+	const split = split_header(source.slice(header_at + 1));
+	A(split !== null, "the template must close its header");
+	const headings = split_sections(split.body).sections.map((section) => section.heading);
 	return new Set(headings.filter((heading) => !heading.includes("{{")));
 }
 

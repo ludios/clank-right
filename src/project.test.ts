@@ -67,6 +67,10 @@ describe("regenerate", () => {
 		await expect(regenerate(header("") + "stray\n\n# Environment\n")).rejects.toThrow("text before the first heading");
 	});
 
+	it("rejects two sections with the same heading", async () => {
+		await expect(regenerate(header("") + "# Notes\n\na\n\n# Notes\n\nb\n")).rejects.toThrow("two sections are titled \"Notes\"");
+	});
+
 	it("rejects a custom web design without a section to keep", async () => {
 		await expect(regenerate(header("web_design = \"custom\"") + "# Environment\n")).rejects.toThrow("no \"# Web design\" section");
 	});
@@ -96,6 +100,14 @@ describe("regenerate", () => {
 		expect(dropped).toEqual(["Programming thoughts"]);
 	});
 
+	it("drops the old After making changes section, leaving the project's Before committing right before Committing", async () => {
+		const file = header("") + "# Before committing\n\n\tcargo test\n\n# After making changes\n\nOld checks.\n\nNever `git commit -a`.\n";
+		const { rendered, dropped } = await regenerate(file);
+		expect(dropped).toEqual(["After making changes"]);
+		expect(rendered).toContain("# Before committing\n\n\tcargo test\n\n# Committing\n\nNever `git commit -a`");
+		expect(rendered).not.toContain("Old checks.");
+	});
+
 	it("keeps a custom Web design section in the template's place", async () => {
 		const file = header("web_design = \"custom\"") + "# Web design\n\nBespoke.\n\n# Thoughts for when there is programming involved\n\nold\n";
 		const { rendered } = await regenerate(file);
@@ -111,7 +123,7 @@ describe("regenerate", () => {
 	});
 
 	it("is a fixed point that keeps project text verbatim and never doubles blank lines", async () => {
-		await assert(asyncProperty(options_arb, array(section_arb, { maxLength: 3 }), async (options, sections) => {
+		await assert(asyncProperty(options_arb, uniqueArray(section_arb, { selector: (s) => s.heading, maxLength: 3 }), async (options, sections) => {
 			const own = options.web_design === "custom" ? [WEB_DESIGN_SECTION, ...sections] : sections;
 			const file = header(stringify_toml(options)) + join_sections(own);
 			const first = await regenerate(file);
