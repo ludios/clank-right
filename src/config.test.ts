@@ -22,12 +22,7 @@ web_design      = "2010"
 color_scheme    = "dark"
 sandbox_note    = "you're unable to hit production"
 tools_extra     = ["natscli (bin: nats)", "nats-server"]
-checks          = ["sqlx", "cargo"]
 commit_style    = "nixpkgs"
-
-[extra]
-environment = "  There's a questdb.  "
-checks      = "plus the bank steps"
 `);
 		expect(options).toEqual({
 			languages:       ["typescript", "svelte", "sql"],
@@ -40,27 +35,13 @@ checks      = "plus the bank steps"
 			color_scheme:    "dark",
 			sandbox_note:    "you're unable to hit production",
 			tools_extra:     ["natscli (bin: nats)", "nats-server"],
-			checks:          ["sqlx", "cargo"],
 			commit_style:    "nixpkgs",
-			extra: {
-				environment:      "There's a questdb.",
-				code_conventions: "",
-				web_design:       "",
-				checks:           "plus the bank steps",
-			},
 		});
-	});
-
-	it("does not share its defaults between calls", () => {
-		const first = parse_options("[extra]\nchecks = \"x\"");
-		expect(parse_options("").extra.checks).toBe("");
-		expect(first.extra.checks).toBe("x");
 	});
 
 	it("rejects unknown keys, naming them", () => {
 		expect(() => parse_options("has_web = true")).toThrow(OptionsError);
 		expect(() => parse_options("has_web = true")).toThrow("unknown option `has_web`");
-		expect(() => parse_options("[extra]\nbogus = \"x\"")).toThrow("unknown `extra` slot `bogus`");
 	});
 
 	it("rejects values outside the enums", () => {
@@ -69,29 +50,19 @@ checks      = "plus the bank steps"
 		expect(() => parse_options("conventions = \"theirs\"")).toThrow("`conventions` must be one of");
 		expect(() => parse_options("package_manager = \"npm\"")).toThrow("`package_manager` must be one of");
 		expect(() => parse_options("python_indent = \"2\"")).toThrow("`python_indent` must be one of");
-		expect(() => parse_options("checks = [\"make\"]")).toThrow(OptionsError);
 		expect(() => parse_options("commit_style = \"svn\"")).toThrow(OptionsError);
-	});
-
-	it("rejects the pnpm check for a project that uses another package manager", () => {
-		expect(() => parse_options("package_manager = \"bun\"\nchecks = [\"pnpm\"]")).toThrow("the \"pnpm\" check runs pnpm");
-		expect(parse_options("package_manager = \"bun\"\nchecks = [\"cargo\"]").checks).toEqual(["cargo"]);
 	});
 
 	it("rejects values of the wrong shape", () => {
 		expect(() => parse_options("effection = \"yes\"")).toThrow("`effection` must be true or false");
 		expect(() => parse_options("tools_extra = \"ffmpeg\"")).toThrow("`tools_extra` must be an array of strings");
 		expect(() => parse_options("sandbox_note = 3")).toThrow("`sandbox_note` must be a string, not a number");
-		expect(() => parse_options("extra = 3")).toThrow("`extra` must be a table");
-		expect(() => parse_options("[extra]\nchecks = false")).toThrow("`extra.checks` must be a string");
 	});
 
 	it("rejects text the template could not place", () => {
-		expect(() => parse_options("[extra]\nenvironment = \"# Special\\n\\nrule\"")).toThrow("`extra.environment` must not contain a `# ` heading line");
 		expect(() => parse_options("sandbox_note = \"two\\nlines\"")).toThrow("`sandbox_note` must be a single line");
 		expect(() => parse_options("tools_extra = [\"a\\nb\"]")).toThrow("`tools_extra` must be a single line");
 		expect(() => parse_options("libraries_extra = [\"a\\nb\"]")).toThrow("`libraries_extra` must be a single line");
-		expect(parse_options("[extra]\nenvironment = \"## fine\\n\\n\\t# code\"").extra.environment).toBe("## fine\n\n\t# code");
 	});
 
 	it("rejects malformed TOML", () => {
@@ -107,9 +78,9 @@ describe("split_header", () => {
 	});
 
 	it("separates the tool's comment lines from the options and the body", () => {
-		const text = "<!-- clank-right\n# generated, see README\n# more\n\nlanguages = [\"rust\"]\n# a note on checks\nchecks = [\"cargo\"]\n-->\n\n# Environment\n\nHi.\n";
+		const text = "<!-- clank-right\n# generated, see README\n# more\n\nlanguages = [\"rust\"]\n# a note on tools\ntools_extra = [\"garage\"]\n-->\n\n# Environment\n\nHi.\n";
 		expect(split_header(text)).toEqual({
-			options_text: "languages = [\"rust\"]\n# a note on checks\nchecks = [\"cargo\"]",
+			options_text: "languages = [\"rust\"]\n# a note on tools\ntools_extra = [\"garage\"]",
 			body:         "\n# Environment\n\nHi.\n",
 		});
 	});

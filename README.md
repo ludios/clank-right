@@ -56,7 +56,9 @@ Without `DIR`s, both commands go through every repository listed in
 	...
 	# Project map            <- the repository's own sections go here
 	...
-	# After making changes
+	# Before committing      <- its checks too, by convention last
+	...
+	# Committing
 	...
 
 The header is an HTML comment whose leading `#` lines belong to the tool and
@@ -64,9 +66,13 @@ whose remaining lines are the repository's options, in TOML. Everything after
 the header is H1 sections. Sections whose heading the template emits are
 regenerated from the template; any other section is the repository's own and
 is kept verbatim, in order, between "Thoughts for when there is programming
-involved" and "After making changes". (`check` and `update` tell you when a
+involved" and "Committing". (`check` and `update` tell you when a
 template-owned section is about to disappear because the options no longer
 produce it, or because the template renamed it.)
+
+What to run before committing is the repository's own too: a section of its
+own, conventionally `# Before committing` and placed last, so that it reads
+right before "Committing".
 
 ### Options
 
@@ -74,8 +80,8 @@ Every option has a default, so an empty header is valid.
 
 | Option         | Default      | Effect                                                                                               |
 | -------------- | ------------ | ---------------------------------------------------------------------------------------------------- |
-| `languages`    | `[]`         | `typescript`/`javascript`/`svelte` select the Node sections; `svelte` picks `svelte-check`; `python` selects the Python sections; `c`/`cpp`/`csharp` add the brace rules; those with classes (`typescript`/`javascript`/`svelte`/`python`/`cpp`/`csharp`) add the advice on when to use them; `sql` adds the DDL paragraph. Also `rust`, `go`, `nix`, `zsh`. |
-| `conventions`  | `"ours"`     | `"upstream"`, for a fork that follows upstream's conventions, leaves ours out: "Code conventions" and "Libraries to use" then hold only what `extra.code_conventions` and `libraries_extra` add, if anything; `effection` and `python_indent` do nothing. |
+| `languages`    | `[]`         | `typescript`/`javascript`/`svelte` select the Node sections; `python` selects the Python sections; `c`/`cpp`/`csharp` add the brace rules; those with classes (`typescript`/`javascript`/`svelte`/`python`/`cpp`/`csharp`) add the advice on when to use them; `sql` adds the DDL paragraph. Also `rust`, `go`, `nix`, `zsh`. |
+| `conventions`  | `"ours"`     | `"upstream"`, for a fork that follows upstream's conventions, leaves ours out: "Code conventions" is then absent, "Libraries to use" holds only `libraries_extra`, and `effection` and `python_indent` do nothing. |
 | `package_manager` | `"pnpm"`  | `"bun"` tells agents to use bun, not npm or pnpm, in the Node code; `"pnpm"` tells them to use pnpm, not npm. |
 | `effection`    | `false`      | Lists `effection` among the Node "Libraries to use".                                                 |
 | `libraries_extra` | `[]`      | More "Libraries to use" items after the standard ones, each as the text after the bullet, e.g. `` ["`ventojs` for templating."] ``. |
@@ -84,9 +90,7 @@ Every option has a default, so an empty header is valid.
 | `color_scheme` | `"both"`     | `"light"`, `"dark"`, or `"both"`, for the `"2010"` web design.                                       |
 | `sandbox_note` | `""`         | Appended to the sandbox hostname bullet, e.g. `"you're unable to hit production"`.                   |
 | `tools_extra`  | `[]`         | Installed tools worth mentioning, e.g. `["ffmpeg"]`; listed after `uv`.                              |
-| `checks`       | `[]`         | Steps before committing, in order: `"sqlx"` (`./make-sqlx-data`), `"pnpm"` (lint/check/test; needs `package_manager = "pnpm"`), `"cargo"` (`cargo test`), `"pytest"` (`uv run pytest`). |
 | `commit_style` | `"template"` | `"nixpkgs"` replaces the commit template with nixpkgs-style commits.                                  |
-| `extra`        | `{}`         | A table of markdown (no `# ` headings) appended at named points: `environment`, `code_conventions`, `web_design` (for the `"2010"` design only; a `"custom"` section already is the project's), `checks`. |
 
 Facts that change over time (model names, the NixOS version, the
 curl-impersonate binary) are `set` at the top of `templates/AGENTS.md.vto`.

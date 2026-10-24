@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_OPTIONS, LANGUAGES, type ProjectOptions } from "./config.ts";
 import { render, type RenderInput } from "./render.ts";
 
-/** The paragraph that the template puts between the check steps and the commit instructions. */
+/** The paragraph that opens "Committing". */
 const NO_COMMIT_ALL = "Never `git commit -a` because there may be others working; stage changes manually.\n\n";
 
 /** The languages that have classes, for which the template advises on when to use them. */
@@ -38,15 +38,13 @@ describe("render", () => {
 	});
 
 	it("includes Node material for a TypeScript project", async () => {
-		const text = await render_with({ languages: ["typescript"], checks: ["pnpm"] });
+		const text = await render_with({ languages: ["typescript"] });
 		expect(text).toContain("# Working with Node projects\n\nnpm sux");
 		expect(text).toContain("When writing _any_ kind of code, including for the above:");
 		expect(text).toContain("Minutae:\n\n- Use the { } curlies even for one-statement blocks.\n- Block contents");
 		expect(text).toContain("`break`, `throw`, `yield`, `await` statements");
 		expect(text).toContain("# Libraries to use\n\n- `ayy`");
 		expect(text).not.toContain("`effection`");
-		expect(text).toContain("\tpnpm check # runs tsc\n");
-		expect(text).toContain("\n\nThen automatically commit your changes with this commit template:");
 	});
 
 	it("tells agents to use bun, not pnpm, in a bun project", async () => {
@@ -57,9 +55,8 @@ describe("render", () => {
 		expect(await render_with({ languages: ["typescript"] })).toContain(", pnpm, oxfmt, ");
 	});
 
-	it("uses svelte-check for Svelte and adds effection and extra libraries when asked", async () => {
-		const text = await render_with({ languages: ["svelte"], effection: true, libraries_extra: ["`ventojs` for templating.", "`ws` for sockets."], checks: ["pnpm"] });
-		expect(text).toContain("\tpnpm check # runs svelte-check\n");
+	it("adds effection and extra libraries when asked", async () => {
+		const text = await render_with({ languages: ["svelte"], effection: true, libraries_extra: ["`ventojs` for templating.", "`ws` for sockets."] });
 		expect(text).toContain("when observing the system.\n- `effection`. We like structured programming");
 		expect(text).toContain("(unless needed).\n- `vitest` for unit tests");
 		expect(text).toContain("string or number.\n- `ventojs` for templating.\n- `ws` for sockets.\n\n# Thoughts for when");
@@ -74,10 +71,8 @@ describe("render", () => {
 		expect(text).toContain("Minutae:\n\n- Block contents should not be on the same line that opened the block.\n- Put `return`, `continue`, `break`, `raise`, `yield`, `await` statements");
 		expect(text).toContain("# Libraries to use\n\n- `logging` from the standard library");
 		expect(text).not.toContain("`ayy`");
-		const tabs = await render_with({ languages: ["python"], python_indent: "tabs", checks: ["pytest"] });
+		const tabs = await render_with({ languages: ["python"], python_indent: "tabs" });
 		expect(tabs).toContain("\nFor Python code:\n\n- Use tabs to indent and spaces to align.\n");
-		expect(tabs).toContain("# After making changes\n\nAt the workspace root:\n\n\tuv run pytest\n\nNever `git commit -a`");
-		expect(tabs).toContain("\n\nThen automatically commit your changes");
 	});
 
 	it("lists the extra libraries for a project in neither Node nor Python, and no section without them", async () => {
@@ -138,18 +133,16 @@ describe("render", () => {
 		expect(custom).not.toContain("2010 styling");
 	});
 
-	it("orders the check steps as given", async () => {
-		const text = await render_with({ checks: ["sqlx", "cargo"] });
-		expect(text).toContain("# After making changes\n\nOnly if any sqlx queries were modified:\n\n\t./make-sqlx-data\n\nAt the workspace root:\n\n\tcargo test\n\n" + NO_COMMIT_ALL + "Then automatically commit");
-		expect(await render_with({})).toContain("# After making changes\n\n" + NO_COMMIT_ALL + "Automatically commit your changes");
+	it("follows the last project section with Committing: the no-commit-all paragraph, then the commit template", async () => {
+		const text = await render_with({}, { project_sections: [{ heading: "Before committing", body: "\tcargo test" }] });
+		expect(text).toContain("# Before committing\n\n\tcargo test\n\n# Committing\n\n" + NO_COMMIT_ALL + "Automatically commit your changes with this commit template:\n\n\tsubsystem:");
+		expect(text).not.toContain("After making changes");
 	});
 
-	it("replaces the commit template for nixpkgs-style commits, keeping the checks", async () => {
+	it("replaces the commit template for nixpkgs-style commits", async () => {
 		const text = await render_with({ commit_style: "nixpkgs" });
-		expect(text).toContain("# After making changes\n\n" + NO_COMMIT_ALL + "Automatically commit them as per the standard nixpkgs style for doing commits. Check the git log for a particular directory if uncertain.\n\n# Code review after each commit");
+		expect(text).toContain("# Committing\n\n" + NO_COMMIT_ALL + "Automatically commit your changes as per the standard nixpkgs style for doing commits. Check the git log for a particular directory if uncertain.\n\n# Code review after each commit");
 		expect(text).not.toContain("<prompt>");
-		const checked = await render_with({ commit_style: "nixpkgs", checks: ["cargo"] });
-		expect(checked).toContain("# After making changes\n\nAt the workspace root:\n\n\tcargo test\n\n" + NO_COMMIT_ALL + "Then automatically commit them as per the standard nixpkgs style");
 	});
 
 	it("leaves out our conventions and libraries for a fork that follows upstream's, but not the project's additions", async () => {
@@ -158,51 +151,25 @@ describe("render", () => {
 		expect(text).toContain("keep existing lines.\n\n# Thoughts for when there is programming involved");
 		expect(text).not.toContain("# Code conventions");
 		expect(text).not.toContain("# Libraries to use");
-		const extra = { ...DEFAULT_OPTIONS.extra, code_conventions: "Follow upstream." };
-		const added = await render_with({ languages: ["typescript", "python"], conventions: "upstream", libraries_extra: ["`ws` for sockets."], extra });
-		expect(added).toContain("keep existing lines.\n\n# Code conventions\n\nFollow upstream.\n\n# Libraries to use\n\n- `ws` for sockets.\n\n# Thoughts for when");
+		const added = await render_with({ languages: ["typescript", "python"], conventions: "upstream", libraries_extra: ["`ws` for sockets."] });
+		expect(added).toContain("keep existing lines.\n\n# Libraries to use\n\n- `ws` for sockets.\n\n# Thoughts for when");
 	});
 
-	it("ignores extra.web_design for a custom design, which is the project's own already", async () => {
-		const custom = await render_with({ web_design: "custom", extra: { ...DEFAULT_OPTIONS.extra, web_design: "(Note.)" } }, { web_design_body: "Bespoke." });
-		expect(custom).toContain("# Web design\n\nBespoke.\n\n# Thoughts for when there is programming involved");
-		expect(custom).not.toContain("(Note.)");
-	});
-
-	it("appends the extra text at each slot", async () => {
-		const text = await render_with({
-			languages:  ["typescript"],
-			web_design: "2010",
-			checks:     ["pnpm"],
-			extra: {
-				environment:      "A questdb is around.",
-				code_conventions: "Match upstream style.",
-				web_design:       "(Existing code violates this.)",
-				checks:           "plus the bank steps above when bank/ changed.",
-			},
-		});
-		expect(text).toContain("edit this file.\n\nA questdb is around.\n\nWhen waiting on something");
-		expect(text).toContain("keep existing lines.\n\n# Code conventions");
-		expect(text).toContain("to align things.\n\nMatch upstream style.\n\n# Libraries to use");
-		expect(text).toContain("written by humans.\n\n(Existing code violates this.)\n\n# Thoughts for when there is programming involved");
-		expect(text).toContain("\tpnpm test  # runs vitest\n\nplus the bank steps above when bank/ changed.\n\n" + NO_COMMIT_ALL + "Then automatically commit");
-	});
-
-	it("places project sections between Thoughts for when there is programming involved and After making changes, verbatim", async () => {
+	it("places project sections between Thoughts for when there is programming involved and Committing, verbatim", async () => {
 		const sections = [{ heading: "Project map", body: "- a/\n- b/" }, { heading: "The app", body: "Text.\n\n\n\n```\n\n\n# code\n```" }];
 		const text = await render_with({}, { project_sections: sections });
-		expect(text).toContain("User loves AskUserQuestion.\n\n# Project map\n\n- a/\n- b/\n\n# The app\n\nText.\n\n\n\n```\n\n\n# code\n```\n\n# After making changes\n");
+		expect(text).toContain("User loves AskUserQuestion.\n\n# Project map\n\n- a/\n- b/\n\n# The app\n\nText.\n\n\n\n```\n\n\n# code\n```\n\n# Committing\n");
 	});
 
 	it("carries the options text through verbatim, blank lines included", async () => {
-		const options_text = "languages = [\"rust\"]\n\n\n[extra]\nchecks = \"\"\"\nA\n\n\nB\"\"\"";
+		const options_text = "languages = [\"rust\"]\n\n\n# an S3 server\ntools_extra = [\n\t\"garage\",\n]";
 		const text = await render_with({}, { options_text });
 		expect(text).toContain(`is overwritten.\n\n${options_text}\n-->\n\n# Environment\n`);
 	});
 
 	it("never leaves runs of blank lines and ends with one newline", async () => {
 		const upstream: Partial<ProjectOptions> = { languages: ["typescript"], conventions: "upstream", libraries_extra: ["`ws` for sockets."] };
-		for (const text of [await render_with({}), await render_with({ languages: ["typescript", "c", "sql"], web_design: "2010", checks: ["pnpm"] }), await render_with(upstream)]) {
+		for (const text of [await render_with({}), await render_with({ languages: ["typescript", "c", "sql"], web_design: "2010" }), await render_with(upstream)]) {
 			expect(text).not.toMatch(/\n{3,}/);
 			expect(text.endsWith("\n")).toBe(true);
 			expect(text.endsWith("\n\n")).toBe(false);

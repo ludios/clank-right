@@ -41,6 +41,7 @@ export const TEMPLATE_HEADINGS: ReadonlySet<string> = template_headings(readFile
 const FORMER_TEMPLATE_HEADINGS: ReadonlySet<string> = new Set([
 	"Programming thoughts",
 	"Codex code review after each commit",
+	"After making changes",
 ]);
 
 /**

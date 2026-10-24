@@ -8,7 +8,7 @@ import { join } from "node:path";
 import { array, assert, asyncProperty, boolean, constantFrom, record, uniqueArray, type Arbitrary } from "fast-check";
 import { stringify as stringify_toml } from "smol-toml";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { CHECKS, COLOR_SCHEMES, COMMIT_STYLES, CONVENTIONS, LANGUAGES, PACKAGE_MANAGERS, PYTHON_INDENTS, WEB_DESIGNS, split_header, type ProjectOptions } from "./config.ts";
+import { COLOR_SCHEMES, COMMIT_STYLES, CONVENTIONS, LANGUAGES, PACKAGE_MANAGERS, PYTHON_INDENTS, WEB_DESIGNS, split_header, type ProjectOptions } from "./config.ts";
 import { file_state, git } from "./git.ts";
 import { AGENTS_MD, ProjectError, commit_existing, inspect, regenerate, update, type Status } from "./project.ts";
 import { TEMPLATE_HEADINGS } from "./render.ts";
@@ -33,8 +33,6 @@ function assert_dirty(status: Status): asserts status is Extract<Status, { kind:
 	expect(status).toMatchObject({ kind: "dirty" });
 }
 
-const TEXT = constantFrom("", "A note.", "Two\n\nparagraphs, one with `code`.");
-
 const options_arb: Arbitrary<ProjectOptions> = record({
 	languages:       uniqueArray(constantFrom(...LANGUAGES)),
 	conventions:     constantFrom(...CONVENTIONS),
@@ -46,10 +44,8 @@ const options_arb: Arbitrary<ProjectOptions> = record({
 	color_scheme:    constantFrom(...COLOR_SCHEMES),
 	sandbox_note:    constantFrom("", "you're unable to hit production"),
 	tools_extra:     array(constantFrom("ffmpeg", "nm", "natscli (bin: nats)"), { maxLength: 2 }),
-	checks:          uniqueArray(constantFrom(...CHECKS)),
 	commit_style:    constantFrom(...COMMIT_STYLES),
-	extra:           record({ environment: TEXT, code_conventions: TEXT, web_design: TEXT, checks: TEXT }),
-}).filter((options) => options.package_manager === "pnpm" || !options.checks.includes("pnpm")); // what parse_options accepts
+});
 
 const section_arb: Arbitrary<Section> = record({
 	heading: constantFrom("Project map", "The app", "This fork", "Upstream conventions (still binding)"),
@@ -79,9 +75,9 @@ describe("regenerate", () => {
 		const file = header("languages = [\"rust\"]") + "# Project map\n\n- a/\n\n# Environment\n\nold\n\n# The app\n\nText.\n";
 		const { rendered, dropped } = await regenerate(file);
 		const headings = headings_of(rendered);
-		expect(headings.slice(headings.indexOf("Thoughts for when there is programming involved"), headings.indexOf("After making changes") + 1))
-			.toEqual(["Thoughts for when there is programming involved", "Project map", "The app", "After making changes"]);
-		expect(rendered).toContain("# Project map\n\n- a/\n\n# The app\n\nText.\n\n# After making changes");
+		expect(headings.slice(headings.indexOf("Thoughts for when there is programming involved"), headings.indexOf("Committing") + 1))
+			.toEqual(["Thoughts for when there is programming involved", "Project map", "The app", "Committing"]);
+		expect(rendered).toContain("# Project map\n\n- a/\n\n# The app\n\nText.\n\n# Committing");
 		expect(dropped).toEqual([]);
 	});
 
@@ -109,7 +105,7 @@ describe("regenerate", () => {
 	});
 
 	it("emits exactly the template headings when every option is on", async () => {
-		const everything = "languages = [\"typescript\", \"c\", \"python\", \"sql\"]\nweb_design = \"2010\"\nchecks = [\"pnpm\"]";
+		const everything = "languages = [\"typescript\", \"c\", \"python\", \"sql\"]\nweb_design = \"2010\"";
 		const { rendered } = await regenerate(header(everything));
 		expect(new Set(headings_of(rendered))).toEqual(TEMPLATE_HEADINGS);
 	});

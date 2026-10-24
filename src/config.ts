@@ -11,30 +11,25 @@ export const LANGUAGES        = ["typescript", "javascript", "svelte", "rust", "
 export const CONVENTIONS      = ["ours", "upstream"] as const;
 export const PACKAGE_MANAGERS = ["pnpm", "bun"] as const;
 export const PYTHON_INDENTS   = ["spaces", "tabs"] as const;
-export const CHECKS           = ["sqlx", "pnpm", "cargo", "pytest"] as const;
 export const WEB_DESIGNS      = ["none", "2010", "custom"] as const;
 export const COLOR_SCHEMES    = ["light", "dark", "both"] as const;
 export const COMMIT_STYLES    = ["template", "nixpkgs"] as const;
-const EXTRA_SLOTS             = ["environment", "code_conventions", "web_design", "checks"] as const;
 
 type Language       = (typeof LANGUAGES)[number];
 type Conventions    = (typeof CONVENTIONS)[number];
 type PackageManager = (typeof PACKAGE_MANAGERS)[number];
 type PythonIndent   = (typeof PYTHON_INDENTS)[number];
-type Check          = (typeof CHECKS)[number];
 type WebDesign      = (typeof WEB_DESIGNS)[number];
 type ColorScheme    = (typeof COLOR_SCHEMES)[number];
 type CommitStyle    = (typeof COMMIT_STYLES)[number];
-type ExtraSlot      = (typeof EXTRA_SLOTS)[number];
 
 /** What a project's header selects. Every field has a default, so the template can rely on all of them. */
 export interface ProjectOptions {
-	/** Languages that LLM-written code in the repository is likely to be in; they select the conventions, libraries, and checks. */
+	/** Languages that LLM-written code in the repository is likely to be in; they select the conventions and libraries. */
 	languages: Language[];
 	/**
-	 * "upstream" for a fork that follows upstream's conventions: "Code conventions" and "Libraries to use" then
-	 * leave out ours, and hold only what extra.code_conventions and libraries_extra add; effection and python_indent do
-	 * nothing.
+	 * "upstream" for a fork that follows upstream's conventions: "Code conventions" is then left out, "Libraries to
+	 * use" holds only libraries_extra, and effection and python_indent do nothing.
 	 */
 	conventions: Conventions;
 	/** The package manager that the Node code's lockfile belongs to; "Working with Node projects" tells agents to use it. */
@@ -53,12 +48,8 @@ export interface ProjectOptions {
 	sandbox_note: string;
 	/** Installed tools worth mentioning for this project, e.g. "ffmpeg", listed among the standard ones. */
 	tools_extra: string[];
-	/** Steps to run before committing, in order. */
-	checks: Check[];
 	/** "nixpkgs" replaces the commit template with nixpkgs-style commits. */
 	commit_style: CommitStyle;
-	/** Project-specific markdown (no H1 headings) to append at named points of the template; `web_design` applies to the "2010" design only. */
-	extra: Record<ExtraSlot, string>;
 }
 
 /** The header can't be understood; the human has to fix it. */
@@ -75,14 +66,7 @@ export const DEFAULT_OPTIONS: Readonly<ProjectOptions> = {
 	color_scheme:    "both",
 	sandbox_note:    "",
 	tools_extra:     [],
-	checks:          [],
 	commit_style:    "template",
-	extra: {
-		environment:      "",
-		code_conventions: "",
-		web_design:       "",
-		checks:           "",
-	},
 };
 
 function describe_type(value: unknown): string {
@@ -122,18 +106,6 @@ function expect_line_list(key: string, value: unknown): string[] {
 	return value.map((item) => expect_line(key, item));
 }
 
-/**
- * Markdown the template inserts as its own content: an H1 in it would be taken for one of the project's own sections
- * on the next run and be emitted twice.
- */
-function expect_markdown(key: string, value: unknown): string {
-	const text = expect_string(key, value).trim();
-	if (/^# /m.test(text)) {
-		throw new OptionsError(`\`${key}\` must not contain a \`# \` heading line`);
-	}
-	return text;
-}
-
 function expect_one_of<T extends string>(key: string, value: unknown, allowed: readonly T[]): T {
 	const text = expect_string(key, value);
 	if (!(allowed as readonly string[]).includes(text)) {
@@ -144,20 +116,6 @@ function expect_one_of<T extends string>(key: string, value: unknown, allowed: r
 
 function expect_list_of<T extends string>(key: string, value: unknown, allowed: readonly T[]): T[] {
 	return expect_line_list(key, value).map((item) => expect_one_of(key, item, allowed));
-}
-
-function expect_extra(value: unknown): Record<ExtraSlot, string> {
-	if (typeof value !== "object" || value === null || Array.isArray(value)) {
-		throw new OptionsError("`extra` must be a table");
-	}
-	const extra = { ...DEFAULT_OPTIONS.extra };
-	for (const [slot, text] of Object.entries(value)) {
-		if (!(EXTRA_SLOTS as readonly string[]).includes(slot)) {
-			throw new OptionsError(`unknown \`extra\` slot \`${slot}\`; the slots are ${EXTRA_SLOTS.join(", ")}`);
-		}
-		extra[slot as ExtraSlot] = expect_markdown(`extra.${slot}`, text);
-	}
-	return extra;
 }
 
 /**
@@ -172,7 +130,7 @@ export function parse_options(toml: string): ProjectOptions {
 	} catch (error) {
 		throw new OptionsError(`the options are not valid TOML: ${error instanceof Error ? error.message : String(error)}`);
 	}
-	const options: ProjectOptions = { ...DEFAULT_OPTIONS, extra: { ...DEFAULT_OPTIONS.extra } };
+	const options: ProjectOptions = { ...DEFAULT_OPTIONS };
 	for (const [key, value] of Object.entries(raw)) {
 		switch (key) {
 			case "languages":
@@ -205,21 +163,12 @@ export function parse_options(toml: string): ProjectOptions {
 			case "tools_extra":
 				options.tools_extra = expect_line_list(key, value);
 				break;
-			case "checks":
-				options.checks = expect_list_of(key, value, CHECKS);
-				break;
 			case "commit_style":
 				options.commit_style = expect_one_of(key, value, COMMIT_STYLES);
-				break;
-			case "extra":
-				options.extra = expect_extra(value);
 				break;
 			default:
 				throw new OptionsError(`unknown option \`${key}\``);
 		}
-	}
-	if (options.checks.includes("pnpm") && options.package_manager !== "pnpm") {
-		throw new OptionsError(`the "pnpm" check runs pnpm, which \`package_manager = ${JSON.stringify(options.package_manager)}\` tells agents not to run`);
 	}
 	return options;
 }
