@@ -50,7 +50,7 @@ Without `DIR`s, both commands go through every repository listed in
 	color_scheme = "dark"
 	-->
 
-	# Environment
+	# Before starting
 	...
 	# Thoughts for when there is programming involved
 	...
