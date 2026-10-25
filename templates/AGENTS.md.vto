@@ -170,7 +170,7 @@ Also, no new title= tooltips; they're dubious desktop-only things which must be 
 When there are multiple good ways to implement something, especially involving state or the definition of a type: please ask the user. User loves AskUserQuestion, but please explain the problem correctly in the regular session before asking the question.
 {{ if sql }}
 
-For CREATE TABLE i.e. DDL work in the .sql files, show that your change is optimal among all variants, or consult the human user; they have good data modeling thoughts.
+Before creating or changing any PostgreSQL DDL e.g. in schema/, read https://github.com/ludios/pg-ddl first. Consult the user; they may know the domain or have production data.
 {{ /if }}
 {{ for section of project_sections }}
 
