@@ -122,7 +122,7 @@ Try writing a function in different ways and see which version is better.
 
 Sometimes a program can log or assert to generate interesting observations which feed into further development of the program. We do our own science on the outputs later to improve the program.
 
-When there are multiple good ways to implement something, especially involving state or the definition of a type: please ask the user. User loves AskUserQuestion.
+When there are multiple good ways to implement something, especially involving state or the definition of a type: please ask the user. User loves AskUserQuestion, but please explain the problem correctly in the regular session before asking the question.
 
 # Project-specific exceptions
 
