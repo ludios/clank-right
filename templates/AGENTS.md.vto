@@ -38,28 +38,30 @@ around it reads the same whether or not the block is emitted.
 {{ /if }}
 -->
 
-# Environment
+# Before starting
 
-Welcome. You're on NixOS {{ nixos_version }}; many things are installed, including:
-
-{{ tools.join(", ") }}.
-
-Your `Bash` tool runs zsh here, not bash.
-
-Before starting or resuming work, check what `hostname` outputs.
+Welcome. Before starting or resuming work, check what `hostname` outputs.
 
 - If it ends in "clank", {{ sandbox }}run whatever commands you need.
 - Otherwise, stop and ask the user to edit this file.
 
+# Environment
+
+Your `Bash` tool uses zsh, not bash.
+
+You're on NixOS {{ nixos_version }}; many things are installed, including:
+
+{{ tools.join(", ") }}.
+
+A prebuilt Linux binary downloaded by some tool can fail with a misleading ENOENT; patch for NixOS:
+
+	patchelf --set-interpreter "$(patchelf --print-interpreter /bin/sh)" BIN
+
+plus `--set-rpath` to a nix gcc-lib for libstdc++ if needed.
+
 When waiting on something, generally don't use `sleep N` where N > 10; use the built-in task watching, or e.g. `wait-for-process-exit PID`, or loop something e.g. `rg -q PATTERN FILE` with a 2 second wait.
 
 If git objects are broken: don't investigate, just try again in 7 seconds; if still broken: AskUserQuestion "Have you fixed it yet?" Y/N.
-
-A prebuilt Linux binary that a tool downloads (e.g. a clang-format fetched by `uvx`) fails with a misleading ENOENT, because its hardcoded ELF interpreter path doesn't exist on NixOS. Fix:
-
-	patchelf --set-interpreter "$(patchelf --print-interpreter "$(readlink -f "$(which cp)")")" BIN
-
-plus `--set-rpath` to a nix gcc-lib for libstdc++ if needed.
 
 # Avoid consuming tokens in excess
 
