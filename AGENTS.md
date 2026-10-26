@@ -64,7 +64,7 @@ If you can't fetch something, use google-chrome or curl_chrome150 on this machin
 
 # Tracking AI authorship
 
-Files with any LLM-authored code (not counting mechanistic sed-like changes) begin with a comment like `// Model-output: <model name>`, one per model that contributed (e.g. "Claude Fable 5.1", "ChatGPT 6 Astra"); keep existing lines.
+Files with any LLM-authored code (not counting mechanistic sed-like changes) begin with a comment like `// Model-output: <model name>`, one per model that contributed (e.g. "Claude Mythos 5.1", "ChatGPT 6 Astra"); keep existing lines.
 
 # Code conventions
 
@@ -169,7 +169,7 @@ Automatically commit your changes with this commit template:
 
 	A longer description or explanation of why/what is changing, when it is genuinely helpful.
 
-	Model-output: model name e.g. Claude Fable 5.1
+	Model-output: model name e.g. Claude Mythos 5.1
 
 	Session-file: ~/.claude/projects/[...]/[...].jsonl
 
@@ -180,7 +180,7 @@ After each commit made, `git clone` the repo into some /tmp/ folder and get it r
 	codex review --commit <sha> -c model="gpt-6-astra" -c model_reasoning_effort="xhigh"
 	codex review --commit <sha> -c model="gpt-6.1-sol" -c model_reasoning_effort="xhigh"
 	codex review --commit <sha> -c model="gpt-5.6-sol" -c model_reasoning_effort="xhigh"
-	claude -p --model claude-fable-5-1 --effort xhigh "/code-review xhigh commit <sha>"
+	claude -p --model claude-mythos-5-1 --effort xhigh "/code-review xhigh commit <sha>"
 	claude -p --model claude-opus-5-5 --effort xhigh "/code-review xhigh commit <sha>"
 
 Ensure that the output of each review gets written or copied to ~/.ai-code-reviews/{model}/{commit} or /{commit-range}
