@@ -183,17 +183,34 @@ Before creating or changing any PostgreSQL DDL e.g. in schema/, read https://git
 
 # Committing
 
-Commit one logical change at a time whenever possible! Commit early and often! Rework the commits if needed, otherwise just keep going!
+Commit one logical change at a time whenever possible! Commit early and often! Rework the commits if that makes them better, otherwise just keep going!
 
-Only when small commits are impossible should larger commits be made.
+Only when small commits are impossible (e.g. with build still working), should larger commits be made.
+
+**Use the imperative mood in the subject line**. Do not end the subject line with a period. Wrap the body at 72 characters, generally.
+
+Sample subject line:
+
+	Don't insert a file and rollback a transaction just to get the id
+	Factor out file-reading function that looks up the storage
+	Make sure zstd-compressed data round-trips back to input data
+	Refactor some tests a bit
+	Refactor to reduce repetition
+	Resolve oxlint warning
+	schema: forbid '.' and '..' in DOMAIN linux_basename; add more tests
+	storage_read::read: don't require storage for size=0 files
+	storage_write::write: don't hold a postgres transaction open while we upload a file
+	storage_write::write: don't take a transaction as an argument
+	Tweak comment
+	Update Cargo.lock
 
 Never `git commit -a` because there may be others working; stage changes manually.
 
 Automatically commit your changes with this commit template:
 
-	subsystem: short one-line description; semicolon if multiple changes were truly necessary in one commit
+	Subject line
 
-	A longer description, explanation, or justification only if it is genuinely helpful.
+	A longer description or explanation of why/what is changing, when it is genuinely helpful.
 
 	Model-output: model name e.g. {{ claude_model }}
 
