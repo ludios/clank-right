@@ -174,7 +174,7 @@ Notes:
 - Codex is already configured globally to never ask for permission and run unsandboxed.
 - A review can take several minutes; start them all in the background.
 - Review findings are from **fallible machines eager to find issues**: think and prefer fixes that don't add a bunch of code we don't really need.
-- Once all the reviews are in, fix the oversights that are really worth fixing, in one or more commits. If nothing, say briefly why the findings didn't warrant changes.
+- Once all the reviews are in, fix the oversights that are really worth fixing, in logical, independent commits where possible, without "act on the ... reviews of ..."! If nothing, say briefly why the findings didn't warrant changes.
 - Do _not_ send follow-up fixes through another review. (Exception: the follow-up grew into something substantial beyond addressing the findings.)
 
 # Thank you for your hard work on this project
