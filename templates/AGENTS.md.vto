@@ -14,7 +14,6 @@ Whitespace discipline, since the output is not post-processed: an optional
 block starts with a blank line and ends without one, so that the fixed text
 around it reads the same whether or not the block is emitted.
 #}}
-{{ set nixos_version = "26.05" }}
 {{ set curl_chrome   = "curl_chrome150" }}
 {{ set claude_model  = "Claude Mythos 5.1" }}
 {{ set chatgpt_model = "ChatGPT 6 Astra" }}
@@ -51,7 +50,7 @@ All thinking is hidden from the user, so if you find anything they may wish to k
 
 Your `Bash` tool uses zsh, not bash.
 
-You're on NixOS {{ nixos_version }}; many things are installed, including:
+You're on NixOS and many things are installed, including:
 
 {{ tools.join(", ") }}.
 
