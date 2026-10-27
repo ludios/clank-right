@@ -34,16 +34,17 @@ function assert_dirty(status: Status): asserts status is Extract<Status, { kind:
 }
 
 const options_arb: Arbitrary<ProjectOptions> = record({
-	languages:       uniqueArray(constantFrom(...LANGUAGES)),
-	conventions:     constantFrom(...CONVENTIONS),
-	package_manager: constantFrom(...PACKAGE_MANAGERS),
-	effection:       boolean(),
-	libraries_extra: array(constantFrom("`ventojs` for templating.", "`ws` for sockets."), { maxLength: 2 }),
-	python_indent:   constantFrom(...PYTHON_INDENTS),
-	web_design:      constantFrom(...WEB_DESIGNS),
-	color_scheme:    constantFrom(...COLOR_SCHEMES),
-	sandbox_note:    constantFrom("", "you're unable to hit production"),
-	tools_extra:     array(constantFrom("ffmpeg", "nm", "natscli (bin: nats)"), { maxLength: 2 }),
+	languages:           uniqueArray(constantFrom(...LANGUAGES)),
+	conventions:         constantFrom(...CONVENTIONS),
+	package_manager:     constantFrom(...PACKAGE_MANAGERS),
+	effection:           boolean(),
+	libraries_extra:     array(constantFrom("`ventojs` for templating.", "`ws` for sockets."), { maxLength: 2 }),
+	python_indent:       constantFrom(...PYTHON_INDENTS),
+	web_design:          constantFrom(...WEB_DESIGNS),
+	color_scheme:        constantFrom(...COLOR_SCHEMES),
+	sandbox_note:        constantFrom("", "you're unable to hit production"),
+	tools_extra:         array(constantFrom("ffmpeg", "nm", "natscli (bin: nats)"), { maxLength: 2 }),
+	authorship_comments: boolean(),
 });
 
 const section_arb: Arbitrary<Section> = record({

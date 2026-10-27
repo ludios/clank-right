@@ -12,28 +12,30 @@ describe("parse_options", () => {
 
 	it("reads every option", () => {
 		const options = parse_options(`
-languages       = ["typescript", "svelte", "sql"]
-conventions     = "upstream"
-package_manager = "bun"
-effection       = true
-libraries_extra = ["ventojs for templating."]
-python_indent   = "tabs"
-web_design      = "2010"
-color_scheme    = "dark"
-sandbox_note    = "you're unable to hit production"
-tools_extra     = ["natscli (bin: nats)", "nats-server"]
+languages           = ["typescript", "svelte", "sql"]
+conventions         = "upstream"
+package_manager     = "bun"
+effection           = true
+libraries_extra     = ["ventojs for templating."]
+python_indent       = "tabs"
+web_design          = "2010"
+color_scheme        = "dark"
+sandbox_note        = "you're unable to hit production"
+tools_extra         = ["natscli (bin: nats)", "nats-server"]
+authorship_comments = false
 `);
 		expect(options).toEqual({
-			languages:       ["typescript", "svelte", "sql"],
-			conventions:     "upstream",
-			package_manager: "bun",
-			effection:       true,
-			libraries_extra: ["ventojs for templating."],
-			python_indent:   "tabs",
-			web_design:      "2010",
-			color_scheme:    "dark",
-			sandbox_note:    "you're unable to hit production",
-			tools_extra:     ["natscli (bin: nats)", "nats-server"],
+			languages:           ["typescript", "svelte", "sql"],
+			conventions:         "upstream",
+			package_manager:     "bun",
+			effection:           true,
+			libraries_extra:     ["ventojs for templating."],
+			python_indent:       "tabs",
+			web_design:          "2010",
+			color_scheme:        "dark",
+			sandbox_note:        "you're unable to hit production",
+			tools_extra:         ["natscli (bin: nats)", "nats-server"],
+			authorship_comments: false,
 		});
 	});
 

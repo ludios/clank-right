@@ -105,10 +105,12 @@ Prefer `uv` and `uvx` over pip. A standalone script can use a PEP 723 `# /// scr
 If more external information is needed, think and keep iterating on web search queries to thoroughly check things. Tips: try site-specific searches e.g. site:github.com, reddit.com, news.ycombinator.com; try combinations of quoted items.
 
 If you can't fetch something, use google-chrome or {{ curl_chrome }} on this machine.
+{{ if authorship_comments }}
 
 # Tracking AI authorship
 
 Files with any LLM-authored code (not counting mechanistic sed-like changes) begin with a comment like `// Model-output: <model name>`, one per model that contributed (e.g. "{{ claude_model }}", "{{ chatgpt_model }}"); keep existing lines.
+{{ /if }}
 {{ if ours }}
 
 # Code conventions

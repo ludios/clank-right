@@ -47,22 +47,28 @@ export interface ProjectOptions {
 	sandbox_note: string;
 	/** Installed tools worth mentioning for this project, e.g. "ffmpeg", listed among the standard ones. */
 	tools_extra: string[];
+	/**
+	 * Whether "Tracking AI authorship" tells agents to start the files they write with a `Model-output:` comment;
+	 * false for a repository whose files shouldn't carry one, e.g. a fork whose patches go upstream.
+	 */
+	authorship_comments: boolean;
 }
 
 /** The header can't be understood; the human has to fix it. */
 export class OptionsError extends Error {}
 
 export const DEFAULT_OPTIONS: Readonly<ProjectOptions> = {
-	languages:       [],
-	conventions:     "ours",
-	package_manager: "pnpm",
-	effection:       false,
-	libraries_extra: [],
-	python_indent:   "spaces",
-	web_design:      "none",
-	color_scheme:    "both",
-	sandbox_note:    "",
-	tools_extra:     [],
+	languages:           [],
+	conventions:         "ours",
+	package_manager:     "pnpm",
+	effection:           false,
+	libraries_extra:     [],
+	python_indent:       "spaces",
+	web_design:          "none",
+	color_scheme:        "both",
+	sandbox_note:        "",
+	tools_extra:         [],
+	authorship_comments: true,
 };
 
 function describe_type(value: unknown): string {
@@ -158,6 +164,9 @@ export function parse_options(toml: string): ProjectOptions {
 				break;
 			case "tools_extra":
 				options.tools_extra = expect_line_list(key, value);
+				break;
+			case "authorship_comments":
+				options.authorship_comments = expect_boolean(key, value);
 				break;
 			default:
 				throw new OptionsError(`unknown option \`${key}\``);
