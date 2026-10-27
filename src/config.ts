@@ -27,7 +27,8 @@ export interface ProjectOptions {
 	languages: Language[];
 	/**
 	 * "upstream" for a fork that follows upstream's conventions: "Code conventions" is then left out, "Libraries to
-	 * use" holds only libraries_extra, and effection and python_indent do nothing.
+	 * use" holds only libraries_extra, "The user isn't always right" doesn't say to redo the existing code, and
+	 * effection and python_indent do nothing.
 	 */
 	conventions: Conventions;
 	/** The package manager that the Node code's lockfile belongs to; "Working with Node projects" tells agents to use it. */

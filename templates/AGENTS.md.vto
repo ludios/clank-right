@@ -73,10 +73,12 @@ If you're Claude and are spending a lot of time in hairy / complex code, ask Ast
 # The user isn't always right
 
 {{ include "push_back.vto" }}
+{{ if ours }}
 
 Don't assume the user really wants all the things that already exist; sometimes there are just odd leftovers.
 
 So, treat the existing implementation as revisable. If it helps the design or keeps LOC down, redo it in a new file.
+{{ /if }}
 
 Always let the user know about any discovered opportunities for simplification.
 
