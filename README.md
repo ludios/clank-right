@@ -90,7 +90,6 @@ Every option has a default, so an empty header is valid.
 | `color_scheme` | `"both"`     | `"light"`, `"dark"`, or `"both"`, for the `"2010"` web design.                                       |
 | `sandbox_note` | `""`         | Appended to the sandbox hostname bullet, e.g. `"you're unable to hit production"`.                   |
 | `tools_extra`  | `[]`         | Installed tools worth mentioning, e.g. `["ffmpeg"]`; listed after `uv`.                              |
-| `commit_style` | `"template"` | `"nixpkgs"` replaces the commit template with nixpkgs-style commits.                                  |
 
 Facts that change over time (model names, the NixOS version, the
 curl-impersonate binary) are `set` at the top of `templates/AGENTS.md.vto`.

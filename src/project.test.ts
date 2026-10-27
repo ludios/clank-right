@@ -8,7 +8,7 @@ import { join } from "node:path";
 import { array, assert, asyncProperty, boolean, constantFrom, record, uniqueArray, type Arbitrary } from "fast-check";
 import { stringify as stringify_toml } from "smol-toml";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { COLOR_SCHEMES, COMMIT_STYLES, CONVENTIONS, LANGUAGES, PACKAGE_MANAGERS, PYTHON_INDENTS, WEB_DESIGNS, split_header, type ProjectOptions } from "./config.ts";
+import { COLOR_SCHEMES, CONVENTIONS, LANGUAGES, PACKAGE_MANAGERS, PYTHON_INDENTS, WEB_DESIGNS, split_header, type ProjectOptions } from "./config.ts";
 import { file_state, git } from "./git.ts";
 import { AGENTS_MD, ProjectError, commit_existing, inspect, regenerate, update, type Status } from "./project.ts";
 import { TEMPLATE_HEADINGS } from "./render.ts";
@@ -44,7 +44,6 @@ const options_arb: Arbitrary<ProjectOptions> = record({
 	color_scheme:    constantFrom(...COLOR_SCHEMES),
 	sandbox_note:    constantFrom("", "you're unable to hit production"),
 	tools_extra:     array(constantFrom("ffmpeg", "nm", "natscli (bin: nats)"), { maxLength: 2 }),
-	commit_style:    constantFrom(...COMMIT_STYLES),
 });
 
 const section_arb: Arbitrary<Section> = record({

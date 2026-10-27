@@ -22,7 +22,6 @@ web_design      = "2010"
 color_scheme    = "dark"
 sandbox_note    = "you're unable to hit production"
 tools_extra     = ["natscli (bin: nats)", "nats-server"]
-commit_style    = "nixpkgs"
 `);
 		expect(options).toEqual({
 			languages:       ["typescript", "svelte", "sql"],
@@ -35,7 +34,6 @@ commit_style    = "nixpkgs"
 			color_scheme:    "dark",
 			sandbox_note:    "you're unable to hit production",
 			tools_extra:     ["natscli (bin: nats)", "nats-server"],
-			commit_style:    "nixpkgs",
 		});
 	});
 
@@ -50,7 +48,6 @@ commit_style    = "nixpkgs"
 		expect(() => parse_options("conventions = \"theirs\"")).toThrow("`conventions` must be one of");
 		expect(() => parse_options("package_manager = \"npm\"")).toThrow("`package_manager` must be one of");
 		expect(() => parse_options("python_indent = \"2\"")).toThrow("`python_indent` must be one of");
-		expect(() => parse_options("commit_style = \"svn\"")).toThrow(OptionsError);
 	});
 
 	it("rejects values of the wrong shape", () => {

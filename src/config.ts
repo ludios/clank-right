@@ -13,7 +13,6 @@ export const PACKAGE_MANAGERS = ["pnpm", "bun"] as const;
 export const PYTHON_INDENTS   = ["spaces", "tabs"] as const;
 export const WEB_DESIGNS      = ["none", "2010", "custom"] as const;
 export const COLOR_SCHEMES    = ["light", "dark", "both"] as const;
-export const COMMIT_STYLES    = ["template", "nixpkgs"] as const;
 
 type Language       = (typeof LANGUAGES)[number];
 type Conventions    = (typeof CONVENTIONS)[number];
@@ -21,7 +20,6 @@ type PackageManager = (typeof PACKAGE_MANAGERS)[number];
 type PythonIndent   = (typeof PYTHON_INDENTS)[number];
 type WebDesign      = (typeof WEB_DESIGNS)[number];
 type ColorScheme    = (typeof COLOR_SCHEMES)[number];
-type CommitStyle    = (typeof COMMIT_STYLES)[number];
 
 /** What a project's header selects. Every field has a default, so the template can rely on all of them. */
 export interface ProjectOptions {
@@ -48,8 +46,6 @@ export interface ProjectOptions {
 	sandbox_note: string;
 	/** Installed tools worth mentioning for this project, e.g. "ffmpeg", listed among the standard ones. */
 	tools_extra: string[];
-	/** "nixpkgs" replaces the commit template with nixpkgs-style commits. */
-	commit_style: CommitStyle;
 }
 
 /** The header can't be understood; the human has to fix it. */
@@ -66,7 +62,6 @@ export const DEFAULT_OPTIONS: Readonly<ProjectOptions> = {
 	color_scheme:    "both",
 	sandbox_note:    "",
 	tools_extra:     [],
-	commit_style:    "template",
 };
 
 function describe_type(value: unknown): string {
@@ -162,9 +157,6 @@ export function parse_options(toml: string): ProjectOptions {
 				break;
 			case "tools_extra":
 				options.tools_extra = expect_line_list(key, value);
-				break;
-			case "commit_style":
-				options.commit_style = expect_one_of(key, value, COMMIT_STYLES);
 				break;
 			default:
 				throw new OptionsError(`unknown option \`${key}\``);

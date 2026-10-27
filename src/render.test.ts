@@ -6,9 +6,6 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_OPTIONS, LANGUAGES, type ProjectOptions } from "./config.ts";
 import { render, type RenderInput } from "./render.ts";
 
-/** The paragraph before the commit template in "Committing". */
-const NO_COMMIT_ALL = "Never `git commit -a` because there may be others working; stage changes manually.\n\n";
-
 /** The languages that have classes, for which the template advises on when to use them. */
 const CLASS_LANGUAGES: ReadonlySet<string> = new Set(["typescript", "javascript", "svelte", "python", "cpp", "csharp"]);
 
@@ -136,14 +133,8 @@ describe("render", () => {
 	it("follows the last project section with Committing, which ends in the commit template", async () => {
 		const text = await render_with({}, { project_sections: [{ heading: "Before committing", body: "\tcargo test" }] });
 		expect(text).toContain("# Before committing\n\n\tcargo test\n\n# Committing\n\nCommit one logical change at a time");
-		expect(text).toContain(NO_COMMIT_ALL + "Automatically commit your changes with this commit template:\n\n\tSubject line\n");
+		expect(text).toContain("Never `git commit -a` because there may be others working; stage changes manually.\n\nAutomatically commit your changes with this commit template:\n\n\tSubject line\n");
 		expect(text).not.toContain("After making changes");
-	});
-
-	it("replaces the commit template for nixpkgs-style commits", async () => {
-		const text = await render_with({ commit_style: "nixpkgs" });
-		expect(text).toContain("# Committing\n\n" + NO_COMMIT_ALL + "Automatically commit your changes as per the standard nixpkgs style for doing commits. Check the git log for a particular directory if uncertain.\n\n# Code review after each commit");
-		expect(text).not.toContain("<prompt>");
 	});
 
 	it("leaves out our conventions and libraries for a fork that follows upstream's, but not the project's additions", async () => {
