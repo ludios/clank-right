@@ -20,7 +20,7 @@ All thinking is hidden from the user, so if you find anything they may wish to k
 
 Your `Bash` tool uses zsh, not bash.
 
-You're on NixOS 26.05; many things are installed, including:
+You're on NixOS and many things are installed, including:
 
 ripgrep, ripgrep-all, node, deno, pnpm, oxfmt, oxlint, jq, python3, uv, psql, ephemeralpg (bin: pg_tmp), google-chrome, curl-impersonate, gcc, go, rustc, cargo, patchelf, zip, unzip, zstd, dmesg, perf, hyperfine, codex, claude.
 
@@ -191,7 +191,7 @@ Notes:
 	- codex: replace `--commit <sha>` with `--base <sha before your first commit>`
 	- claude: replace `commit <sha>` with `commits <sha before your first commit>..<sha of your last commit>`
 - Codex is already configured globally to never ask for permission and run unsandboxed.
-- A review can take several minutes; start them all in the background.
+- A review can take several minutes; start all of them in one Bash call with `run_in_background`, each command ending in `&`, then one `wait`.
 - Review findings are from **fallible machines eager to find issues**: think and prefer fixes that don't add a bunch of code we don't really need.
 - Once all the reviews are in, fix the oversights that are really worth fixing, in logical, independent commits where possible, without "act on the ... reviews of ..."! If nothing, say briefly why the findings didn't warrant changes.
 - Do _not_ send follow-up fixes through another review. (Exception: the follow-up grew into something substantial beyond addressing the findings.)
