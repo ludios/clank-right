@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_OPTIONS, LANGUAGES, type ProjectOptions } from "./config.ts";
 import { render, type RenderInput } from "./render.ts";
 
-/** The paragraph that opens "Committing". */
+/** The paragraph before the commit template in "Committing". */
 const NO_COMMIT_ALL = "Never `git commit -a` because there may be others working; stage changes manually.\n\n";
 
 /** The languages that have classes, for which the template advises on when to use them. */
@@ -34,7 +34,7 @@ describe("render", () => {
 		expect(text).not.toContain("# Libraries to use");
 		expect(text).toContain("\nWhen writing _any_ kind of code:\n\n- Think about invariants");
 		expect(text).toContain("Minutae:\n\n- Blank lines inside functions");
-		expect(text).not.toContain("For CREATE TABLE");
+		expect(text).not.toContain("PostgreSQL DDL");
 	});
 
 	it("includes Node material for a TypeScript project", async () => {
@@ -111,7 +111,7 @@ describe("render", () => {
 
 	it("adds the DDL paragraph for SQL", async () => {
 		const text = await render_with({ languages: ["sql"] });
-		expect(text).toContain("User loves AskUserQuestion.\n\nFor CREATE TABLE i.e. DDL work");
+		expect(text).toContain("before asking the question.\n\nBefore creating or changing any PostgreSQL DDL");
 	});
 
 	it("puts the sandbox note in the hostname bullet and extra tools after uv", async () => {
@@ -133,9 +133,10 @@ describe("render", () => {
 		expect(custom).not.toContain("2010 styling");
 	});
 
-	it("follows the last project section with Committing: the no-commit-all paragraph, then the commit template", async () => {
+	it("follows the last project section with Committing, which ends in the commit template", async () => {
 		const text = await render_with({}, { project_sections: [{ heading: "Before committing", body: "\tcargo test" }] });
-		expect(text).toContain("# Before committing\n\n\tcargo test\n\n# Committing\n\n" + NO_COMMIT_ALL + "Automatically commit your changes with this commit template:\n\n\tsubsystem:");
+		expect(text).toContain("# Before committing\n\n\tcargo test\n\n# Committing\n\nCommit one logical change at a time");
+		expect(text).toContain(NO_COMMIT_ALL + "Automatically commit your changes with this commit template:\n\n\tSubject line\n");
 		expect(text).not.toContain("After making changes");
 	});
 
@@ -158,7 +159,7 @@ describe("render", () => {
 	it("places project sections between Thoughts for when there is programming involved and Committing, verbatim", async () => {
 		const sections = [{ heading: "Project map", body: "- a/\n- b/" }, { heading: "The app", body: "Text.\n\n\n\n```\n\n\n# code\n```" }];
 		const text = await render_with({}, { project_sections: sections });
-		expect(text).toContain("User loves AskUserQuestion.\n\n# Project map\n\n- a/\n- b/\n\n# The app\n\nText.\n\n\n\n```\n\n\n# code\n```\n\n# Committing\n");
+		expect(text).toContain("before asking the question.\n\n# Project map\n\n- a/\n- b/\n\n# The app\n\nText.\n\n\n\n```\n\n\n# code\n```\n\n# Committing\n");
 	});
 
 	it("carries the options text through verbatim, blank lines included", async () => {
