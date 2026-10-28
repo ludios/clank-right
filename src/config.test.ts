@@ -47,6 +47,7 @@ authorship_comments = false
 	it("rejects values outside the enums", () => {
 		expect(() => parse_options("languages = [\"cobol\"]")).toThrow("`languages` must be one of");
 		expect(() => parse_options("web_design = \"2015\"")).toThrow("`web_design` must be one of");
+		expect(() => parse_options("conventions = \"theirs\"")).toThrow(OptionsError);
 		expect(() => parse_options("conventions = \"theirs\"")).toThrow("`conventions` must be one of");
 		expect(() => parse_options("package_manager = \"npm\"")).toThrow("`package_manager` must be one of");
 		expect(() => parse_options("python_indent = \"2\"")).toThrow("`python_indent` must be one of");
@@ -54,6 +55,7 @@ authorship_comments = false
 
 	it("rejects values of the wrong shape", () => {
 		expect(() => parse_options("effection = \"yes\"")).toThrow("`effection` must be true or false");
+		expect(() => parse_options("authorship_comments = \"false\"")).toThrow("`authorship_comments` must be true or false");
 		expect(() => parse_options("tools_extra = \"ffmpeg\"")).toThrow("`tools_extra` must be an array of strings");
 		expect(() => parse_options("sandbox_note = 3")).toThrow("`sandbox_note` must be a string, not a number");
 	});

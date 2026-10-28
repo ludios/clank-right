@@ -145,12 +145,16 @@ describe("render", () => {
 		expect(text).not.toContain("After making changes");
 	});
 
+	it("tells a project with our conventions to treat the existing code as revisable", async () => {
+		const text = await render_with({});
+		expect(text).toContain("it's real life.\n\nDon't assume the user really wants all the things that already exist; sometimes there are just odd leftovers.\n\nSo, treat the existing implementation as revisable. If it helps the design or keeps LOC down, redo it in a new file.\n\nAlways let the user know");
+	});
+
 	it("leaves out our conventions, libraries, and advice to redo code for a fork that follows upstream's, but not the project's additions", async () => {
 		const text = await render_with({ languages: ["typescript", "python"], conventions: "upstream", effection: true });
 		expect(text).toContain("# Working with Node projects\n\nnpm sux");
 		expect(text).toContain("keep existing lines.\n\n# Thoughts for when there is programming involved");
 		expect(text).toContain("it's real life.\n\nAlways let the user know");
-		expect(await render_with({})).toContain("it's real life.\n\nDon't assume the user really wants all the things that already exist; sometimes there are just odd leftovers.\n\nSo, treat the existing implementation as revisable. If it helps the design or keeps LOC down, redo it in a new file.\n\nAlways let the user know");
 		expect(text).not.toContain("# Code conventions");
 		expect(text).not.toContain("# Libraries to use");
 		const added = await render_with({ languages: ["typescript", "python"], conventions: "upstream", libraries_extra: ["`ws` for sockets."] });
