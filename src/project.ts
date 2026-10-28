@@ -190,7 +190,7 @@ async function undo(dir: string, replaceable: string): Promise<boolean> {
 export async function update(dir: string, rendered: string, version: string): Promise<Updated> {
 	const state = await file_state(dir, AGENTS_MD);
 	if (state === "modified") {
-		throw new ProjectError(`${AGENTS_MD} has uncommitted changes; commit or stash them first, or pass --commit-existing-changes`);
+		throw new ProjectError(`${AGENTS_MD} has uncommitted changes; commit them first, or pass --commit-existing-changes`);
 	}
 	const replaceable = await replaceable_head(dir);
 	await writeFile(join(dir, AGENTS_MD), rendered);
