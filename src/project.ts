@@ -9,7 +9,7 @@ import { join } from "node:path";
 import { A } from "ayy";
 import { getLogger } from "@logtape/logtape";
 import { OptionsError, parse_options, split_header } from "./config.ts";
-import { GitError, commit_only, file_state, git, head_commit, other_refs_containing_head } from "./git.ts";
+import { GitError, commit_only, file_state, git, head_commit, move_head, other_refs_containing_head, squash_head_into } from "./git.ts";
 import { is_template_heading, render } from "./render.ts";
 import { split_sections } from "./sections.ts";
 
@@ -150,14 +150,35 @@ async function replaceable_head(dir: string): Promise<string | null> {
 /** What `update` did to the checked-out branch. */
 export type Updated =
 	| { kind: "committed"; sha: string }
-	/** HEAD was `replaced`, an unpushed regeneration; `sha` amends it. */
+	/** HEAD was `replaced`, an unpushed regeneration; `sha` replaces it, holding both changes. */
 	| { kind: "replaced"; sha: string; replaced: string }
 	/** HEAD was `replaced`, an unpushed regeneration, and the file is back to what its parent had, so it's gone. */
 	| { kind: "undone"; replaced: string };
 
 /**
- * Writes the regenerated AGENTS.md and commits it alone. If HEAD is an unpushed commit of this function's, amends
- * that instead, or removes it when the file is back to what its parent had; whatever else is staged stays staged.
+ * Removes `replaceable` from the branch if the regenerated file is back to what its parent had; whatever else is
+ * staged stays staged.
+ * @param dir The repository's working directory.
+ * @param replaceable HEAD's short hash, from `replaceable_head`.
+ * @returns Whether it did; false when the file differs from the parent's, or HEAD has moved off `replaceable`.
+ */
+async function undo(dir: string, replaceable: string): Promise<boolean> {
+	if (await git(dir, "diff", "--name-only", `${replaceable}^`, "--", AGENTS_MD) !== "") {
+		return false;
+	}
+	if (!await move_head(dir, `${replaceable}^`, replaceable, `clank-right: undo ${replaceable}`)) {
+		return false;
+	}
+	await git(dir, "add", "--", AGENTS_MD);
+	log.info("undid {sha} in {dir}, since {file} is back to what its parent had", { sha: replaceable, dir, file: AGENTS_MD });
+	return true;
+}
+
+/**
+ * Writes the regenerated AGENTS.md and commits it alone. If HEAD is an unpushed commit of this function's, squashes
+ * the new commit into that one, or removes that one when the file is back to what its parent had. Either happens
+ * only if no other commit has landed on the branch meanwhile; otherwise the new commit stays a commit of its own.
+ * Whatever else is staged stays staged.
  * @param dir The repository's working directory.
  * @param rendered The text to write, from `inspect`.
  * @param version Which template made `rendered`, for the commit message.
@@ -171,28 +192,27 @@ export async function update(dir: string, rendered: string, version: string): Pr
 	if (state === "modified") {
 		throw new ProjectError(`${AGENTS_MD} has uncommitted changes; commit or stash them first, or pass --commit-existing-changes`);
 	}
-	const replaced = await replaceable_head(dir);
+	const replaceable = await replaceable_head(dir);
 	await writeFile(join(dir, AGENTS_MD), rendered);
-	if (replaced !== null && await git(dir, "diff", "--name-only", "HEAD^", "--", AGENTS_MD) === "") {
-		await git(dir, "reset", "--quiet", "--soft", "HEAD^");
-		await git(dir, "add", "--", AGENTS_MD);
-		log.info("undid {sha} in {dir}, since {file} is back to what its parent had", { sha: replaced, dir, file: AGENTS_MD });
-		return { kind: "undone", replaced };
+	if (replaceable !== null && await undo(dir, replaceable)) {
+		return { kind: "undone", replaced: replaceable };
 	}
 	let sha: string;
 	try {
-		sha = await commit_only(dir, AGENTS_MD, `${UPDATE_SUBJECT} (${version})`, replaced !== null);
+		sha = await commit_only(dir, AGENTS_MD, `${UPDATE_SUBJECT} (${version})`);
 	} catch (error) {
 		if (error instanceof GitError) {
-			const remedy = replaced === null ? "commit it yourself" : `amend ${replaced} with it yourself`;
-			throw new ProjectError(`${AGENTS_MD} was regenerated and staged but not committed; ${remedy} once this is fixed: ${error.message}`);
+			throw new ProjectError(`${AGENTS_MD} was regenerated and staged but not committed; commit it yourself once this is fixed: ${error.message}`);
 		}
 		throw error;
 	}
-	if (replaced === null) {
-		log.info("committed {sha} in {dir}", { sha, dir });
-		return { kind: "committed", sha };
+	if (replaceable !== null) {
+		const squashed = await squash_head_into(dir, sha, replaceable);
+		if (squashed !== null) {
+			log.info("committed {sha} in {dir}, replacing {replaced}", { sha: squashed, dir, replaced: replaceable });
+			return { kind: "replaced", sha: squashed, replaced: replaceable };
+		}
 	}
-	log.info("committed {sha} in {dir}, replacing {replaced}", { sha, dir, replaced });
-	return { kind: "replaced", sha, replaced };
+	log.info("committed {sha} in {dir}", { sha, dir });
+	return { kind: "committed", sha };
 }

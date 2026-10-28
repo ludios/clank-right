@@ -262,6 +262,19 @@ describe("in a repository", () => {
 				expect(await git(repo, "status", "--porcelain")).toBe("M  other.txt");
 			});
 
+			it("piles another on top when another commit lands right after its own", async () => {
+				await commit_stale(await readFile(agents(), "utf8") + "\n# Environment\n\nStale.\n");
+				// Another session committing at the worst moment: between update's commit and its squash.
+				const hook = join(repo, ".git", "hooks", "post-commit");
+				await writeFile(hook, "#!/bin/sh\nrm \"$0\"\ngit commit --quiet --allow-empty --message other\n", { mode: 0o755 });
+				const status = await inspect(repo);
+				assert_dirty(status);
+				const updated = await update(repo, status.rendered, "v1");
+				expect(updated).toEqual({ kind: "committed", sha: await git(repo, "rev-parse", "--short", "HEAD^") });
+				expect(await git(repo, "log", "--format=%s")).toBe(`other\n${subject("v1")}\n${subject("v0")}\ninitial`);
+				expect(await inspect(repo)).toEqual({ kind: "clean" });
+			});
+
 			it("piles another on top once a remote-tracking branch has it", async () => {
 				await commit_stale(await readFile(agents(), "utf8") + "\n# Environment\n\nStale.\n");
 				await git(repo, "update-ref", "refs/remotes/origin/master", "HEAD");

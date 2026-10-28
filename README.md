@@ -33,6 +33,10 @@ So that template edits don't pile up regeneration commits between pushes, when
 ref but the checked-out branch has it (no remote-tracking branch as of your
 last fetch or push, no tag, no other branch), `update` amends it instead. If
 the file is back to what that commit's parent had, `update` removes the commit.
+Either happens only if no other commit has landed on the branch meanwhile,
+which git checks while holding the branch's lock; otherwise the regeneration
+stays a commit of its own. So another session committing in the same
+repository at the same moment never has its commit rewritten or lost.
 
 Without `DIR`s, both commands go through every repository listed in
 `~/.config/clank-right/projects.txt` (`$XDG_CONFIG_HOME` is honoured when set).

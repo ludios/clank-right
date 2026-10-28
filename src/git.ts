@@ -3,7 +3,7 @@
 //
 // The few git operations the tool needs.
 
-import { A } from "ayy";
+import { A, AssertionError } from "ayy";
 import { getLogger } from "@logtape/logtape";
 import { run_process } from "./process.ts";
 
@@ -104,13 +104,65 @@ export async function other_refs_containing_head(repo: string): Promise<string[]
  * @param repo The repository's working directory.
  * @param path A file path relative to it.
  * @param message The commit message.
- * @param amend Whether to replace HEAD's commit, rather than add one on top, with one that has HEAD's parents and
- * HEAD's tree but for `path`, and the current author and date.
- * @returns The new commit's short hash.
+ * @returns The new commit's short hash, which needn't be HEAD's by the time this returns.
  */
-export async function commit_only(repo: string, path: string, message: string, amend = false): Promise<string> {
+export async function commit_only(repo: string, path: string, message: string): Promise<string> {
 	await git(repo, "add", "--", path);
-	const amend_args = amend ? ["--amend", "--reset-author"] : [];
-	await git(repo, "commit", "--quiet", "--only", ...amend_args, "--message", message, "--", path);
-	return await git(repo, "rev-parse", "--short", "HEAD");
+	// Its summary, e.g. "[master 1a2b3c4] subject", names the commit made even when HEAD has already moved on (a
+	// post-commit hook, another process); a branch name can't contain the space before the hash.
+	const out = await git(repo, "commit", "--only", "--message", message, "--", path);
+	const match = /^\[[^\n]*? ([0-9a-f]{4,})\] /.exec(out);
+	if (match === null) {
+		throw new AssertionError(`git commit in ${repo} made a commit but printed no "[branch hash]" summary: ${out}`, commit_only);
+	}
+	return match[1]!;
+}
+
+/**
+ * Points HEAD (the checked-out branch, or a detached HEAD) at `to`, but only if it still points at `from`. Git checks
+ * that while holding the ref's lock, so a commit that another process made after `from` was read is never lost.
+ * @param repo The repository's working directory.
+ * @param to The commit to point at.
+ * @param from The commit HEAD must point at now.
+ * @param reason Why, for the reflog.
+ * @returns Whether HEAD moved; false when it no longer pointed at `from`, or another git process held its lock.
+ */
+export async function move_head(repo: string, to: string, from: string, reason: string): Promise<boolean> {
+	try {
+		await git(repo, "update-ref", "-m", reason, "HEAD", to, from);
+	} catch (error) {
+		if (!(error instanceof GitError)) {
+			throw error;
+		}
+		log.warning("left HEAD in {repo} alone instead of moving it from {from} to {to}: {error}", {
+			repo, from, to, error: error.message,
+		});
+		return false;
+	}
+	return true;
+}
+
+/**
+ * Squashes HEAD's commit into its parent, as `git commit --amend` on the parent would have made it: one commit with
+ * HEAD's tree and message, the parent's parent, and the current author and date. HEAD moves to it only while HEAD is
+ * still `head` and `head` is on `parent`, so that no other commit is rewritten or lost.
+ * @param repo The repository's working directory.
+ * @param head The commit expected at HEAD, e.g. one just made.
+ * @param parent The commit expected as `head`'s parent; it must have a parent of its own.
+ * @returns The new commit's short hash, or null when `head` isn't on `parent` or HEAD moved off `head`; HEAD is then
+ * left alone.
+ */
+export async function squash_head_into(repo: string, head: string, parent: string): Promise<string | null> {
+	const hashes = (await git(repo, "rev-parse", `${head}^`, `${parent}^{commit}`)).split("\n");
+	A.eq(hashes.length, 2);
+	if (hashes[0] !== hashes[1]) {
+		log.warning("not squashing {head} in {repo} into {parent}, since another commit landed between them", { head, repo, parent });
+		return null;
+	}
+	const message = await git(repo, "log", "--max-count=1", "--format=%B", head);
+	const squashed = await git(repo, "commit-tree", `${head}^{tree}`, "-p", `${parent}^`, "-m", message);
+	if (!await move_head(repo, squashed, head, `clank-right: squash ${head} into ${parent}`)) {
+		return null;
+	}
+	return await git(repo, "rev-parse", "--short", squashed);
 }
