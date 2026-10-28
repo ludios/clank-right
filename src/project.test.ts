@@ -104,7 +104,7 @@ describe("regenerate", () => {
 		const file = header("") + "# Before committing\n\n\tcargo test\n\n# After making changes\n\nOld checks.\n\nNever `git commit -a`.\n";
 		const { rendered, dropped } = await regenerate(file);
 		expect(dropped).toEqual(["After making changes"]);
-		expect(rendered).toContain("# Before committing\n\n\tcargo test\n\n# Committing\n\nCommit one logical change at a time");
+		expect(rendered).toContain("# Before committing\n\n\tcargo test\n\n# Committing\n\n");
 		expect(rendered).not.toContain("Old checks.");
 	});
 

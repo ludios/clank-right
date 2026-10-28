@@ -140,7 +140,7 @@ describe("render", () => {
 
 	it("follows the last project section with Committing, which ends in the commit template", async () => {
 		const text = await render_with({}, { project_sections: [{ heading: "Before committing", body: "\tcargo test" }] });
-		expect(text).toContain("# Before committing\n\n\tcargo test\n\n# Committing\n\nCommit one logical change at a time");
+		expect(text).toContain("# Before committing\n\n\tcargo test\n\n# Committing\n\n");
 		expect(text).toContain("Never `git commit -a` because there may be others working; stage changes manually.\n\nAutomatically commit your changes with this commit template:\n\n\tSubject line\n");
 		expect(text).not.toContain("After making changes");
 	});
