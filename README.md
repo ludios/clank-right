@@ -92,8 +92,8 @@ Every option has a default, so an empty header is valid.
 | `tools_extra`  | `[]`         | Installed tools worth mentioning, e.g. `["ffmpeg"]`; listed after `uv`.                              |
 | `authorship_comments` | `true` | `false` leaves out "Tracking AI authorship", for a repository whose files shouldn't carry `Model-output:` comments, e.g. a fork whose patches go upstream. |
 
-Facts that change over time (model names, the NixOS version, the
-curl-impersonate binary) are `set` at the top of `templates/AGENTS.md.vto`.
+Facts that change over time (model names, the reviewers, the installed tools,
+the curl-impersonate binary) are `set` at the top of `templates/AGENTS.md.vto`.
 
 ## Adding a repository
 
