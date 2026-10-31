@@ -1,3 +1,12 @@
+{{ if rust }}
+
+For Rust code:
+
+- It's okay to keep things simple; no need to use combinators like `and_then` where they're not ideal.
+- Bodies of e.g. `if` / `else` expressions should be on their own lines unless they are very simple.
+- Prefer e.g. `let mut x = None` followed by `x = ...` over a `match` with a None result or more lines.
+- Prefer `if let ` / `let ... else {` where it results in fewer lines.
+{{ /if }}
 {{ if node }}
 
 For JavaScript, TypeScript, and Svelte-related code:

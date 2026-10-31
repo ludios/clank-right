@@ -22,6 +22,7 @@ around it reads the same whether or not the block is emitted.
 {{# What the options imply. #}}
 {{ set ours    = conventions == "ours" }}
 {{ set node    = languages.some((l) => ["typescript", "javascript", "svelte"].includes(l)) }}
+{{ set rust    = languages.includes("rust") }}
 {{ set python  = languages.includes("python") }}
 {{ set braces  = node || languages.some((l) => ["c", "cpp", "csharp"].includes(l)) }}
 {{ set classes = node || python || languages.some((l) => ["cpp", "csharp"].includes(l)) }}
