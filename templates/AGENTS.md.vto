@@ -113,6 +113,12 @@ Files with any LLM-authored code (not counting mechanistic sed-like changes) beg
 {{ /if }}
 {{ if ours }}
 
+# English
+
+All new English must be maximally unambiguous, even if it becomes slightly longer! Think as a reader, and read the text every possible way. For example, never write "cannot change a hash once set" instead of "cannot change a hash (if already set)".
+
+You can ask Astra via codex to rewrite stuff.
+
 # Code conventions
 {{ include "code_conventions.vto" }}
 {{ /if }}
