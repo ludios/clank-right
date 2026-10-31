@@ -232,7 +232,7 @@ After each commit made, `git clone --shared` the repo into some /tmp/ folder and
 	claude -p --model {{ model }} --effort xhigh "/code-review xhigh commit <sha>"
 {{ /for }}
 
-Ensure that the output of each review gets written or copied to ~/.ai-code-reviews/{model}/{commit} or /{commit-range}, then delete the clone.
+Ensure that the output of each review gets written or copied to ~/.ai-code-reviews/{model}/{full commit hash} or /{full commit hash-final full commit hash}, then delete the clone.
 
 Notes:
 
