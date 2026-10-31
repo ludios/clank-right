@@ -2,10 +2,11 @@
 
 For Rust code:
 
-- It's okay to keep things simple; no need to use combinators like `and_then` where they're not ideal.
+- No useless use of tuple: `let (size, frame_size) = (self.size, self.frame_size);` should be two lines instead.
+- It's okay to keep things simple; no need to use combinators like `and_then` unless they're ideal.
 - Bodies of e.g. `if` / `else` expressions should be on their own lines unless they are very simple.
-- Prefer e.g. `let mut x = None` followed by `x = ...` over a `match` with a None result or more lines.
-- Prefer `if let ` / `let ... else {` where it results in fewer lines.
+- Prefer e.g. `let mut x = None` followed by `x = ...` over a `match` with a None or more lines.
+- Prefer `if let ` / `let ... else {` where it results in fewer lines than `match`.
 {{ /if }}
 {{ if node }}
 
