@@ -151,7 +151,8 @@ describe("render", () => {
 		const text = await render_with({}, { project_sections: [{ heading: "Before committing", body: "\tcargo test" }] });
 		expect(text).toContain("# Before committing\n\n\tcargo test\n\n# Using git safely\n\n**Other sessions may be staging and committing**");
 		expect(text).toContain("not `git history reword` or an amend.\n\n# Commit sizes and messages\n\n");
-		expect(text).toContain("Automatically commit your changes with this commit template:\n\n\tSubject line\n");
+		expect(text).toContain("\tUpdate Cargo.lock\n\nAutomatically commit your changes with this commit template:\n\n\tSubject line\n");
+		expect(text).not.toContain("stage changes manually");
 		expect(text).not.toContain("After making changes");
 		expect(text).not.toContain("# Committing");
 	});
