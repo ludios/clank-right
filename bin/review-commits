@@ -78,7 +78,7 @@ main() {
 	trap cleanup EXIT
 	trap 'exit 130' INT TERM
 	tmp=$(mktemp -d "${TMPDIR:-/tmp}/review-commits.XXXXXX")
-	git clone --quiet --shared "$top" "$tmp/repo"
+	git clone --quiet --shared --no-checkout "$top" "$tmp/repo"
 	git -C "$tmp/repo" checkout --quiet --detach "$last"
 	cd "$tmp/repo"
 
