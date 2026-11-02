@@ -62,7 +62,7 @@ Without `DIR`s, both commands go through every repository listed in
 	...
 	# Before committing      <- its checks too, by convention last
 	...
-	# Committing
+	# Using git safely
 	...
 
 The header is an HTML comment whose leading `#` lines belong to the tool and
@@ -70,13 +70,13 @@ whose remaining lines are the repository's options, in TOML. Everything after
 the header is H1 sections. Sections whose heading the template emits are
 regenerated from the template; any other section is the repository's own and
 is kept verbatim, in order, between "Thoughts for when there is programming
-involved" and "Committing". (`check` and `update` tell you when a
+involved" and "Using git safely". (`check` and `update` tell you when a
 template-owned section is about to disappear because the options no longer
 produce it, or because the template renamed it.)
 
 What to run before committing is the repository's own too: a section of its
 own, conventionally `# Before committing` and placed last, so that it reads
-right before "Committing".
+right before "Using git safely".
 
 ### Options
 
