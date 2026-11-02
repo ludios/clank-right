@@ -17,6 +17,7 @@ around it reads the same whether or not the block is emitted.
 {{ set curl_chrome  = "curl_chrome152" }}
 {{ set claude_model = "Claude Mythos 5.1" }}
 {{ set claude_reviewers = ["claude-mythos-5-1", "claude-opus-5-5"] }}
+{{ set astra_model  = "gpt-6-astra" }}
 {{ set tools = ["ripgrep", "ripgrep-all", "node", "deno", "pnpm", ...(package_manager == "bun" ? ["bun"] : []), "oxfmt", "oxlint", "jq", "python3", "uv", ...tools_extra, "psql", "ephemeralpg (bin: pg_tmp)", "google-chrome", "curl-impersonate", "gcc", "go", "rustc", "cargo", "patchelf", "zip", "unzip", "zstd", "dmesg", "perf", "hyperfine", "codex", "claude"] }}
 {{# What the options imply. #}}
 {{ set ours    = conventions == "ours" }}
@@ -68,11 +69,13 @@ If git objects are broken: don't investigate, just try again in 7 seconds; if st
 
 Use `rg` in various ways until you know you need the rest of the file.
 
-If you're Claude and are spending a lot of time in hairy / complex code, ask Astra for help:
+If you're Claude and are spending a lot of time in hairy / complex code, ask Astra for help, with `run_in_background` (Astra can take several minutes):
 
-	codex exec -c model="gpt-6-astra" -c model_reasoning_effort="xhigh" "PROMPT" < /dev/null
+	codex exec -c model="{{ astra_model }}" -c model_reasoning_effort="xhigh" -s read-only - 2> LOG_FILE <<'EOF'
+	PROMPT
+	EOF
 
-Keep the `< /dev/null`. Whenever stdin isn't a terminal, `codex exec` reads stdin until it ends and appends it to the prompt, and the stdin of your `Bash` tool never ends.
+Keep the prompt in the quoted heredoc. The shell then expands nothing in the prompt, and `codex exec` gets a stdin that ends (given a stdin that never ends, `codex exec` waits forever). Stdout gets only Astra's answer; LOG_FILE gets everything else that Astra did.
 
 # The user isn't always right
 
@@ -115,7 +118,7 @@ If you can't fetch something, use google-chrome or {{ curl_chrome }} on this mac
 
 All new English must be maximally unambiguous, even if it becomes slightly longer! Think as a reader, and read the text every possible way. For example, never write "cannot change a hash once set" instead of "cannot change a hash (if already set)".
 
-You can ask Astra to rewrite stuff, with the `codex exec` command under "Avoid consuming tokens in excess".
+If you're Claude, you can also ask Astra to rewrite stuff, with the `codex exec` command shown earlier in this file.
 
 # Code conventions
 {{ include "code_conventions.vto" }}
@@ -229,7 +232,7 @@ Automatically commit your changes with this commit template:
 
 After each commit made, `git clone --shared` the repo into some /tmp/ folder and get it reviewed by Codex and by Claude, all at xhigh reasoning:
 
-	codex review --commit <sha> -c model="gpt-6-astra" -c model_reasoning_effort="xhigh"
+	codex review --commit <sha> -c model="{{ astra_model }}" -c model_reasoning_effort="xhigh"
 	codex review --commit <sha> -c model="gpt-6.1-sol" -c model_reasoning_effort="xhigh"
 	codex review --commit <sha> -c model="gpt-5.6-sol" -c model_reasoning_effort="xhigh"
 {{ for model of claude_reviewers }}

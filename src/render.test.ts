@@ -20,6 +20,12 @@ describe("render", () => {
 		expect(text).toContain("\n\nlanguages = [\"rust\"]\n-->\n\n# Before starting\n\nWelcome. Before starting or resuming work, check what `hostname` outputs.\n\n- If it ends in \"clank\", run whatever commands you need.\n- Otherwise, stop and ask the user to edit this file.\n\n# Environment\n");
 	});
 
+	it("gives a codex exec command for Astra whose prompt is a quoted heredoc", async () => {
+		const text = await render_with({});
+		expect(text).toContain("\tcodex exec -c model=\"gpt-6-astra\" -c model_reasoning_effort=\"xhigh\" -s read-only - 2> LOG_FILE <<'EOF'\n\tPROMPT\n\tEOF\n");
+		expect(text).toContain("\tcodex review --commit <sha> -c model=\"gpt-6-astra\" -c model_reasoning_effort=\"xhigh\"\n");
+	});
+
 	it("omits Node and Python material for a project in neither", async () => {
 		const text = await render_with({ languages: ["rust"] });
 		expect(text).not.toContain("# Working with Node projects");
