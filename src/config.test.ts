@@ -52,6 +52,7 @@ tools_extra     = ["natscli (bin: nats)", "nats-server"]
 
 	it("rejects values of the wrong shape", () => {
 		expect(() => parse_options("effection = \"yes\"")).toThrow("`effection` must be true or false");
+		expect(() => parse_options("space_alignment = \"no\"")).toThrow("`space_alignment` must be true or false");
 		expect(() => parse_options("tools_extra = \"ffmpeg\"")).toThrow("`tools_extra` must be an array of strings");
 		expect(() => parse_options("sandbox_note = 3")).toThrow("`sandbox_note` must be a string, not a number");
 	});

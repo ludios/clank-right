@@ -90,7 +90,7 @@ Every option has a default, so an empty header is valid.
 | `effection`    | `false`      | Lists `effection` among the Node "Libraries to use".                                                 |
 | `libraries_extra` | `[]`      | More "Libraries to use" items after the standard ones, each as the text after the bullet, e.g. `` ["`ventojs` for templating."] ``. |
 | `python_indent` | `"spaces"` | `"tabs"` indents the Python code with tabs instead of four spaces, for the older projects written that way.          |
-| `space_alignment` | `true`    | `false` leaves out the rule to align similar adjacent lines with spaces, and "and spaces to align" after how to indent, for a project whose formatter (oxfmt, for example) removes such spaces. |
+| `space_alignment` | `true`    | `false` removes the rule to align similar adjacent lines with spaces, and removes the words "and spaces to align" from the end of the JavaScript and Python rules on how to indent. Use it for a project whose formatter (oxfmt, for example) removes the spaces that align things. |
 | `web_design`   | `"none"`     | `"2010"` for the standard section; `"custom"` keeps the repository's own `# Web design` section.     |
 | `color_scheme` | `"both"`     | `"light"`, `"dark"`, or `"both"`, for the `"2010"` web design.                                       |
 | `sandbox_note` | `""`         | Appended to the sandbox hostname bullet, e.g. `"you're unable to hit production"`.                   |

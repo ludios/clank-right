@@ -79,6 +79,8 @@ describe("render", () => {
 		expect(unaligned).toContain("\n- Use 4 spaces to indent.\n");
 		expect(unaligned).not.toContain(rule);
 		expect(unaligned).toContain("groups of steps.\n\n# Libraries to use");
+		const tabs = await render_with({ languages: ["python"], python_indent: "tabs", space_alignment: false });
+		expect(tabs).toContain("\nFor Python code:\n\n- Use tabs to indent.\n");
 	});
 
 	it("lists the extra libraries for a project in neither Node nor Python, and no section without them", async () => {

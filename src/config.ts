@@ -37,8 +37,9 @@ export interface ProjectOptions {
 	/** How the Python code is indented: "spaces" (four, as PEP 8 says) or "tabs", for the older projects written that way. */
 	python_indent: PythonIndent;
 	/**
-	 * Whether the code conventions ask for spaces that align similar adjacent lines. False for a project whose
-	 * formatter (oxfmt, for example) removes such spaces.
+	 * Whether the code conventions ask for space-based alignment: the rule to align similar adjacent lines with spaces,
+	 * and the words "and spaces to align" at the end of the JavaScript and Python rules on how to indent. False for a
+	 * project whose formatter (oxfmt, for example) removes the spaces that align things.
 	 */
 	space_alignment: boolean;
 	/** "2010" for the standard web design section, "custom" to keep the repository's own "# Web design" section, "none" for no section. */
