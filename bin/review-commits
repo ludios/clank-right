@@ -1,0 +1,132 @@
+#!/usr/bin/env bash
+# Usage: review-commits COMMIT
+#    or: review-commits BASE..LAST
+#
+# Gets COMMIT, or the commits after BASE up to and including LAST, reviewed by
+# every reviewer below at xhigh reasoning, all at once, in a `git clone --shared`
+# of the current repository with COMMIT (or LAST) checked out. Saves each review
+# to ~/.ai-code-reviews/MODEL/NAME, where NAME is the full hash of COMMIT, or
+# FULL_BASE..FULL_LAST; a codex reviewer's transcript goes to NAME.log, next to
+# its review. Once every reviewer has exited, prints every review, deletes the
+# clone, and exits with status 1 if any reviewer failed.
+
+set -euo pipefail
+
+codex_reviewers=(gpt-6-astra gpt-6.1-sol gpt-5.6-sol)
+claude_reviewers=(claude-mythos-5-1 claude-opus-5-5)
+
+# The temporary directory that holds the clone; cleanup() deletes it.
+tmp=
+
+# Prints $1 and the usage to stderr, then exits with status 2.
+die_usage() {
+	echo "review-commits: $1" >&2
+	echo "Usage: review-commits COMMIT, or review-commits BASE..LAST" >&2
+	exit 2
+}
+
+# Prints the full hash of commit $1 of the current repository, or exits through die_usage.
+full_hash() {
+	git rev-parse --verify --quiet "$1^{commit}" || die_usage "not a commit: $1"
+}
+
+# Stops every reviewer still running, then deletes the clone.
+cleanup() {
+	local pids
+	pids=$(jobs -p)
+	if [[ -n $pids ]]; then
+		# One PID per word. `jobs -p` lists only the reviewers not yet waited
+		# for, so a PID that the system has since reused is never killed.
+		# shellcheck disable=SC2086
+		kill $pids 2>/dev/null || true
+	fi
+	if [[ -n $tmp ]]; then
+		rm -rf "$tmp"
+	fi
+}
+
+main() {
+	if (( $# != 1 )); then
+		die_usage "expected one argument, got $#"
+	fi
+	local arg=$1
+	if [[ $arg == *...* ]]; then
+		die_usage "BASE...LAST (with three dots) is not supported: $arg"
+	fi
+
+	# What the reviewers get told to review, and the review files' name
+	local base last name claude_target
+	local -a codex_target
+	if [[ $arg == *..* ]]; then
+		base=$(full_hash "${arg%%..*}")
+		last=$(full_hash "${arg#*..}")
+		if [[ $base == "$last" ]] || ! git merge-base --is-ancestor "$base" "$last"; then
+			die_usage "BASE must be an ancestor of LAST, and not LAST itself: $arg"
+		fi
+		name=$base..$last
+		codex_target=(--base "$base")
+		claude_target="commits $base..$last"
+	else
+		last=$(full_hash "$arg")
+		name=$last
+		codex_target=(--commit "$last")
+		claude_target="commit $last"
+	fi
+
+	local top
+	top=$(git rev-parse --show-toplevel)
+	trap cleanup EXIT
+	trap 'exit 130' INT TERM
+	tmp=$(mktemp -d "${TMPDIR:-/tmp}/review-commits.XXXXXX")
+	git clone --quiet --shared "$top" "$tmp/repo"
+	git -C "$tmp/repo" checkout --quiet --detach "$last"
+	cd "$tmp/repo"
+
+	# Each reviewer's model, review file, transcript file (or none), and PID.
+	# Without job control, bash gives each background command /dev/null as its
+	# stdin, so no reviewer waits for input.
+	local reviews=$HOME/.ai-code-reviews model
+	local -a models=() files=() logs=() pids=()
+	for model in "${codex_reviewers[@]}"; do
+		mkdir -p "$reviews/$model"
+		codex review "${codex_target[@]}" -c "model=$model" -c model_reasoning_effort=xhigh \
+			> "$reviews/$model/$name" 2> "$reviews/$model/$name.log" &
+		models+=("$model")
+		files+=("$reviews/$model/$name")
+		logs+=("$reviews/$model/$name.log")
+		pids+=($!)
+	done
+	for model in "${claude_reviewers[@]}"; do
+		mkdir -p "$reviews/$model"
+		claude -p --model "$model" --effort xhigh "/code-review xhigh $claude_target" > "$reviews/$model/$name" 2>&1 &
+		models+=("$model")
+		files+=("$reviews/$model/$name")
+		logs+=("")
+		pids+=($!)
+	done
+	echo "review-commits: started ${#models[@]} reviews of $name in $tmp/repo"
+
+	local i status failed=0
+	local -a statuses=()
+	for i in "${!pids[@]}"; do
+		status=0
+		wait "${pids[$i]}" || status=$?
+		statuses+=("$status")
+	done
+
+	for i in "${!models[@]}"; do
+		echo
+		echo "=== ${models[$i]} (exit status ${statuses[$i]}): ${files[$i]}"
+		cat "${files[$i]}"
+		if (( statuses[i] != 0 )); then
+			failed=1
+			if [[ -n ${logs[$i]} ]]; then
+				echo "--- the end of its transcript, ${logs[$i]}:"
+				tail -n 20 "${logs[$i]}"
+			fi
+		fi
+	done
+	return $failed
+}
+
+main "$@"

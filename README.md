@@ -123,6 +123,14 @@ characters on the paid plans, and `clank-right chatbots` refuses to write more.
 The files are committed, so their history tells you when to paste again.
 `pnpm test` fails while they don't match the templates.
 
+## Reviewing commits
+
+The template tells agents to run `review-commits` after each commit, so put
+`bin/` on the `PATH` of every machine that agents run on. `bin/review-commits`
+takes a commit, or `BASE..LAST`, and has every model in its `codex_reviewers`
+and `claude_reviewers` review it at once; the comment at its top says where the
+reviews go. To change the reviewers, edit those two lists.
+
 ## Changing the template
 
 Edit the templates in `templates/`, run `clank-right chatbots`, and commit the
