@@ -60,7 +60,7 @@ npm sux; please use pnpm instead.
 
 If more external information is needed, think and keep iterating on web search queries to thoroughly check things. Tips: try site-specific searches e.g. site:github.com, reddit.com, news.ycombinator.com; try combinations of quoted items.
 
-If you can't fetch something, use google-chrome or curl_chrome150 on this machine.
+If you can't fetch something, use google-chrome or curl_chrome152 on this machine.
 
 # English
 
