@@ -87,12 +87,12 @@ describe("regenerate", () => {
 		expect(rendered).not.toContain("Old rules.");
 	});
 
-	it("drops a section under a heading the template used to emit instead of keeping it as the project's own", async () => {
-		const file = header("") + "# Programming thoughts\n\nOld thoughts.\n";
+	it.each(["Programming thoughts", "Tracking AI authorship"])("drops a section under %s, a heading the template used to emit, instead of keeping it as the project's own", async (heading) => {
+		const file = header("") + `# ${heading}\n\nOld thoughts.\n`;
 		const { rendered, dropped } = await regenerate(file);
-		expect(headings_of(rendered)).not.toContain("Programming thoughts");
+		expect(headings_of(rendered)).not.toContain(heading);
 		expect(rendered).not.toContain("Old thoughts.");
-		expect(dropped).toEqual(["Programming thoughts"]);
+		expect(dropped).toEqual([heading]);
 	});
 
 	it("drops the old After making changes section, leaving the project's Before committing right before Committing", async () => {
