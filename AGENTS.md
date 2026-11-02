@@ -32,6 +32,8 @@ plus `--set-rpath` to a nix gcc-lib for libstdc++ if needed.
 
 When waiting on something, avoid `sleep N` where N > 10; use built-in task watching or e.g. `wait-for-process-exit PID`, or loop something e.g. `rg -q PATTERN FILE` with a 2 second wait.
 
+To wait for commands that you started in the background, end each command with `&` directly (not `( command & )`, because `wait` doesn't wait for a command inside a subshell), then run `wait` in the same shell. Never wait in a loop on `pgrep -f PATTERN`: the looping shell's own command line contains PATTERN, so `pgrep` keeps finding that shell and the loop never ends.
+
 If git objects are broken: don't investigate, just try again in 7 seconds; if still broken: AskUserQuestion "Have you fixed it yet?" Y/N.
 
 # Avoid consuming tokens in excess
@@ -201,23 +203,26 @@ Automatically commit your changes with this commit template:
 
 # Code review after each commit
 
-After each commit made, `git clone --shared` the repo into some /tmp/ folder and get it reviewed by Codex and by Claude, all at xhigh reasoning:
+After each commit made, `git clone --shared` the repo into some /tmp/ folder and get it reviewed by Codex and by Claude, all at xhigh reasoning. A review can take several minutes, so start all of them in one Bash call with `run_in_background`:
 
-	codex review --commit <sha> -c model="gpt-6-astra" -c model_reasoning_effort="xhigh"
-	codex review --commit <sha> -c model="gpt-6.1-sol" -c model_reasoning_effort="xhigh"
-	codex review --commit <sha> -c model="gpt-5.6-sol" -c model_reasoning_effort="xhigh"
-	claude -p --model claude-mythos-5-1 --effort xhigh "/code-review xhigh commit <sha>"
-	claude -p --model claude-opus-5-5 --effort xhigh "/code-review xhigh commit <sha>"
+	cd CLONE && o=~/.ai-code-reviews && name=<full sha>
+	mkdir -p $o/gpt-6-astra $o/gpt-6.1-sol $o/gpt-5.6-sol $o/claude-mythos-5-1 $o/claude-opus-5-5
+	codex review --commit <sha> -c model="gpt-6-astra" -c model_reasoning_effort="xhigh" > $o/gpt-6-astra/$name 2>&1 &
+	codex review --commit <sha> -c model="gpt-6.1-sol" -c model_reasoning_effort="xhigh" > $o/gpt-6.1-sol/$name 2>&1 &
+	codex review --commit <sha> -c model="gpt-5.6-sol" -c model_reasoning_effort="xhigh" > $o/gpt-5.6-sol/$name 2>&1 &
+	claude -p --model claude-mythos-5-1 --effort xhigh "/code-review xhigh commit <sha>" > $o/claude-mythos-5-1/$name 2>&1 &
+	claude -p --model claude-opus-5-5 --effort xhigh "/code-review xhigh commit <sha>" > $o/claude-opus-5-5/$name 2>&1 &
+	wait
 
-Ensure that the output of each review gets written or copied to ~/.ai-code-reviews/{model}/{full commit hash} or /{full commit hash-final full commit hash}, then delete the clone.
+Once `wait` returns, delete the clone.
 
 Notes:
 
 - If you made several commits, ensure reviews cover them all: either review each commit, or, a whole batch:
 	- codex: replace `--commit <sha>` with `--base <sha before your first commit>`
 	- claude: replace `commit <sha>` with `commits <sha before your first commit>..<sha of your last commit>`
+	- `name`: `<full sha of your first commit>-<full sha of your last commit>`
 - Codex is already configured globally to never ask for permission and run unsandboxed.
-- A review can take several minutes; start all of them in one Bash call with `run_in_background`, each command ending in `&`, then one `wait`.
 - Review findings are from **fallible machines eager to find issues**: think and prefer fixes that don't add a bunch of code we don't really need.
 - Once all the reviews are in, fix the oversights that are really worth fixing, in logical, independent commits where possible, without "act on the ... reviews of ..."! If nothing, say briefly why the findings didn't warrant changes.
 - Do _not_ send follow-up fixes through another review. (Exception: the follow-up grew into something substantial beyond addressing the findings.)
