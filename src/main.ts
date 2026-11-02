@@ -1,7 +1,3 @@
-// Model-output: Claude Fable 5.1
-// Model-output: Claude Opus 5
-// Model-output: Claude Opus 5.5
-//
 // The command line: `clank-right check` reports which repositories' AGENTS.md
 // no longer match the template; `clank-right update` regenerates and commits
 // the ones that don't; `clank-right chatbots` rewrites the chatbots'

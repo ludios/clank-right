@@ -1,6 +1,3 @@
-// Model-output: Claude Fable 5.1
-// Model-output: Claude Opus 5.5
-//
 // One managed repository: reading its AGENTS.md, deciding whether it matches
 // the template, and committing a regenerated one.
 

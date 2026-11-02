@@ -1,7 +1,3 @@
-// Model-output: Claude Fable 5.1
-// Model-output: Claude Opus 5
-// Model-output: Claude Opus 5.5
-
 import { describe, expect, it } from "vitest";
 import { DEFAULT_OPTIONS, LANGUAGES, type ProjectOptions } from "./config.ts";
 import { render, type RenderInput } from "./render.ts";

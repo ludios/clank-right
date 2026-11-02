@@ -1,5 +1,3 @@
-// Model-output: Claude Opus 5
-
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";

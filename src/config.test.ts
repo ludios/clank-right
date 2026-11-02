@@ -1,6 +1,3 @@
-// Model-output: Claude Fable 5.1
-// Model-output: Claude Opus 5.5
-
 import { describe, expect, it } from "vitest";
 import { DEFAULT_OPTIONS, OptionsError, parse_options, split_header } from "./config.ts";
 

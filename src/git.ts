@@ -1,6 +1,3 @@
-// Model-output: Claude Fable 5.1
-// Model-output: Claude Opus 5.5
-//
 // The few git operations the tool needs.
 
 import { A, AssertionError } from "ayy";

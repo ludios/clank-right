@@ -1,6 +1,3 @@
-// Model-output: Claude Fable 5.1
-// Model-output: Claude Opus 5.5
-//
 // The `<!-- clank-right ... -->` header that starts every managed AGENTS.md.
 // The tool owns the leading comment lines (how to regenerate the file); the
 // project owns the TOML after them, which selects what the template emits.

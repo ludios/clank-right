@@ -1,6 +1,3 @@
-// Model-output: Claude Fable 5.1
-// Model-output: Claude Opus 5.5
-//
 // AGENTS.md as a sequence of H1 sections.
 
 export interface Section {

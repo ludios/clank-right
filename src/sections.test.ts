@@ -1,5 +1,3 @@
-// Model-output: Claude Fable 5.1
-
 import { array, assert, constantFrom, property, record, tuple, type Arbitrary } from "fast-check";
 import { describe, expect, it } from "vitest";
 import { join_sections, split_sections, type Section } from "./sections.ts";

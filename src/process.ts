@@ -1,5 +1,3 @@
-// Model-output: Claude Fable 5.1
-//
 // Runs a child process to completion.
 
 import { spawn } from "node:child_process";

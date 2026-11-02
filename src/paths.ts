@@ -1,6 +1,3 @@
-// Model-output: Claude Fable 5.1
-// Model-output: Claude Opus 5
-//
 // Home-relative paths, as humans write them in projects.txt and want to read
 // them in the tool's output, plus where that file lives.
 

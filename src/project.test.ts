@@ -1,7 +1,3 @@
-// Model-output: Claude Fable 5.1
-// Model-output: Claude Opus 5
-// Model-output: Claude Opus 5.5
-
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";

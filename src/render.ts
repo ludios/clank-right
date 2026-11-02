@@ -1,7 +1,3 @@
-// Model-output: Claude Fable 5.1
-// Model-output: Claude Opus 5
-// Model-output: Claude Opus 5.5
-//
 // Renders the templates: any of them as it is, and the master template into a
 // complete AGENTS.md for one project. Knows which headings the master template
 // owns, so that a project's own sections can be told from its.

@@ -1,6 +1,3 @@
-// Model-output: Claude Fable 5.1
-// Model-output: Claude Opus 5.5
-
 import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 import { CHATBOTS, chatbot_file, render_chatbot } from "./chatbots.ts";

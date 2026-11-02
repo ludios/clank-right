@@ -1,5 +1,3 @@
-// Model-output: Claude Opus 5.5
-//
 // The account-wide instructions for the chatbots: templates/chatbot.vto,
 // rendered into chatbots/ in this checkout. Neither chatbot has an API for
 // these settings, so the human pastes each file into its settings page.
