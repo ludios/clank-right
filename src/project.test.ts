@@ -88,7 +88,7 @@ describe("regenerate", () => {
 		expect(rendered).not.toContain("Old rules.");
 	});
 
-	it.each(["Programming thoughts", "Tracking AI authorship"])("drops a section under %s, a heading the template used to emit, instead of keeping it as the project's own", async (heading) => {
+	it.each(["Programming thoughts", "Tracking AI authorship", "Committing"])("drops a section under %s, a heading the template used to emit, instead of keeping it as the project's own", async (heading) => {
 		const file = header("") + `# ${heading}\n\nOld thoughts.\n`;
 		const { rendered, dropped } = await regenerate(file);
 		expect(headings_of(rendered)).not.toContain(heading);
