@@ -36,6 +36,7 @@ const options_arb: Arbitrary<ProjectOptions> = record({
 	effection:       boolean(),
 	libraries_extra: array(constantFrom("`ventojs` for templating.", "`ws` for sockets."), { maxLength: 2 }),
 	python_indent:   constantFrom(...PYTHON_INDENTS),
+	space_alignment: boolean(),
 	web_design:      constantFrom(...WEB_DESIGNS),
 	color_scheme:    constantFrom(...COLOR_SCHEMES),
 	sandbox_note:    constantFrom("", "you're unable to hit production"),

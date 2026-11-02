@@ -12,7 +12,7 @@ describe("chatbots", () => {
 	it("carry the partials that a TypeScript + Rust + Python project's AGENTS.md shares with them", async () => {
 		const agents_md = await render({ options_text: "", options: { ...DEFAULT_OPTIONS, languages: ["typescript", "rust", "python"] }, project_sections: [], web_design_body: "" });
 		for (const partial of ["push_back.vto", "programming_thoughts.vto", "code_conventions.vto"]) {
-			const shared = await render_template(partial, { node: true, rust: true, braces: true, python: true, classes: true, python_indent: "spaces" });
+			const shared = await render_template(partial, { node: true, rust: true, braces: true, python: true, classes: true, python_indent: "spaces", space_alignment: true });
 			expect(agents_md).toContain(shared);
 			for (const chatbot of CHATBOTS) {
 				expect(await render_chatbot(chatbot)).toContain(shared);

@@ -15,6 +15,7 @@ package_manager = "bun"
 effection       = true
 libraries_extra = ["ventojs for templating."]
 python_indent   = "tabs"
+space_alignment = false
 web_design      = "2010"
 color_scheme    = "dark"
 sandbox_note    = "you're unable to hit production"
@@ -27,6 +28,7 @@ tools_extra     = ["natscli (bin: nats)", "nats-server"]
 			effection:       true,
 			libraries_extra: ["ventojs for templating."],
 			python_indent:   "tabs",
+			space_alignment: false,
 			web_design:      "2010",
 			color_scheme:    "dark",
 			sandbox_note:    "you're unable to hit production",

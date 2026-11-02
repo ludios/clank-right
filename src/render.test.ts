@@ -68,6 +68,19 @@ describe("render", () => {
 		expect(tabs).toContain("\nFor Python code:\n\n- Use tabs to indent and spaces to align.\n");
 	});
 
+	it("asks for space-based alignment unless space_alignment is false", async () => {
+		const rule = "- Use space-based alignment but only where it looks good:";
+		const aligned = await render_with({ languages: ["typescript", "python"] });
+		expect(aligned).toContain("\n- Use tabs to indent and spaces to align.\n");
+		expect(aligned).toContain("\n- Use 4 spaces to indent and spaces to align.\n");
+		expect(aligned).toContain(rule);
+		const unaligned = await render_with({ languages: ["typescript", "python"], space_alignment: false });
+		expect(unaligned).toContain("\n- Use tabs to indent.\n");
+		expect(unaligned).toContain("\n- Use 4 spaces to indent.\n");
+		expect(unaligned).not.toContain(rule);
+		expect(unaligned).toContain("groups of steps.\n\n# Libraries to use");
+	});
+
 	it("lists the extra libraries for a project in neither Node nor Python, and no section without them", async () => {
 		const text = await render_with({ languages: ["rust"], libraries_extra: ["`tokio` for async."] });
 		expect(text).toContain("# Libraries to use\n\n- `tokio` for async.\n\n# Thoughts for when");

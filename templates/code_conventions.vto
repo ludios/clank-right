@@ -12,7 +12,7 @@ For Rust code:
 
 For JavaScript, TypeScript, and Svelte-related code:
 
-- Use tabs to indent and spaces to align.
+- Use tabs to indent{{ if space_alignment }} and spaces to align{{ /if }}.
 - `snake_case` function names and local variables, except those imported from external libraries or in the platform itself.
 - Use semicolons after statements; no ASI.
 {{ /if }}
@@ -20,7 +20,7 @@ For JavaScript, TypeScript, and Svelte-related code:
 
 For Python code:
 
-- Use {{ python_indent == "tabs" ? "tabs" : "4 spaces" }} to indent and spaces to align.
+- Use {{ python_indent == "tabs" ? "tabs" : "4 spaces" }} to indent{{ if space_alignment }} and spaces to align{{ /if }}.
 - Type-hint every parameter and return value.
 {{ /if }}
 {{ if node || python }}
@@ -56,4 +56,6 @@ Minutae:
 - Put `return`, `continue`, `break`, {{ if braces }}`throw`, {{ /if }}{{ if python }}`raise`, {{ /if }}`yield`, `await` statements on their own line so that they're obvious.
 {{ /if }}
 - Blank lines inside functions should only be used to separate different ideas or groups of steps.
+{{ if space_alignment }}
 - Use space-based alignment but only where it looks good: on adjacent lines with a very similar structure, add spaces after shorter identifiers (or the syntax to the right of them) to align things.
+{{ /if }}

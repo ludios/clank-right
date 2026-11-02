@@ -85,11 +85,12 @@ Every option has a default, so an empty header is valid.
 | Option         | Default      | Effect                                                                                               |
 | -------------- | ------------ | ---------------------------------------------------------------------------------------------------- |
 | `languages`    | `[]`         | `typescript`/`javascript`/`svelte` select the Node sections; `python` selects the Python sections; `c`/`cpp`/`csharp` add the brace rules; those with classes (`typescript`/`javascript`/`svelte`/`python`/`cpp`/`csharp`) add the advice on when to use them; `rust` adds the Rust conventions; `sql` adds the DDL paragraph. Also `go`, `nix`, `zsh`. |
-| `conventions`  | `"ours"`     | `"upstream"`, for a fork that follows upstream's conventions, leaves ours out: "Code conventions" is then absent (a fork's own rules go under another heading, e.g. `# This fork`), "Libraries to use" holds only `libraries_extra`, "The user isn't always right" doesn't say to redo the existing code, and `effection` and `python_indent` do nothing. |
+| `conventions`  | `"ours"`     | `"upstream"`, for a fork that follows upstream's conventions, leaves ours out: "Code conventions" is then absent (a fork's own rules go under another heading, e.g. `# This fork`), "Libraries to use" holds only `libraries_extra`, "The user isn't always right" doesn't say to redo the existing code, and `effection`, `python_indent` and `space_alignment` do nothing. |
 | `package_manager` | `"pnpm"`  | `"bun"` tells agents to use bun, not npm or pnpm, in the Node code; `"pnpm"` tells them to use pnpm, not npm. |
 | `effection`    | `false`      | Lists `effection` among the Node "Libraries to use".                                                 |
 | `libraries_extra` | `[]`      | More "Libraries to use" items after the standard ones, each as the text after the bullet, e.g. `` ["`ventojs` for templating."] ``. |
 | `python_indent` | `"spaces"` | `"tabs"` indents the Python code with tabs instead of four spaces, for the older projects written that way.          |
+| `space_alignment` | `true`    | `false` leaves out the rule to align similar adjacent lines with spaces, and "and spaces to align" after how to indent, for a project whose formatter (oxfmt, for example) removes such spaces. |
 | `web_design`   | `"none"`     | `"2010"` for the standard section; `"custom"` keeps the repository's own `# Web design` section.     |
 | `color_scheme` | `"both"`     | `"light"`, `"dark"`, or `"both"`, for the `"2010"` web design.                                       |
 | `sandbox_note` | `""`         | Appended to the sandbox hostname bullet, e.g. `"you're unable to hit production"`.                   |
@@ -111,7 +112,7 @@ the curl-impersonate binary) are `set` at the top of `templates/AGENTS.md.vto`.
 
 `templates/chatbot.vto` holds the account-wide instructions for claude.ai and
 chatgpt.com, ending with `templates/code_conventions.vto`: the rules under an
-`AGENTS.md`'s "Code conventions", with the Node, Rust, Python, brace, and class rules on.
+`AGENTS.md`'s "Code conventions", with the Node, Rust, Python, brace, class, and space-alignment rules on.
 `clank-right chatbots` renders it into `chatbots/claude.md` (where the
 template's `claude` is true) and `chatbots/chatgpt.md` in this checkout. Neither
 site has an API for these settings, so paste each file by hand: claude.ai's

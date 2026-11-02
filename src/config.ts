@@ -25,7 +25,7 @@ export interface ProjectOptions {
 	/**
 	 * "upstream" for a fork that follows upstream's conventions: "Code conventions" is then left out, "Libraries to
 	 * use" holds only libraries_extra, "The user isn't always right" doesn't say to redo the existing code, and
-	 * effection and python_indent do nothing.
+	 * effection, python_indent and space_alignment do nothing.
 	 */
 	conventions: Conventions;
 	/** The package manager that the Node code's lockfile belongs to; "Working with Node projects" tells agents to use it. */
@@ -36,6 +36,11 @@ export interface ProjectOptions {
 	libraries_extra: string[];
 	/** How the Python code is indented: "spaces" (four, as PEP 8 says) or "tabs", for the older projects written that way. */
 	python_indent: PythonIndent;
+	/**
+	 * Whether the code conventions ask for spaces that align similar adjacent lines. False for a project whose
+	 * formatter (oxfmt, for example) removes such spaces.
+	 */
+	space_alignment: boolean;
 	/** "2010" for the standard web design section, "custom" to keep the repository's own "# Web design" section, "none" for no section. */
 	web_design: WebDesign;
 	/** Which color schemes the "2010" web design must support. */
@@ -56,6 +61,7 @@ export const DEFAULT_OPTIONS: Readonly<ProjectOptions> = {
 	effection:       false,
 	libraries_extra: [],
 	python_indent:   "spaces",
+	space_alignment: true,
 	web_design:      "none",
 	color_scheme:    "both",
 	sandbox_note:    "",
@@ -143,6 +149,9 @@ export function parse_options(toml: string): ProjectOptions {
 				break;
 			case "python_indent":
 				options.python_indent = expect_one_of(key, value, PYTHON_INDENTS);
+				break;
+			case "space_alignment":
+				options.space_alignment = expect_boolean(key, value);
 				break;
 			case "web_design":
 				options.web_design = expect_one_of(key, value, WEB_DESIGNS);
