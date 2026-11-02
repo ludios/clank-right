@@ -38,7 +38,13 @@ If git objects are broken: don't investigate, just try again in 7 seconds; if st
 
 Use `rg` in various ways until you know you need the rest of the file.
 
-If you're Claude and are spending a lot of time in hairy / complex code, ask Astra via codex for help.
+If you're Claude and are spending a lot of time in hairy / complex code, ask Astra for help, with `run_in_background` (Astra can take several minutes):
+
+	codex exec -c model="gpt-6-astra" -c model_reasoning_effort="xhigh" -s read-only - 2> LOG_FILE <<'EOF'
+	PROMPT
+	EOF
+
+Keep the prompt in the quoted heredoc. The shell then expands nothing in the prompt, and `codex exec` gets a stdin that ends (given a stdin that never ends, `codex exec` waits forever). Stdout gets only Astra's answer; LOG_FILE gets everything else that Astra did.
 
 # The user isn't always right
 
@@ -66,7 +72,7 @@ If you can't fetch something, use google-chrome or curl_chrome152 on this machin
 
 All new English must be maximally unambiguous, even if it becomes slightly longer! Think as a reader, and read the text every possible way. For example, never write "cannot change a hash once set" instead of "cannot change a hash (if already set)".
 
-You can ask Astra via codex to rewrite stuff.
+If you're Claude, you can also ask Astra to rewrite stuff, with the `codex exec` command shown earlier in this file.
 
 # Code conventions
 
