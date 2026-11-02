@@ -191,11 +191,23 @@ Before creating or changing any PostgreSQL DDL e.g. in schema/, read https://git
 {{ section.body }}
 {{ /for }}
 
-# Committing
+# Using git safely
 
-**Other sessions may be at work** and their commits must not be lost. On HEAD / master / main / prime: rebase, amend, reset, stash, etc. **are never allowed**, unless other sessions are idle and not waiting on anything!
+**Other sessions may be staging and committing** here, including the files you are changing, and their edits can land between your last check and your commit. So, never use `git add FILE`, `git commit -a`, or `git commit -- FILES`. Instead,
+
+1. Write your changes to a patch: `git diff -- FILES > /tmp/NAME.patch`. Leave out stray hunks.
+2. If `git status` shows any change that you didn't make, run checks in a `git clone --shared` copy with only your patch applied.
+3. Commit the patch through the index:
+
+		git diff --cached --quiet && git apply --cached /tmp/NAME.patch && git commit -F /tmp/NAME.msg
+
+   `git diff --cached --quiet` ensures no other session has staged anything, because `git commit` would commit that too. If `git apply` fails, HEAD has changed under your patch: remake it and test it again.
+
+On HEAD, git rebase, amend, reset, stash, etc. **are never allowed**, unless other sessions are idle and not waiting on anything!
 
 To change a commit message, use `git-reword COMMIT < NEW_FULL_MESSAGE`, not `git history reword` or an amend.
+
+# Commit sizes and messages
 
 Smaller changes are usually easier to think about. Commit one logical change at a time whenever possible! Commit early and often!
 
