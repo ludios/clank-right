@@ -33,8 +33,9 @@ function template_headings(source: string): ReadonlySet<string> {
 export const TEMPLATE_HEADINGS: ReadonlySet<string> = template_headings(readFileSync(join(TEMPLATE_DIR, TEMPLATE_FILE), "utf8"));
 
 /**
- * Headings the template used to emit. A file regenerated before a rename still has its section under the old
- * heading, which must go like any other template section instead of staying as the project's own.
+ * Headings the template used to emit, before they were renamed or removed. A file regenerated before such a change
+ * still has a section under the old heading, which must go like any other template section; a heading missing from
+ * this list is kept as the project's own.
  */
 const FORMER_TEMPLATE_HEADINGS: ReadonlySet<string> = new Set([
 	"Programming thoughts",
