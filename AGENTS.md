@@ -146,7 +146,7 @@ At the workspace root:
 
 **Other sessions may be at work** and their commits must not be lost. On HEAD / master / main / prime: rebase, amend, reset, stash, etc. **are never allowed**, unless other sessions are idle and not waiting on anything!
 
-To change a commit message, use the `git-reword` wrapper, not `git history reword` or an amend: `git reword COMMIT < NEW_MESSAGE`, where NEW_MESSAGE is the whole new message, trailers included.
+To change a commit message, use `git-reword COMMIT < NEW_FULL_MESSAGE`, not `git history reword` or an amend.
 
 Smaller changes are usually easier to think about. Commit one logical change at a time whenever possible! Commit early and often!
 
