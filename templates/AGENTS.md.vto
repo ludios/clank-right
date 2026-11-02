@@ -195,6 +195,8 @@ Before creating or changing any PostgreSQL DDL e.g. in schema/, read https://git
 
 **Other sessions may be at work** and their commits must not be lost. On HEAD / master / main / prime: rebase, amend, reset, stash, etc. **are never allowed**, unless other sessions are idle and not waiting on anything!
 
+To change a commit message, use the `git-reword` wrapper, `git reword COMMIT < NEW_MESSAGE`, instead of `git history reword` or an amend; it keeps any commit that another session makes meanwhile.
+
 Smaller changes are usually easier to think about. Commit one logical change at a time whenever possible! Commit early and often!
 
 When small commits are too hard with e.g. the build still working, larger commits are fine.
