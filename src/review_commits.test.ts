@@ -7,8 +7,23 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { git } from "./git.ts";
 
 const SCRIPT = join(import.meta.dirname, "..", "bin", "review-commits");
-const CODEX_REVIEWERS = ["gpt-6-astra", "gpt-6.1-sol", "gpt-5.6-sol"];
-const CLAUDE_REVIEWERS = ["claude-mythos-5-1", "claude-opus-5-5"];
+
+/**
+ * @param script The text of review-commits.
+ * @param name The name of one of its arrays of models.
+ * @returns The models in that array.
+ */
+function models_in(script: string, name: string): string[] {
+	const list = new RegExp("^" + name + "=\\(([^)]*)\\)$", "m").exec(script)?.[1];
+	A(list !== undefined, "review-commits must set " + name + " on a line of its own");
+	const models = list.split(" ");
+	A.gte(models.length, 1);
+	return models;
+}
+
+const SCRIPT_TEXT = await readFile(SCRIPT, "utf8");
+const CODEX_REVIEWERS = models_in(SCRIPT_TEXT, "codex_reviewers");
+const CLAUDE_REVIEWERS = models_in(SCRIPT_TEXT, "claude_reviewers");
 const REVIEWERS = [...CODEX_REVIEWERS, ...CLAUDE_REVIEWERS];
 
 /**
@@ -105,7 +120,8 @@ function script_env(fake: Record<string, string> = {}): NodeJS.ProcessEnv {
  * @returns The exit status and output of review-commits, run in `repo`.
  */
 function review_commits(args: string[], fail = ""): { status: number | null; stdout: string; stderr: string } {
-	const result = spawnSync(SCRIPT, args, { cwd: repo, encoding: "utf8", env: script_env({ FAKE_FAIL: fail }) });
+	// A test can't time out while spawnSync blocks, so spawnSync has a timeout of its own
+	const result = spawnSync(SCRIPT, args, { cwd: repo, encoding: "utf8", env: script_env({ FAKE_FAIL: fail }), timeout: 3_000 });
 	return { status: result.status, stdout: result.stdout, stderr: result.stderr };
 }
 
