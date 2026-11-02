@@ -7,10 +7,11 @@
 # of the current repository with COMMIT (or LAST) checked out. Saves each review
 # to ~/.ai-code-reviews/MODEL/NAME, where NAME is the full hash of COMMIT, or
 # FULL_BASE..FULL_LAST; a codex reviewer's transcript goes to NAME.log, next to
-# its review. Once every reviewer has exited, prints every review, deletes the
-# clone, and exits with status 1 if any reviewer failed. On SIGINT or SIGTERM,
-# stops every reviewer together with the processes it started, deletes the
-# clone, and exits with status 130 or 143.
+# its review. Prints the reviews in the order that the reviewers started, each
+# once its reviewer and every reviewer started before it have exited. Once every
+# reviewer has exited, deletes the clone, and exits with status 1 if any reviewer
+# failed. On SIGINT or SIGTERM, stops every reviewer together with the processes
+# it started, deletes the clone, and exits with status 130 or 143.
 
 set -euo pipefail
 
@@ -27,7 +28,10 @@ die_usage() {
 	exit 2
 }
 
-# Prints the full hash of commit $1 of the current repository, or exits through die_usage.
+# Prints the full hash of commit $1 of the current repository, or exits with
+# status 2 through die_usage. Inside `var=$(full_hash ...)`, that exit ends only
+# the subshell, and `set -e` then ends the script. So never call it as
+# `local var=$(full_hash ...)` or in a condition, which hide the failure.
 full_hash() {
 	git rev-parse --verify --quiet "$1^{commit}" || die_usage "not a commit: $1"
 }
@@ -86,48 +90,40 @@ main() {
 	git -C "$tmp/repo" checkout --quiet --detach "$last"
 	cd "$tmp/repo"
 
-	# Each reviewer's model, review file, transcript file (or none), and PID.
-	# Without job control, bash gives each background command /dev/null as its
+	# Each reviewer's model and PID. Without job control, bash gives each background command /dev/null as its
 	# stdin, so no reviewer waits for input. setsid makes each reviewer the
 	# leader of a new session and process group, keeping its PID.
 	local reviews=$HOME/.ai-code-reviews model
-	local -a models=() files=() logs=() pids=()
+	local -a models=() pids=()
 	for model in "${codex_reviewers[@]}"; do
 		mkdir -p "$reviews/$model"
 		setsid codex review "${codex_target[@]}" -c "model=$model" -c model_reasoning_effort=xhigh \
 			> "$reviews/$model/$name" 2> "$reviews/$model/$name.log" &
 		models+=("$model")
-		files+=("$reviews/$model/$name")
-		logs+=("$reviews/$model/$name.log")
 		pids+=($!)
 	done
 	for model in "${claude_reviewers[@]}"; do
 		mkdir -p "$reviews/$model"
 		setsid claude -p --model "$model" --effort xhigh "/code-review xhigh $claude_target" > "$reviews/$model/$name" 2>&1 &
 		models+=("$model")
-		files+=("$reviews/$model/$name")
-		logs+=("")
 		pids+=($!)
 	done
 	echo "review-commits: started ${#models[@]} reviews of $name in $tmp/repo"
 
-	local i status failed=0
-	local -a statuses=()
+	local i file status failed=0
 	for i in "${!pids[@]}"; do
+		file=$reviews/${models[$i]}/$name
 		status=0
 		wait "${pids[$i]}" || status=$?
-		statuses+=("$status")
-	done
-
-	for i in "${!models[@]}"; do
 		echo
-		echo "=== ${models[$i]} (exit status ${statuses[$i]}): ${files[$i]}"
-		cat "${files[$i]}"
-		if (( statuses[i] != 0 )); then
+		echo "=== ${models[$i]} (exit status $status): $file"
+		cat "$file"
+		if (( status != 0 )); then
 			failed=1
-			if [[ -n ${logs[$i]} ]]; then
-				echo "--- the end of its transcript, ${logs[$i]}:"
-				tail -n 20 "${logs[$i]}"
+			# Only a codex reviewer has a transcript
+			if [[ -e $file.log ]]; then
+				echo "--- the end of its transcript, $file.log:"
+				tail -n 20 "$file.log"
 			fi
 		fi
 	done
