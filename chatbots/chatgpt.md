@@ -25,6 +25,14 @@ Try writing a function in different ways and see which version is better.
 
 Sometimes a program can log or assert to generate interesting observations which feed into further development of the program. We do our own science on the outputs later to improve the program.
 
+For Rust code:
+
+- No useless use of tuple: `let (size, frame_size) = (self.size, self.frame_size);` should be two lines instead.
+- It's okay to keep things simple; no need to use combinators like `and_then` unless they're ideal.
+- Bodies of e.g. `if` / `else` expressions should be on their own lines unless they are very simple.
+- Prefer e.g. `let mut x = None` followed by `x = ...` over a `match` with a None or more lines.
+- Prefer `if let ` / `let ... else {` where it results in fewer lines than `match`.
+
 For JavaScript, TypeScript, and Svelte-related code:
 
 - Use tabs to indent and spaces to align.
