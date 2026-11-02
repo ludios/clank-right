@@ -1,7 +1,8 @@
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { chmod, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { A } from "ayy";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { git } from "./git.ts";
 
@@ -12,7 +13,8 @@ const REVIEWERS = [...CODEX_REVIEWERS, ...CLAUDE_REVIEWERS];
 
 /**
  * Stands in for both `codex` and `claude`. Finds its model in `-c model=MODEL`
- * or `--model MODEL`, writes how it was run to $CALLS/MODEL, prints a
+ * or `--model MODEL`; if $FAKE_HANG is set, starts a `sleep` that it waits for
+ * at the end. Writes how it was run to $CALLS/MODEL, all at once, prints a
  * transcript line to stderr and a review to stdout, and exits with status 1
  * if its model is $FAKE_FAIL.
  */
@@ -27,14 +29,22 @@ for arg in "$@"; do
 	fi
 	previous=$arg
 done
+child=
+if [[ -n $FAKE_HANG ]]; then
+	sleep 30 &
+	child=$!
+fi
 {
 	printf 'arg %s\\n' "$@"
 	echo "pwd $(pwd)"
 	echo "head $(git rev-parse HEAD)"
 	echo "stdin $(readlink /proc/self/fd/0)"
-} > "$CALLS/$model"
+	echo "child $child"
+} > "$CALLS/.$model"
+mv "$CALLS/.$model" "$CALLS/$model"
 echo "transcript of $model" >&2
 echo "review by $model"
+wait
 [[ $model != "$FAKE_FAIL" ]]
 `;
 
@@ -82,17 +92,51 @@ afterEach(async () => {
 });
 
 /**
+ * @param fake The settings for the fake reviewers: FAKE_FAIL, FAKE_HANG, or none.
+ * @returns The environment for review-commits, with the fake reviewers on PATH.
+ */
+function script_env(fake: Record<string, string> = {}): NodeJS.ProcessEnv {
+	return { ...process.env, PATH: fake_bin + ":" + process.env["PATH"], HOME: home, TMPDIR: tmp, CALLS: calls, ...fake };
+}
+
+/**
  * @param args The arguments for review-commits.
  * @param fail The model whose fake reviewer exits with status 1, or "" for none.
  * @returns The exit status and output of review-commits, run in `repo`.
  */
 function review_commits(args: string[], fail = ""): { status: number | null; stdout: string; stderr: string } {
-	const result = spawnSync(SCRIPT, args, {
-		cwd:      repo,
-		encoding: "utf8",
-		env:      { ...process.env, PATH: fake_bin + ":" + process.env["PATH"], HOME: home, TMPDIR: tmp, CALLS: calls, FAKE_FAIL: fail },
-	});
+	const result = spawnSync(SCRIPT, args, { cwd: repo, encoding: "utf8", env: script_env({ FAKE_FAIL: fail }) });
 	return { status: result.status, stdout: result.stdout, stderr: result.stderr };
+}
+
+/**
+ * Checks `condition` every 20 ms until it holds.
+ *
+ * @param condition What to wait for.
+ * @param what Describes `condition`, for the error if it never holds.
+ * @throws Error if `condition` doesn't hold within 3 seconds, which is less than a test may take.
+ */
+async function until(condition: () => boolean | Promise<boolean>, what: string): Promise<void> {
+	const deadline = Date.now() + 3_000;
+	while (!(await condition())) {
+		if (Date.now() > deadline) {
+			throw new Error("timed out waiting until " + what);
+		}
+		await new Promise((resolve) => setTimeout(resolve, 20));
+	}
+}
+
+/**
+ * @param pid A process ID.
+ * @returns Whether a process (or a zombie not yet reaped) has that ID.
+ */
+function exists(pid: number): boolean {
+	try {
+		process.kill(pid, 0);
+		return true;
+	} catch {
+		return false;
+	}
 }
 
 /**
@@ -106,7 +150,7 @@ function review_path(model: string, name: string): string {
 
 /**
  * @param model A reviewer's model.
- * @returns How the fake reviewer for `model` was run: one `arg` line per argument, then its working directory, HEAD, and stdin.
+ * @returns How the fake reviewer for `model` was run: one `arg` line per argument, then its working directory, HEAD, stdin, and the PID of its `sleep` (if any).
  */
 function call_of(model: string): Promise<string> {
 	return readFile(join(calls, model), "utf8");
@@ -169,6 +213,25 @@ describe("review-commits", () => {
 			expect(result.stdout).toContain("review by " + model + "\n");
 		}
 		expect(await readdir(tmp)).toEqual([]);
+	});
+
+	it("on SIGTERM, stops every reviewer and what it started, deletes the clone, and exits with status 143", async () => {
+		const script = spawn(SCRIPT, ["HEAD"], { cwd: repo, env: script_env({ FAKE_HANG: "1" }), stdio: "ignore" });
+		const exit_status = new Promise<number | null>((resolve) => {
+			script.on("exit", (code) => {
+				resolve(code);
+			});
+		});
+		await until(async () => (await readdir(calls)).filter((file) => !file.startsWith(".")).length === REVIEWERS.length, "every reviewer has started");
+		script.kill("SIGTERM");
+		expect(await exit_status).toBe(143);
+		expect(await readdir(tmp)).toEqual([]);
+		for (const model of REVIEWERS) {
+			const child = /^child (\d+)$/m.exec(await call_of(model));
+			A(child !== null, "the fake reviewer for " + model + " must have started a sleep");
+			// A killed `sleep` exists as a zombie until its new parent reaps it
+			await until(() => !exists(Number(child[1])), "the sleep of " + model + " has exited");
+		}
 	});
 
 	it.each([

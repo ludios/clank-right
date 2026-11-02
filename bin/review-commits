@@ -8,7 +8,9 @@
 # to ~/.ai-code-reviews/MODEL/NAME, where NAME is the full hash of COMMIT, or
 # FULL_BASE..FULL_LAST; a codex reviewer's transcript goes to NAME.log, next to
 # its review. Once every reviewer has exited, prints every review, deletes the
-# clone, and exits with status 1 if any reviewer failed.
+# clone, and exits with status 1 if any reviewer failed. On SIGINT or SIGTERM,
+# stops every reviewer together with the processes it started, deletes the
+# clone, and exits with status 130 or 143.
 
 set -euo pipefail
 
@@ -30,16 +32,17 @@ full_hash() {
 	git rev-parse --verify --quiet "$1^{commit}" || die_usage "not a commit: $1"
 }
 
-# Stops every reviewer still running, then deletes the clone.
+# Stops every reviewer still running, together with the processes it started,
+# waits for them to exit, then deletes the clone.
 cleanup() {
-	local pids
-	pids=$(jobs -p)
-	if [[ -n $pids ]]; then
-		# One PID per word. `jobs -p` lists only the reviewers not yet waited
-		# for, so a PID that the system has since reused is never killed.
-		# shellcheck disable=SC2086
-		kill $pids 2>/dev/null || true
-	fi
+	local pid
+	# `jobs -pr` lists only the reviewers still running, so a PID that the
+	# system reused after its reviewer exited is never signalled. Each reviewer
+	# leads a process group of its own, which `kill -- -PID` signals as a whole.
+	for pid in $(jobs -pr); do
+		kill -TERM -- "-$pid" 2>/dev/null || true
+	done
+	wait || true
 	if [[ -n $tmp ]]; then
 		rm -rf "$tmp"
 	fi
@@ -76,7 +79,8 @@ main() {
 	local top
 	top=$(git rev-parse --show-toplevel)
 	trap cleanup EXIT
-	trap 'exit 130' INT TERM
+	trap 'exit 130' INT
+	trap 'exit 143' TERM
 	tmp=$(mktemp -d "${TMPDIR:-/tmp}/review-commits.XXXXXX")
 	git clone --quiet --shared --no-checkout "$top" "$tmp/repo"
 	git -C "$tmp/repo" checkout --quiet --detach "$last"
@@ -84,12 +88,13 @@ main() {
 
 	# Each reviewer's model, review file, transcript file (or none), and PID.
 	# Without job control, bash gives each background command /dev/null as its
-	# stdin, so no reviewer waits for input.
+	# stdin, so no reviewer waits for input. setsid makes each reviewer the
+	# leader of a new session and process group, keeping its PID.
 	local reviews=$HOME/.ai-code-reviews model
 	local -a models=() files=() logs=() pids=()
 	for model in "${codex_reviewers[@]}"; do
 		mkdir -p "$reviews/$model"
-		codex review "${codex_target[@]}" -c "model=$model" -c model_reasoning_effort=xhigh \
+		setsid codex review "${codex_target[@]}" -c "model=$model" -c model_reasoning_effort=xhigh \
 			> "$reviews/$model/$name" 2> "$reviews/$model/$name.log" &
 		models+=("$model")
 		files+=("$reviews/$model/$name")
@@ -98,7 +103,7 @@ main() {
 	done
 	for model in "${claude_reviewers[@]}"; do
 		mkdir -p "$reviews/$model"
-		claude -p --model "$model" --effort xhigh "/code-review xhigh $claude_target" > "$reviews/$model/$name" 2>&1 &
+		setsid claude -p --model "$model" --effort xhigh "/code-review xhigh $claude_target" > "$reviews/$model/$name" 2>&1 &
 		models+=("$model")
 		files+=("$reviews/$model/$name")
 		logs+=("")
