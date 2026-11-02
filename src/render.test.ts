@@ -23,7 +23,13 @@ describe("render", () => {
 	it("gives a codex exec command for Astra whose prompt is a quoted heredoc", async () => {
 		const text = await render_with({});
 		expect(text).toContain("\tcodex exec -c model=\"gpt-6-astra\" -c model_reasoning_effort=\"xhigh\" -s read-only - 2> LOG_FILE <<'EOF'\n\tPROMPT\n\tEOF\n");
-		expect(text).toContain("\tcodex review --commit <sha> -c model=\"gpt-6-astra\" -c model_reasoning_effort=\"xhigh\"\n");
+		expect(text).toContain("\tcodex review --commit <sha> -c model=\"gpt-6-astra\" -c model_reasoning_effort=\"xhigh\" > $o/gpt-6-astra/$name 2>&1 &\n");
+	});
+
+	it("starts every review in the background, each into its reviewer's directory, then waits", async () => {
+		const text = await render_with({});
+		expect(text).toContain("\tmkdir -p $o/gpt-6-astra $o/gpt-6.1-sol $o/gpt-5.6-sol $o/claude-mythos-5-1 $o/claude-opus-5-5\n");
+		expect(text).toContain("\tclaude -p --model claude-opus-5-5 --effort xhigh \"/code-review xhigh commit <sha>\" > $o/claude-opus-5-5/$name 2>&1 &\n\twait\n");
 	});
 
 	it("omits Node and Python material for a project in neither", async () => {
