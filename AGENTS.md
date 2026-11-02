@@ -203,25 +203,16 @@ Automatically commit your changes with this commit template:
 
 # Code review after each commit
 
-After each commit made, `git clone --shared` the repo into some /tmp/ folder and get it reviewed by Codex and by Claude, all at xhigh reasoning. A review can take several minutes, so start all of them in one Bash call with `run_in_background`:
+After each commit made, get it reviewed by Codex and by Claude, all at xhigh reasoning, by running this in the repository, in one Bash call with `run_in_background` (the reviews can take many minutes):
 
-	cd CLONE && o=~/.ai-code-reviews && name=FULL_SHA_OR_FULL_SHA_RANGE
-	mkdir -p $o/gpt-6-astra $o/gpt-6.1-sol $o/gpt-5.6-sol $o/claude-mythos-5-1 $o/claude-opus-5-5
-	codex review --commit <sha> -c model="gpt-6-astra" -c model_reasoning_effort="xhigh" > $o/gpt-6-astra/$name 2>&1 &
-	codex review --commit <sha> -c model="gpt-6.1-sol" -c model_reasoning_effort="xhigh" > $o/gpt-6.1-sol/$name 2>&1 &
-	codex review --commit <sha> -c model="gpt-5.6-sol" -c model_reasoning_effort="xhigh" > $o/gpt-5.6-sol/$name 2>&1 &
-	claude -p --model claude-mythos-5-1 --effort xhigh "/code-review xhigh commit <sha>" > $o/claude-mythos-5-1/$name 2>&1 &
-	claude -p --model claude-opus-5-5 --effort xhigh "/code-review xhigh commit <sha>" > $o/claude-opus-5-5/$name 2>&1 &
-	wait
+	review-commits <sha>
 
-Once `wait` returns, delete the clone.
+If you made several commits, ensure reviews cover them all: either review each commit, or the whole batch, with `review-commits <sha before your first commit>..<sha of your last commit>`.
+
+`review-commits` runs the reviewers in a `git clone --shared` of the repository and saves each review to ~/.ai-code-reviews/{model}/{full sha, or full range}. Once every reviewer has exited, it prints every review, deletes the clone, and exits with status 1 if any reviewer failed.
 
 Notes:
 
-- If you made several commits, ensure reviews cover them all: either review each commit, or, a whole batch:
-	- codex: replace `--commit <sha>` with `--base <sha before your first commit>`
-	- claude: replace `commit <sha>` with `commits <sha before your first commit>..<sha of your last commit>`
-- Codex is already configured globally to never ask for permission and run unsandboxed.
 - Review findings are from **fallible machines eager to find issues**: think and prefer fixes that don't add a bunch of code we don't really need.
 - Once all the reviews are in, fix the oversights that are really worth fixing, in logical, independent commits where possible, without "act on the ... reviews of ..."! If nothing, say briefly why the findings didn't warrant changes.
 - Do _not_ send follow-up fixes through another review. (Exception: the follow-up grew into something substantial beyond addressing the findings.)
