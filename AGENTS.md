@@ -128,14 +128,6 @@ Sometimes a program can log or assert to generate interesting observations which
 
 When there are multiple good ways to implement something, especially involving state or the definition of a type: please ask the user. User loves AskUserQuestion, but please explain the problem correctly in the regular session before asking the question.
 
-# Tracking AI authorship
-
-Files with any LLM-authored code (not counting mechanistic sed-like changes) begin with a comment like `// Model-output: <model name>`, one per model that contributed (e.g. "Claude Mythos 5.1", "ChatGPT 6 Astra"); keep existing lines.
-
-# Project-specific exceptions
-
-No `Model-output:` comment in the templates themselves, please.
-
 # Before committing
 
 At the workspace root:
