@@ -96,8 +96,9 @@ Every option has a default, so an empty header is valid.
 | `sandbox_note` | `""`         | Appended to the sandbox hostname bullet, e.g. `"you're unable to hit production"`.                   |
 | `tools_extra`  | `[]`         | Installed tools worth mentioning, e.g. `["ffmpeg"]`; listed after `uv`.                              |
 
-Facts that change over time (model names, the reviewers, the installed tools,
-the curl-impersonate binary) are `set` at the top of `templates/AGENTS.md.vto`.
+Facts that change over time (model names, the installed tools, the
+curl-impersonate binary) are `set` at the top of `templates/AGENTS.md.vto`. The
+reviewers are listed in `bin/review-commits`; see [Reviewing commits](#reviewing-commits).
 
 ## Adding a repository
 
@@ -129,7 +130,12 @@ The template tells agents to run `review-commits` after each commit, so put
 `bin/` on the `PATH` of every machine that agents run on. `bin/review-commits`
 takes a commit, or `BASE..LAST`, and has every model in its `codex_reviewers`
 and `claude_reviewers` review it at once; the comment at its top says where the
-reviews go. To change the reviewers, edit those two lists.
+reviews go. To change the reviewers, edit those two lists. The first codex
+reviewer is the template's `astra_model`, so change the two together.
+
+`review-commits` gives `codex review` no permission or sandbox options, so
+`~/.codex/config.toml` must set `approval_policy = "never"` and
+`sandbox_mode = "danger-full-access"`.
 
 ## Changing the template
 
