@@ -147,11 +147,19 @@ describe("render", () => {
 		expect(custom).not.toContain("2010 styling");
 	});
 
-	it("follows the last project section with Committing, which ends in the commit template", async () => {
+	it("follows the last project section with Using git safely, then Commit sizes and messages, which has the commit template", async () => {
 		const text = await render_with({}, { project_sections: [{ heading: "Before committing", body: "\tcargo test" }] });
-		expect(text).toContain("# Before committing\n\n\tcargo test\n\n# Committing\n\n");
-		expect(text).toContain("Never `git commit -a` because there may be others working; stage changes manually.\n\nAutomatically commit your changes with this commit template:\n\n\tSubject line\n");
+		expect(text).toContain("# Before committing\n\n\tcargo test\n\n# Using git safely\n\n**Other sessions may be staging and committing**");
+		expect(text).toContain("not `git history reword` or an amend.\n\n# Commit sizes and messages\n\n");
+		expect(text).toContain("Automatically commit your changes with this commit template:\n\n\tSubject line\n");
 		expect(text).not.toContain("After making changes");
+		expect(text).not.toContain("# Committing");
+	});
+
+	it("tells agents to commit a patch through an index that nothing else has staged in, as a code block in the list item", async () => {
+		const text = await render_with({});
+		expect(text).toContain("never use `git add FILE`, `git commit -a`, or `git commit -- FILES`.");
+		expect(text).toContain("3. Commit the patch through the index:\n\n\t\tgit diff --cached --quiet && git apply --cached /tmp/NAME.patch && git commit -F /tmp/NAME.msg\n\n   `git diff --cached --quiet` ensures");
 	});
 
 	it("tells a project with our conventions to treat the existing code as revisable", async () => {
@@ -170,10 +178,10 @@ describe("render", () => {
 		expect(added).toContain("on this machine.\n\n# Libraries to use\n\n- `ws` for sockets.\n\n# Thoughts for when");
 	});
 
-	it("places project sections between Thoughts for when there is programming involved and Committing, verbatim", async () => {
+	it("places project sections between Thoughts for when there is programming involved and Using git safely, verbatim", async () => {
 		const sections = [{ heading: "Project map", body: "- a/\n- b/" }, { heading: "The app", body: "Text.\n\n\n\n```\n\n\n# code\n```" }];
 		const text = await render_with({}, { project_sections: sections });
-		expect(text).toContain("before asking the question.\n\n# Project map\n\n- a/\n- b/\n\n# The app\n\nText.\n\n\n\n```\n\n\n# code\n```\n\n# Committing\n");
+		expect(text).toContain("before asking the question.\n\n# Project map\n\n- a/\n- b/\n\n# The app\n\nText.\n\n\n\n```\n\n\n# code\n```\n\n# Using git safely\n");
 	});
 
 	it("carries the options text through verbatim, blank lines included", async () => {

@@ -75,9 +75,9 @@ describe("regenerate", () => {
 		const file = header("languages = [\"rust\"]") + "# Project map\n\n- a/\n\n# Environment\n\nold\n\n# The app\n\nText.\n";
 		const { rendered, dropped } = await regenerate(file);
 		const headings = headings_of(rendered);
-		expect(headings.slice(headings.indexOf("Thoughts for when there is programming involved"), headings.indexOf("Committing") + 1))
-			.toEqual(["Thoughts for when there is programming involved", "Project map", "The app", "Committing"]);
-		expect(rendered).toContain("# Project map\n\n- a/\n\n# The app\n\nText.\n\n# Committing");
+		expect(headings.slice(headings.indexOf("Thoughts for when there is programming involved"), headings.indexOf("Using git safely") + 1))
+			.toEqual(["Thoughts for when there is programming involved", "Project map", "The app", "Using git safely"]);
+		expect(rendered).toContain("# Project map\n\n- a/\n\n# The app\n\nText.\n\n# Using git safely");
 		expect(dropped).toEqual([]);
 	});
 
@@ -96,11 +96,11 @@ describe("regenerate", () => {
 		expect(dropped).toEqual([heading]);
 	});
 
-	it("drops the old After making changes section, leaving the project's Before committing right before Committing", async () => {
+	it("drops the old After making changes section, leaving the project's Before committing right before Using git safely", async () => {
 		const file = header("") + "# Before committing\n\n\tcargo test\n\n# After making changes\n\nOld checks.\n\nNever `git commit -a`.\n";
 		const { rendered, dropped } = await regenerate(file);
 		expect(dropped).toEqual(["After making changes"]);
-		expect(rendered).toContain("# Before committing\n\n\tcargo test\n\n# Committing\n\n");
+		expect(rendered).toContain("# Before committing\n\n\tcargo test\n\n# Using git safely\n\n");
 		expect(rendered).not.toContain("Old checks.");
 	});
 
