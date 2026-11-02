@@ -9,30 +9,28 @@ describe("parse_options", () => {
 
 	it("reads every option", () => {
 		const options = parse_options(`
-languages           = ["typescript", "svelte", "sql"]
-conventions         = "upstream"
-package_manager     = "bun"
-effection           = true
-libraries_extra     = ["ventojs for templating."]
-python_indent       = "tabs"
-web_design          = "2010"
-color_scheme        = "dark"
-sandbox_note        = "you're unable to hit production"
-tools_extra         = ["natscli (bin: nats)", "nats-server"]
-authorship_comments = false
+languages       = ["typescript", "svelte", "sql"]
+conventions     = "upstream"
+package_manager = "bun"
+effection       = true
+libraries_extra = ["ventojs for templating."]
+python_indent   = "tabs"
+web_design      = "2010"
+color_scheme    = "dark"
+sandbox_note    = "you're unable to hit production"
+tools_extra     = ["natscli (bin: nats)", "nats-server"]
 `);
 		expect(options).toEqual({
-			languages:           ["typescript", "svelte", "sql"],
-			conventions:         "upstream",
-			package_manager:     "bun",
-			effection:           true,
-			libraries_extra:     ["ventojs for templating."],
-			python_indent:       "tabs",
-			web_design:          "2010",
-			color_scheme:        "dark",
-			sandbox_note:        "you're unable to hit production",
-			tools_extra:         ["natscli (bin: nats)", "nats-server"],
-			authorship_comments: false,
+			languages:       ["typescript", "svelte", "sql"],
+			conventions:     "upstream",
+			package_manager: "bun",
+			effection:       true,
+			libraries_extra: ["ventojs for templating."],
+			python_indent:   "tabs",
+			web_design:      "2010",
+			color_scheme:    "dark",
+			sandbox_note:    "you're unable to hit production",
+			tools_extra:     ["natscli (bin: nats)", "nats-server"],
 		});
 	});
 
@@ -52,7 +50,6 @@ authorship_comments = false
 
 	it("rejects values of the wrong shape", () => {
 		expect(() => parse_options("effection = \"yes\"")).toThrow("`effection` must be true or false");
-		expect(() => parse_options("authorship_comments = \"false\"")).toThrow("`authorship_comments` must be true or false");
 		expect(() => parse_options("tools_extra = \"ffmpeg\"")).toThrow("`tools_extra` must be an array of strings");
 		expect(() => parse_options("sandbox_note = 3")).toThrow("`sandbox_note` must be a string, not a number");
 	});

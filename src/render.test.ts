@@ -114,14 +114,6 @@ describe("render", () => {
 		expect(await render_with({})).toContain("- If it ends in \"clank\", run whatever commands you need.");
 	});
 
-	it("leaves out Tracking AI authorship when asked", async () => {
-		expect(await render_with({})).toContain("on this machine.\n\n# Tracking AI authorship\n\nFiles with any LLM-authored code");
-		const text = await render_with({ authorship_comments: false });
-		expect(text).toContain("on this machine.\n\n# Code conventions\n");
-		expect(text).not.toContain("Model-output: <model name>");
-		expect(await render_with({ authorship_comments: false, conventions: "upstream" })).toContain("on this machine.\n\n# Thoughts for when there is programming involved\n");
-	});
-
 	it("renders the web design variants", async () => {
 		expect(await render_with({})).not.toContain("# Web design");
 		const dark = await render_with({ web_design: "2010", color_scheme: "dark" });
@@ -149,12 +141,12 @@ describe("render", () => {
 	it("leaves out our conventions, libraries, and advice to redo code for a fork that follows upstream's, but not the project's additions", async () => {
 		const text = await render_with({ languages: ["typescript", "python"], conventions: "upstream", effection: true });
 		expect(text).toContain("# Working with Node projects\n\nnpm sux");
-		expect(text).toContain("keep existing lines.\n\n# Thoughts for when there is programming involved");
+		expect(text).toContain("on this machine.\n\n# Thoughts for when there is programming involved");
 		expect(text).toContain("it's real life.\n\nAlways let the user know");
 		expect(text).not.toContain("# Code conventions");
 		expect(text).not.toContain("# Libraries to use");
 		const added = await render_with({ languages: ["typescript", "python"], conventions: "upstream", libraries_extra: ["`ws` for sockets."] });
-		expect(added).toContain("keep existing lines.\n\n# Libraries to use\n\n- `ws` for sockets.\n\n# Thoughts for when");
+		expect(added).toContain("on this machine.\n\n# Libraries to use\n\n- `ws` for sockets.\n\n# Thoughts for when");
 	});
 
 	it("places project sections between Thoughts for when there is programming involved and Committing, verbatim", async () => {
