@@ -157,9 +157,11 @@ describe("render", () => {
 		expect(text).not.toContain("# Committing");
 	});
 
-	it("tells agents to commit a patch through an index that nothing else has staged in, as a code block in the list item", async () => {
+	it("tells agents to commit a patch, new and binary files included, through an index that nothing else has staged in", async () => {
 		const text = await render_with({});
 		expect(text).toContain("never use `git add FILE`, `git commit -a`, or `git commit -- FILES`.");
+		expect(text).toContain("\n\n\t\tgit diff --binary -- FILES > /tmp/NAME.patch\n\n");
+		expect(text).toContain("for each file you created, append:\n\n\t\tgit diff --no-index --binary /dev/null NEW_FILE >> /tmp/NAME.patch\n\n");
 		expect(text).toContain("3. Commit the patch through the index:\n\n\t\tgit diff --cached --quiet && git apply --cached /tmp/NAME.patch && git commit -F /tmp/NAME.msg\n\n   `git diff --cached --quiet` ensures");
 	});
 

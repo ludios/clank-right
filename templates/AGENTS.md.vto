@@ -193,9 +193,17 @@ Before creating or changing any PostgreSQL DDL e.g. in schema/, read https://git
 
 # Using git safely
 
-**Other sessions may be staging and committing** here, including the files you are changing, and their edits can land between your last check and your commit. So, never use `git add FILE`, `git commit -a`, or `git commit -- FILES`. Instead,
+**Other sessions may be staging and committing** here, including the files you are changing, and their edits can land between your last check and your commit. So, never use `git add FILE`, `git commit -a`, or `git commit -- FILES`. Instead, in the repository's top directory (elsewhere, a patch can silently miss files):
 
-1. Write your changes to a patch: `git diff -- FILES > /tmp/NAME.patch`. Leave out stray hunks.
+1. Write your changes to a patch, then remove any hunks that aren't yours:
+
+		git diff --binary -- FILES > /tmp/NAME.patch
+
+   `git diff` leaves out files that git doesn't track yet, so for each file you created, append:
+
+		git diff --no-index --binary /dev/null NEW_FILE >> /tmp/NAME.patch
+
+   This one exits with status 1 even on success, so don't chain it with `&&`.
 2. If `git status` shows any change that you didn't make, run checks in a `git clone --shared` copy with only your patch applied.
 3. Commit the patch through the index:
 
