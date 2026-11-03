@@ -25,6 +25,8 @@ const SCRIPT_TEXT = await readFile(SCRIPT, "utf8");
 const CODEX_REVIEWERS = models_in(SCRIPT_TEXT, "codex_reviewers");
 const CLAUDE_REVIEWERS = models_in(SCRIPT_TEXT, "claude_reviewers");
 const REVIEWERS = [...CODEX_REVIEWERS, ...CLAUDE_REVIEWERS];
+const CLAUDE_FALLBACK_MODEL = /^claude_fallback_model=(\S+)$/m.exec(SCRIPT_TEXT)?.[1];
+A(CLAUDE_FALLBACK_MODEL !== undefined, "review-commits must set claude_fallback_model on a line of its own");
 
 /**
  * Stands in for both `codex` and `claude`. Finds its model in `-c model=MODEL`
@@ -193,6 +195,7 @@ describe("review-commits", () => {
 		}
 		for (const model of CLAUDE_REVIEWERS) {
 			const call = await call_of(model);
+			expect(call).toContain("arg --fallback-model\narg " + CLAUDE_FALLBACK_MODEL + "\n");
 			expect(call).toContain("arg --settings\narg " + JSON.stringify({ env: { CLAUDE_CODE_SUBAGENT_MODEL: model } }) + "\n");
 			expect(call).toContain("arg /code-review xhigh commit " + commit + "\n");
 		}

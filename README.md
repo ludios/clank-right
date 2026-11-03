@@ -131,7 +131,9 @@ The template tells agents to run `review-commits` after each commit, so put
 takes a commit, or `BASE..LAST`, and has every model in its `codex_reviewers`
 and `claude_reviewers` review it at once; the comment at its top says where the
 reviews go. To change the reviewers, edit those two lists. The first codex
-reviewer is the template's `astra_model`, so change the two together.
+reviewer is the template's `astra_model`, so change the two together. Where a
+Claude reviewer's model is not available to the account that `claude` is
+logged into, `claude_fallback_model` reviews in its place.
 
 `review-commits` gives `codex review` no permission or sandbox options, so
 `~/.codex/config.toml` must set `approval_policy = "never"` and
