@@ -8,13 +8,14 @@
 # to ~/.ai-code-reviews/MODEL/NAME, where NAME is the full hash of COMMIT, or
 # FULL_BASE..FULL_LAST; next to its review, a codex reviewer's transcript goes
 # to NAME.log, and a Claude reviewer's session files go to the directory
-# NAME.transcript. Prints the reviews in the order that the reviewers started,
+# NAME.transcript/RUN, where RUN is the name of the run's temporary directory.
+# Prints the reviews in the order that the reviewers started,
 # each once its reviewer and every reviewer started before it have exited. Once
 # every reviewer has exited, deletes the clone, and exits with status 1 if any
 # reviewer failed. On SIGINT or SIGTERM, stops every reviewer together with the
 # processes it started, deletes the clone, and exits with status 130 or 143.
 # Runs each reviewer in a bwrap sandbox (see make_sandbox), and exits with
-# status 2 if bwrap is not on PATH. Shows the reviewers the copy of AGENTS.md
+# status 2 if bwrap or jq is not on PATH. Shows the reviewers the copy of AGENTS.md
 # that is for agents that review commits (see show_review_copy).
 
 set -euo pipefail
@@ -34,8 +35,9 @@ claude_reviewers=(claude-mythos-5-1 claude-opus-5-5)
 # Its review is saved under the reviewer's model.
 claude_fallback_model=claude-fable-5-1
 # What a Claude reviewer can read in the home directory besides claude's own
-# files and the hooks in claude's settings: the files that those hooks read.
-# The outbound-firewall hook denies every command without its config.
+# files and the files that claude's settings name (see claude_home_options):
+# the files and directories that the settings' hooks read. The
+# outbound-firewall hook denies every command without its config.
 claude_hook_files=(.config/claude-outbound-firewall)
 
 # The temporary directory that holds the clone; cleanup() deletes it.
@@ -102,7 +104,7 @@ make_sandbox() {
 	local dir store tool
 	for dir in "$claude_dir" "$codex_home"; do
 		if [[ -d $dir ]]; then
-			sandbox+=(--tmpfs "$dir")
+			sandbox+=(--tmpfs "$(readlink -f "$dir")")
 		fi
 	done
 	# Object stores whose alternates are still to be read, and those already shown
@@ -159,45 +161,78 @@ codex_home_options() {
 		--ro-bind-try "$codex_home/config.toml" "$codex_home/config.toml" --)
 }
 
-# Sets the array `claude_options` (which main declares) to the rest of the
-# bwrap options for a Claude reviewer, ending in `--`: claude's directory
-# (~/.claude), showing only its login, settings, plugins and skills. Each other
-# file in it can't be read, and each other directory is empty, except that
-# `projects`, where claude saves its sessions, is the directory $1. Claude
-# rewrites its login in place to save refreshed tokens, holding a lock that it
-# makes in its directory, so the reviewer gets the directory itself, writable,
-# and refreshes don't race. The reviewer also gets, read-only, the directory of
-# each hook command in claude's settings that is in the home directory, and
-# claude_hook_files.
+# Succeeds if a Claude reviewer may see the file $1, which claude's settings
+# name: the file is in the home directory, but not in ~/.ai-code-reviews, in
+# codex's directory, or where claude keeps its sessions.
+may_show_file() {
+	[[ $1 == "$HOME"/?* && $1 != "$HOME/.ai-code-reviews"/* && $1 != "$codex_home"/* && $1 != "$claude_dir/projects"/* ]]
+}
+
+# Sets the array `claude_options` (which main declares) to more bwrap options
+# for a Claude reviewer: claude's directory (~/.claude, or CLAUDE_CONFIG_DIR),
+# showing only its login, settings, instructions (CLAUDE.md), plugins, skills,
+# agents and commands, and its config (.claude.json) if that is there. Each
+# other file in it can't be read, and each other directory is empty; for a
+# link, that is what it links to. Claude rewrites its login in place to save
+# refreshed tokens, holding a lock that it makes in its directory
+# (.oauth_refresh.lock), so the reviewer gets the directory itself, writable,
+# and refreshes don't race. The reviewer also gets, read-only, every file that a
+# word in a string in claude's settings names, such as a hook's script, if
+# may_show_file allows it; and claude_hook_files. Sets `claude_sessions` to
+# where main puts each reviewer's own directory for its sessions.
 claude_home_options() {
-	local entry hook file
+	local entry target string word file
+	local -a words
 	claude_options=(--bind-try "$claude_dir" "$claude_dir")
 	while IFS= read -r -d '' entry; do
+		target=$entry
+		if [[ -L $entry ]]; then
+			target=$(readlink -f "$entry")
+		fi
 		case ${entry##*/} in
-			.credentials.json | settings.json | plugins | skills | projects) ;;
+			.credentials.json)
+				if [[ -L $entry ]]; then
+					claude_options+=(--bind "$target" "$target")
+				fi
+				;;
+			settings.json | CLAUDE.md | .claude.json | plugins | skills | agents | commands)
+				if [[ -L $entry ]]; then
+					claude_options+=(--ro-bind "$target" "$target")
+				fi
+				;;
+			projects | .oauth_refresh.lock*) ;;
 			*)
-				if [[ -d $entry ]]; then
-					claude_options+=(--tmpfs "$entry")
-				elif [[ -e $entry ]]; then
-					claude_options+=(--ro-bind /dev/null "$entry")
+				if [[ -d $target ]]; then
+					claude_options+=(--tmpfs "$target")
+				elif [[ -e $target ]]; then
+					claude_options+=(--ro-bind /dev/null "$target")
 				fi
 				;;
 		esac
-	done < <(find "$claude_dir" -mindepth 1 -maxdepth 1 -print0 2> /dev/null)
-	claude_options+=(--bind "$1" "$claude_dir/projects")
+	done < <(find -H "$claude_dir" -mindepth 1 -maxdepth 1 -print0 2> /dev/null)
+	claude_sessions=$claude_dir/projects
+	if [[ -L $claude_sessions ]]; then
+		claude_sessions=$(readlink -f "$claude_sessions")
+	fi
 	if [[ -r $claude_dir/settings.json ]]; then
-		while IFS= read -r hook; do
-			hook=${hook%% *}
-			hook=${hook/#\~/$HOME}
-			if [[ $hook == "$HOME"/* ]]; then
-				claude_options+=(--ro-bind-try "${hook%/*}" "${hook%/*}")
-			fi
-		done < <(jq -r '.hooks[]?[]?.hooks[]?.command' "$claude_dir/settings.json")
+		local strings
+		strings=$(jq -r '.. | strings' "$claude_dir/settings.json")
+		while IFS= read -r string; do
+			read -ra words <<< "$string"
+			for word in "${words[@]}"; do
+				word=${word//[\"\']/}
+				word=${word/#\~\//$HOME/}
+				word=${word//\$\{HOME\}/$HOME}
+				word=${word//\$HOME/$HOME}
+				if [[ -f $word ]] && may_show_file "$word"; then
+					claude_options+=(--ro-bind "$word" "$word")
+				fi
+			done
+		done <<< "$strings"
 	fi
 	for file in "${claude_hook_files[@]}"; do
 		claude_options+=(--ro-bind-try "$HOME/$file" "$HOME/$file")
 	done
-	claude_options+=(--)
 }
 
 # Replaces AGENTS.md in the clone $1 with the copy that `$2 review-copy` makes
@@ -263,6 +298,9 @@ main() {
 	if ! command -v bwrap > /dev/null; then
 		die "bwrap is not on PATH; install bubblewrap (pkgs.bubblewrap on NixOS), which runs each reviewer in a sandbox"
 	fi
+	if ! command -v jq > /dev/null; then
+		die "jq is not on PATH; it finds the files that claude's settings name, which Claude reviewers need"
+	fi
 	local bin prompts reviewer model focus
 	local -A seen=()
 	bin=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
@@ -295,8 +333,10 @@ main() {
 	show_review_copy "$tmp/repo" "$bin/clank-right"
 	cd "$tmp/repo"
 	local -a sandbox codex_options claude_options
+	local claude_sessions
 	make_sandbox
 	codex_home_options
+	claude_home_options
 
 	# Each reviewer runs in a sandbox of its own. A codex reviewer reads its
 	# prompt from stdin, and a Claude reviewer gets /dev/null as its stdin, so
@@ -326,11 +366,11 @@ main() {
 	# it) instead of --model; --settings overrides both, so that the reviewer's
 	# model (or the fallback model) reviews.
 	for model in "${claude_reviewers[@]}"; do
-		transcript=$reviews/$model/$name.transcript
-		rm -rf "$transcript"
+		# A directory of this run's own, so that the reviewer sees no session of
+		# another run, and another run can't delete this one's
+		transcript=$reviews/$model/$name.transcript/${tmp##*/}
 		mkdir -p "$transcript"
-		claude_home_options "$transcript"
-		setsid "${sandbox[@]}" "${claude_options[@]}" claude -p --model "$model" --fallback-model "$claude_fallback_model" \
+		setsid "${sandbox[@]}" "${claude_options[@]}" --bind "$transcript" "$claude_sessions" -- claude -p --model "$model" --fallback-model "$claude_fallback_model" \
 			--settings "{\"env\":{\"CLAUDE_CODE_SUBAGENT_MODEL\":\"$model\"}}" --effort xhigh \
 			"/code-review xhigh $claude_target" < /dev/null > "$reviews/$model/$name" 2>&1 &
 		models+=("$model")
@@ -349,7 +389,7 @@ main() {
 		if (( status != 0 )); then
 			failed=1
 			# A Claude reviewer prints everything to its review, so only a
-			# codex reviewer has a transcript of text
+			# codex reviewer has a .log, of its stderr
 			if [[ -e $file.log ]]; then
 				echo "--- the end of its transcript, $file.log:"
 				tail -n 20 "$file.log"

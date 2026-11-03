@@ -113,8 +113,9 @@ echo "prompt $(head -c 120)"
 
 /**
  * Stands in for `claude` inside a real sandbox, and prints what it can see: the
- * files in $HOME outside ~/.claude, the files in ~/.claude, whether it can read
- * ~/.claude/history.jsonl, claude's login, and how many processes there are.
+ * entries in $HOME outside ~/.claude, the entries in ~/.claude, whether it can
+ * read ~/.claude/history.jsonl and the files that ~/.claude/commands and
+ * ~/.claude/todos link to, claude's login, and how many processes there are.
  * Then it saves a session file in ~/.claude/projects, and makes a directory in
  * ~/.claude, as claude does to lock its login while it refreshes it.
  */
@@ -122,6 +123,8 @@ const PROBE_CLAUDE = `#!/usr/bin/env bash
 echo "home $(cd "$HOME" && find . -mindepth 1 -not -path './.claude/*' | LC_ALL=C sort | tr '\\n' ' ')"
 echo "claude $(cd "$HOME/.claude" && find . -mindepth 1 | LC_ALL=C sort | tr '\\n' ' ')"
 echo "history $(cat "$HOME/.claude/history.jsonl" 2> /dev/null || echo unreadable)"
+echo "command $(cat "$HOME/.claude/commands/review.md" 2> /dev/null || echo unreadable)"
+echo "todo $(cat "$HOME/.claude/todos/t.json" 2> /dev/null || echo unreadable)"
 echo "login $(cat "$HOME/.claude/.credentials.json")"
 echo "processes $(ls /proc | grep -c '^[0-9]')"
 mkdir -p "$HOME/.claude/projects/p" "$HOME/.claude/.refresh.lock"
@@ -275,9 +278,11 @@ describe("review-commits", () => {
 		for (const model of CLAUDE_REVIEWERS) {
 			const call = await call_of(model);
 			expect(call).toContain("stdin /dev/null\n");
-			for (const option of ["--unshare-pid", "--tmpfs\nsandbox " + home, "--tmpfs\nsandbox /tmp", "--bind-try\nsandbox " + home + "/.claude\nsandbox " + home + "/.claude", "--bind\nsandbox " + review_path(model, commit) + ".transcript\nsandbox " + home + "/.claude/projects"]) {
+			for (const option of ["--unshare-pid", "--tmpfs\nsandbox " + home, "--tmpfs\nsandbox /tmp", "--bind-try\nsandbox " + home + "/.claude\nsandbox " + home + "/.claude"]) {
 				expect(call).toContain("sandbox " + option + "\n");
 			}
+			// The reviewer's sessions go to a directory of this run's own
+			expect(call).toMatch(new RegExp("\nsandbox --bind\nsandbox [^\n]*/" + model + "/" + commit + "\\.transcript/review-commits\\.\\w+\nsandbox " + home + "/\\.claude/projects\n"));
 			expect(call).not.toContain("sandbox " + home + "/.codex");
 			expect(call).toContain("arg --fallback-model\narg " + CLAUDE_FALLBACK_MODEL + "\n");
 			expect(call).toContain("arg --settings\narg " + JSON.stringify({ env: { CLAUDE_CODE_SUBAGENT_MODEL: model } }) + "\n");
@@ -430,18 +435,22 @@ describe("review-commits", () => {
 		await mkdir(home_bin);
 		await writeFile(join(home_bin, "codex"), PROBE_CODEX);
 		await writeFile(join(home_bin, "claude"), PROBE_CLAUDE);
-		const settings = { hooks: { PreToolUse: [{ matcher: "Bash", hooks: [{ type: "command", command: home + "/hooks/firewall --strict" }] }] } };
+		const settings = { hooks: { PreToolUse: [{ matcher: "Bash", hooks: [{ type: "command", command: "bash \"$HOME/hooks/firewall\" --strict" }, { type: "command", command: "~/top-hook" }] }] } };
 		for (const [file, text] of [
 			[".ai-code-reviews/m/old", "old review"], [".codex/sessions/s.jsonl", "transcript"], [".codex/auth.json", "token"], [".codex/config.toml", "x = 1"],
 			[".claude/projects/p/s.jsonl", "transcript"], [".claude/sessions/1.json", "session"], [".claude/history.jsonl", "prompts"], [".claude/.credentials.json", "claude token"],
-			[".claude/settings.json", JSON.stringify(settings)], ["hooks/firewall", "#!/bin/sh"], [".config/claude-outbound-firewall/blocked-strings", "name"], [".config/gh/hosts.yml", "secret"],
+			[".claude/settings.json", JSON.stringify(settings)], ["hooks/firewall", "#!/bin/sh"], ["hooks/other", "other"], ["top-hook", "#!/bin/sh"], [".config/claude-outbound-firewall/blocked-strings", "name"], [".config/gh/hosts.yml", "secret"],
+			[".claude/.oauth_refresh.lock/held", ""], ["dotfiles/commands/review.md", "cmd"], ["dotfiles/todos/t.json", "todo"],
 		] as const) {
 			await mkdir(join(home, file, ".."), { recursive: true });
 			await writeFile(join(home, file), text);
 		}
-		for (const file of ["bin/codex", "bin/claude", "hooks/firewall"]) {
+		for (const file of ["bin/codex", "bin/claude", "hooks/firewall", "top-hook"]) {
 			await chmod(join(home, file), 0o755);
 		}
+		// Links like those that home-manager or a dotfiles repository makes: one to an entry that the reviewer sees, one to an entry that it doesn't
+		await symlink(join(home, "dotfiles/commands"), join(home, ".claude/commands"));
+		await symlink(join(home, "dotfiles/todos"), join(home, ".claude/todos"));
 		const commit = await git(repo, "rev-parse", "HEAD");
 		const result = spawnSync(SCRIPT, ["HEAD"], { cwd: repo, encoding: "utf8", env: { ...script_env(), PATH: home_bin + ":" + process.env["PATH"] }, timeout: 10_000 });
 		expect(result.status).toBe(0);
@@ -461,16 +470,21 @@ describe("review-commits", () => {
 		}
 		for (const model of CLAUDE_REVIEWERS) {
 			const review = await readFile(review_path(model, commit), "utf8");
-			// Outside ~/.claude, the home directory has only codex's directory, empty, the PATH dirs, the hook's directory, and claude_hook_files
-			expect(review).toContain("home ./.claude ./.codex ./.config ./.config/claude-outbound-firewall ./.config/claude-outbound-firewall/blocked-strings ./bin ./bin/claude ./bin/codex ./hooks ./hooks/firewall \n");
-			// In ~/.claude, other files can't be read, and other directories are empty
-			expect(review).toContain("claude ./.credentials.json ./history.jsonl ./projects ./sessions ./settings.json \n");
+			// Outside ~/.claude, the home directory has only codex's directory, empty; the PATH dirs; the hook scripts, without
+			// their neighbors; claude_hook_files; the target of the link to commands; and the target of the link to todos, empty
+			expect(review).toContain("home ./.claude ./.codex ./.config ./.config/claude-outbound-firewall ./.config/claude-outbound-firewall/blocked-strings ./bin ./bin/claude ./bin/codex ./dotfiles ./dotfiles/commands ./dotfiles/commands/review.md ./dotfiles/todos ./hooks ./hooks/firewall ./top-hook \n");
+			// In ~/.claude, other files can't be read, and other directories are empty; the refresh lock is the real one
+			expect(review).toContain("claude ./.credentials.json ./.oauth_refresh.lock ./.oauth_refresh.lock/held ./commands ./history.jsonl ./projects ./sessions ./settings.json ./todos \n");
 			expect(review).toContain("history unreadable\n");
+			expect(review).toContain("command cmd\n");
+			expect(review).toContain("todo unreadable\n");
 			expect(review).toContain("login claude token\n");
 			const processes = /^processes (\d+)$/m.exec(review);
 			A(processes !== null, "the probe must count the processes it sees");
 			A.lte(Number(processes[1]), 10);
-			expect(await readFile(review_path(model, commit) + ".transcript/p/s.jsonl", "utf8")).toBe("own session\n");
+			const runs = await readdir(review_path(model, commit) + ".transcript");
+			expect(runs).toHaveLength(1);
+			expect(await readFile(join(review_path(model, commit) + ".transcript", runs[0]!, "p/s.jsonl"), "utf8")).toBe("own session\n");
 		}
 		// The lock that claude makes in its directory is in the real one, which every claude shares
 		expect(await readdir(join(home, ".claude", ".refresh.lock"))).toEqual([]);

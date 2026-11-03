@@ -160,15 +160,17 @@ has hit that model's usage limit, the reviewer fails instead.
 `review-commits` runs each reviewer in a bwrap sandbox that hides the home
 directory (other reviews, and the transcripts of claude and codex), the
 directories of claude and codex wherever they are, `/tmp` and `/var/tmp`, and
-other processes, so `bwrap` (bubblewrap) must be on the `PATH`. Of `~/.claude`, a Claude reviewer sees only claude's login, settings,
-plugins and skills, and its own session files, which go next to its review.
-Elsewhere in the home directory, it also sees the directory of each hook in
-claude's settings, and `claude_hook_files`: the files those hooks read. If a
-hook reads a file in the home directory that isn't in that list, the hook may
-deny every command. In the sandbox, `review-commits` gives `codex exec` no
-permission or sandbox options, so
-`~/.codex/config.toml` (or `$CODEX_HOME/config.toml`) must set `approval_policy = "never"` and
-`sandbox_mode = "danger-full-access"`.
+other processes, so `bwrap` (bubblewrap) and `jq` must be on the `PATH`. Of
+`~/.claude` (or `$CLAUDE_CONFIG_DIR`), a Claude reviewer sees only claude's
+login, settings, `CLAUDE.md`, plugins, skills, agents and commands, the lock
+that claude takes to refresh its login, and its own session files, which go
+next to its review. Elsewhere in the home directory, it also sees each file
+that a word in claude's settings names, such as a hook's script, and
+`claude_hook_files`: the files and directories that those hooks read. If a hook
+reads something else in the home directory, the hook may deny every command.
+In the sandbox, `review-commits` gives `codex exec` no permission or sandbox
+options, so `~/.codex/config.toml` (or `$CODEX_HOME/config.toml`) must set
+`approval_policy = "never"` and `sandbox_mode = "danger-full-access"`.
 
 ## Changing the template
 
