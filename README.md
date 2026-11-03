@@ -142,7 +142,10 @@ logged into, or keeps being overloaded, `claude_fallback_model` reviews in its
 place, and the review is saved under the reviewer's model. Where the account
 has hit that model's usage limit, the reviewer fails instead.
 
-`review-commits` gives `codex exec` no permission or sandbox options, so
+`review-commits` runs each codex reviewer in a bwrap sandbox that hides the
+home directory (other reviews, and the transcripts of claude and codex), `/tmp`
+and `/var/tmp`, and other processes, so `bwrap` (bubblewrap) must be on the
+`PATH`. Inside, it gives `codex exec` no permission or sandbox options, so
 `~/.codex/config.toml` must set `approval_policy = "never"` and
 `sandbox_mode = "danger-full-access"`.
 

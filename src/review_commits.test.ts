@@ -1,5 +1,5 @@
-import { spawn, spawnSync } from "node:child_process";
-import { chmod, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { execFileSync, spawn, spawnSync } from "node:child_process";
+import { chmod, mkdir, mkdtemp, readdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { A } from "ayy";
@@ -41,9 +41,10 @@ A(CLAUDE_FALLBACK_MODEL !== undefined, "review-commits must set claude_fallback_
 /**
  * Stands in for both `codex` and `claude`. Finds its model in `-c model=MODEL`
  * or `--model MODEL`; if $FAKE_HANG is set, starts a `sleep` that it waits for
- * at the end. Writes how it was run, followed by what it read from stdin, to
- * $CALLS/MODEL, all at once, prints a transcript line to stderr and a review
- * to stdout, and exits with status 1 if its model is $FAKE_FAIL.
+ * at the end. Writes how it was run (with the options of the fake bwrap that
+ * started it, if any), followed by what it read from stdin, to $CALLS/MODEL,
+ * all at once, prints a transcript line to stderr and a review to stdout, and
+ * exits with status 1 if its model is $FAKE_FAIL.
  */
 const FAKE_REVIEWER = `#!/usr/bin/env bash
 model=
@@ -67,6 +68,7 @@ fi
 	echo "head $(git rev-parse HEAD)"
 	echo "stdin $(readlink /proc/self/fd/0)"
 	echo "child $child"
+	printf '%s' "$FAKE_SANDBOX"
 	echo "stdin text:"
 	cat
 } > "$CALLS/.$model"
@@ -76,6 +78,35 @@ echo "review by $model"
 wait
 [[ $model != "$FAKE_FAIL" ]]
 `;
+
+/** Stands in for bwrap: runs the command after `--`, giving it the options before `--` in $FAKE_SANDBOX, as a "sandbox OPTION" line each. */
+const FAKE_BWRAP = `#!/usr/bin/env bash
+options=
+while [[ $1 != -- ]]; do
+	options+="sandbox $1"$'\\n'
+	shift
+done
+shift
+FAKE_SANDBOX=$options exec "$@"
+`;
+
+/**
+ * Stands in for `codex` inside a real sandbox, and prints what it can see: the
+ * files in $HOME, the files in the test's directory (the parent of $TMPDIR),
+ * the HEAD of its clone, codex's auth.json, how many processes there are, and
+ * the start of its stdin.
+ */
+const PROBE_CODEX = `#!/usr/bin/env bash
+echo "home $(cd "$HOME" && find . -mindepth 1 | LC_ALL=C sort | tr '\\n' ' ')"
+echo "root $(ls -A "$(dirname "$TMPDIR")" | tr '\\n' ' ')"
+echo "head $(git rev-parse HEAD)"
+echo "auth $(cat "$HOME/.codex/auth.json")"
+echo "processes $(ls /proc | grep -c '^[0-9]')"
+echo "prompt $(head -c 120)"
+`;
+
+/** Whether a real bwrap is on PATH, and can make a sandbox here (it needs unprivileged user namespaces). */
+const REAL_BWRAP_WORKS = spawnSync("bwrap", ["--ro-bind", "/", "/", "--unshare-pid", "true"]).status === 0;
 
 /** The test's directory, which holds every directory below. */
 let root: string;
@@ -87,7 +118,7 @@ let calls: string;
 let home: string;
 /** The TMPDIR of review-commits, where it makes its clone. */
 let tmp: string;
-/** Holds the fake `codex` and `claude`, ahead of the real ones on PATH. */
+/** Holds the fake `codex`, `claude` and `bwrap`, ahead of the real ones on PATH. */
 let fake_bin: string;
 
 beforeEach(async () => {
@@ -100,8 +131,8 @@ beforeEach(async () => {
 	for (const dir of [repo, calls, home, tmp, fake_bin]) {
 		await mkdir(dir);
 	}
-	for (const name of ["codex", "claude"]) {
-		await writeFile(join(fake_bin, name), FAKE_REVIEWER);
+	for (const [name, text] of [["codex", FAKE_REVIEWER], ["claude", FAKE_REVIEWER], ["bwrap", FAKE_BWRAP]] as const) {
+		await writeFile(join(fake_bin, name), text);
 		await chmod(join(fake_bin, name), 0o755);
 	}
 
@@ -204,6 +235,13 @@ describe("review-commits", () => {
 			expect(call).toContain("arg exec\n");
 			expect(call).toContain("arg model=" + model + "\narg -c\narg model_reasoning_effort=xhigh\narg -\n");
 			expect(call).toContain("stdin " + tmp + "/review-commits.");
+			for (const option of ["--unshare-pid", "--tmpfs\nsandbox " + home, "--tmpfs\nsandbox /tmp", "--ro-bind\nsandbox " + repo + "/.git/objects"]) {
+				expect(call).toContain("sandbox " + option + "\n");
+			}
+			expect(call).toContain("sandbox --bind\nsandbox " + tmp + "/review-commits.");
+			for (const file of ["auth.json", "auth.lock"]) {
+				expect(call).toContain("sandbox --bind-try\nsandbox " + home + "/.codex/" + file + "\n");
+			}
 			const prompt = call.slice(call.indexOf("stdin text:\n") + "stdin text:\n".length);
 			expect(prompt).toMatch(new RegExp("^You are reviewing code changes made by another engineer: commit " + commit + " \\(HEAD\\) in this repository\\."));
 			expect(prompt).toContain(await readFile(join(PROMPTS, "codex-" + focus + ".md"), "utf8"));
@@ -214,6 +252,7 @@ describe("review-commits", () => {
 		for (const model of CLAUDE_REVIEWERS) {
 			const call = await call_of(model);
 			expect(call).toContain("stdin /dev/null\n");
+			expect(call).not.toContain("sandbox ");
 			expect(call).toContain("arg --fallback-model\narg " + CLAUDE_FALLBACK_MODEL + "\n");
 			expect(call).toContain("arg --settings\narg " + JSON.stringify({ env: { CLAUDE_CODE_SUBAGENT_MODEL: model } }) + "\n");
 			expect(call).toContain("arg /code-review xhigh commit " + commit + "\n");
@@ -271,6 +310,52 @@ describe("review-commits", () => {
 			A(child !== null, "the fake reviewer for " + model + " must have started a sleep");
 			// A killed `sleep` exists as a zombie until its new parent reaps it
 			await until(() => !exists(Number(child[1])), "the sleep of " + model + " has exited");
+		}
+	});
+
+	it("refuses to run with status 2, starting no reviewer, when bwrap is not on PATH", async () => {
+		// A PATH with only bash and git, which review-commits needs before it looks for bwrap
+		const bare_bin = join(root, "bare-bin");
+		await mkdir(bare_bin);
+		for (const name of ["bash", "git"]) {
+			await symlink(execFileSync("bash", ["-c", 'command -v "$0"', name], { encoding: "utf8" }).trim(), join(bare_bin, name));
+		}
+		const result = spawnSync(SCRIPT, ["HEAD"], { cwd: repo, encoding: "utf8", env: { ...script_env(), PATH: bare_bin }, timeout: 3_000 });
+		expect(result.status).toBe(2);
+		expect(result.stderr).toContain("bwrap is not on PATH");
+		expect(await readdir(calls)).toEqual([]);
+		expect(await readdir(tmp)).toEqual([]);
+	});
+
+	it.skipIf(!REAL_BWRAP_WORKS)("hides other reviews, transcripts, files in /tmp and other processes from a codex reviewer", async () => {
+		// PATH dirs in the home directory are visible in the sandbox, so the probe and the fake claude go there
+		const home_bin = join(home, "bin");
+		await mkdir(home_bin);
+		await writeFile(join(home_bin, "codex"), PROBE_CODEX);
+		await writeFile(join(home_bin, "claude"), FAKE_REVIEWER);
+		for (const name of ["codex", "claude"]) {
+			await chmod(join(home_bin, name), 0o755);
+		}
+		for (const [file, text] of [[".ai-code-reviews/m/old", "old review"], [".claude/projects/p/s.jsonl", "transcript"], [".codex/sessions/s.jsonl", "transcript"], [".codex/auth.json", "token"], [".codex/config.toml", "x = 1"]] as const) {
+			await mkdir(join(home, file, ".."), { recursive: true });
+			await writeFile(join(home, file), text);
+		}
+		const commit = await git(repo, "rev-parse", "HEAD");
+		const result = spawnSync(SCRIPT, ["HEAD"], { cwd: repo, encoding: "utf8", env: { ...script_env(), PATH: home_bin + ":" + process.env["PATH"] }, timeout: 10_000 });
+		expect(result.status).toBe(0);
+		for (const model of CODEX_REVIEWERS) {
+			const review = await readFile(review_path(model, commit), "utf8");
+			// The home directory has only the PATH dirs in it and codex's own files
+			expect(review).toContain("home ./.codex ./.codex/auth.json ./.codex/auth.lock ./.codex/config.toml ./bin ./bin/claude ./bin/codex \n");
+			// Of the test's directory in /tmp, only the clone's directory and the objects that it borrows are there
+			expect(review).toContain("root home repo tmp \n");
+			expect(review).not.toContain("calls");
+			expect(review).toContain("head " + commit + "\n");
+			expect(review).toContain("auth token\n");
+			expect(review).toContain("prompt You are reviewing code changes made by another engineer: commit " + commit);
+			const processes = /^processes (\d+)$/m.exec(review);
+			A(processes !== null, "the probe must count the processes it sees");
+			A.lte(Number(processes[1]), 10);
 		}
 	});
 

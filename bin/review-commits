@@ -11,7 +11,9 @@
 # once its reviewer and every reviewer started before it have exited. Once every
 # reviewer has exited, deletes the clone, and exits with status 1 if any reviewer
 # failed. On SIGINT or SIGTERM, stops every reviewer together with the processes
-# it started, deletes the clone, and exits with status 130 or 143.
+# it started, deletes the clone, and exits with status 130 or 143. Runs each
+# codex reviewer in a bwrap sandbox (see make_sandbox), and exits with status 2
+# if bwrap is not on PATH.
 
 set -euo pipefail
 
@@ -45,6 +47,41 @@ die_usage() {
 # `local var=$(full_hash ...)` or in a condition, which hide the failure.
 full_hash() {
 	git rev-parse --verify --quiet "$1^{commit}" || die_usage "not a commit: $1"
+}
+
+# Sets the array `sandbox` (which main declares) to a bwrap command line, ending
+# in `--`, that runs a codex reviewer without letting it read other reviews of
+# the same commits: it hides the home directory (~/.ai-code-reviews, and the
+# transcripts of claude and codex), /tmp and /var/tmp (the clones and files of
+# other runs), and other processes. The reviewer still gets, read-only: the
+# objects that the clone in $tmp/repo borrows, every directory on PATH that is
+# in the home directory, and ~/.rustup (the toolchains that rustup's rustc and
+# cargo run). It also gets $tmp, and codex's config.toml and auth.json. Codex
+# rewrites auth.json in place to save refreshed tokens, holding a lock on
+# auth.lock, so every reviewer gets the same auth.lock (made here if missing),
+# writable, and refreshes don't race.
+make_sandbox() {
+	sandbox=(bwrap --ro-bind / / --dev /dev --proc /proc --unshare-pid --die-with-parent
+		--tmpfs "$HOME" --tmpfs /tmp --tmpfs /var/tmp)
+	local dir
+	local -a path_dirs
+	while read -r dir; do
+		sandbox+=(--ro-bind "$dir" "$dir")
+	done < "$tmp/repo/.git/objects/info/alternates"
+	IFS=: read -ra path_dirs <<< "$PATH"
+	for dir in "${path_dirs[@]}" "$HOME/.rustup"; do
+		if [[ $dir == "$HOME"/* && -d $dir ]]; then
+			sandbox+=(--ro-bind "$dir" "$dir")
+		fi
+	done
+	local codex_home=${CODEX_HOME:-$HOME/.codex}
+	if [[ -d $codex_home ]]; then
+		: >> "$codex_home/auth.lock"
+	fi
+	sandbox+=(--bind "$tmp" "$tmp" --dir "$codex_home"
+		--bind-try "$codex_home/auth.json" "$codex_home/auth.json"
+		--bind-try "$codex_home/auth.lock" "$codex_home/auth.lock"
+		--ro-bind-try "$codex_home/config.toml" "$codex_home/config.toml" --)
 }
 
 # Stops every reviewer still running, together with the processes it started,
@@ -90,6 +127,10 @@ main() {
 		codex_target="commit $last (HEAD)"
 	fi
 
+	if ! command -v bwrap > /dev/null; then
+		echo "review-commits: bwrap is not on PATH; install bubblewrap (pkgs.bubblewrap on NixOS), which runs each codex reviewer in a sandbox" >&2
+		exit 2
+	fi
 	local prompts reviewer
 	prompts=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../review-prompts
 	for reviewer in "${codex_reviewers[@]}"; do
@@ -108,11 +149,13 @@ main() {
 	git clone --quiet --shared --no-checkout "$top" "$tmp/repo"
 	git -C "$tmp/repo" checkout --quiet --detach "$last"
 	cd "$tmp/repo"
+	local -a sandbox
+	make_sandbox
 
-	# A codex reviewer reads its prompt from stdin. Without job control, bash
-	# gives every other background command /dev/null as its stdin, so no
-	# reviewer waits for input. setsid makes each reviewer the leader of a new
-	# session and process group, keeping its PID.
+	# A codex reviewer reads its prompt from stdin, in its sandbox. Without job
+	# control, bash gives every other background command /dev/null as its
+	# stdin, so no reviewer waits for input. setsid makes each reviewer the
+	# leader of a new session and process group, keeping its PID.
 	local reviews=$HOME/.ai-code-reviews model
 	# Each reviewer's model and PID, in the order that the reviewers started
 	local -a models=() pids=()
@@ -126,7 +169,7 @@ main() {
 			echo
 			cat "$prompts/codex-common.md"
 		} > "$tmp/$model.prompt"
-		setsid codex exec -c "model=$model" -c model_reasoning_effort=xhigh - < "$tmp/$model.prompt" \
+		setsid "${sandbox[@]}" codex exec -c "model=$model" -c model_reasoning_effort=xhigh - < "$tmp/$model.prompt" \
 			> "$reviews/$model/$name" 2> "$reviews/$model/$name.log" &
 		models+=("$model")
 		pids+=($!)
