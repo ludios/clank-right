@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { git } from "./git.ts";
 
 const SCRIPT = join(import.meta.dirname, "..", "bin", "review-commits");
+const PROMPTS = join(import.meta.dirname, "..", "review-prompts");
 
 /**
  * @param script The text of review-commits.
@@ -22,18 +23,27 @@ function models_in(script: string, name: string): string[] {
 }
 
 const SCRIPT_TEXT = await readFile(SCRIPT, "utf8");
-const CODEX_REVIEWERS = models_in(SCRIPT_TEXT, "codex_reviewers");
+/** Each codex reviewer's model and the focus that picks its prompt, from the MODEL:FOCUS words of codex_reviewers */
+const CODEX_FOCUSES = new Map(
+	models_in(SCRIPT_TEXT, "codex_reviewers").map((reviewer) => {
+		const [model, focus, ...rest] = reviewer.split(":");
+		A(model !== undefined && model !== "" && focus !== undefined && focus !== "" && rest.length === 0, "a codex reviewer must be MODEL:FOCUS, not " + reviewer);
+		return [model, focus];
+	}),
+);
+const CODEX_REVIEWERS = [...CODEX_FOCUSES.keys()];
 const CLAUDE_REVIEWERS = models_in(SCRIPT_TEXT, "claude_reviewers");
 const REVIEWERS = [...CODEX_REVIEWERS, ...CLAUDE_REVIEWERS];
+A.eq(new Set(REVIEWERS).size, REVIEWERS.length);
 const CLAUDE_FALLBACK_MODEL = /^claude_fallback_model=(\S+)$/m.exec(SCRIPT_TEXT)?.[1];
 A(CLAUDE_FALLBACK_MODEL !== undefined, "review-commits must set claude_fallback_model on a line of its own");
 
 /**
  * Stands in for both `codex` and `claude`. Finds its model in `-c model=MODEL`
  * or `--model MODEL`; if $FAKE_HANG is set, starts a `sleep` that it waits for
- * at the end. Writes how it was run to $CALLS/MODEL, all at once, prints a
- * transcript line to stderr and a review to stdout, and exits with status 1
- * if its model is $FAKE_FAIL.
+ * at the end. Writes how it was run, followed by what it read from stdin, to
+ * $CALLS/MODEL, all at once, prints a transcript line to stderr and a review
+ * to stdout, and exits with status 1 if its model is $FAKE_FAIL.
  */
 const FAKE_REVIEWER = `#!/usr/bin/env bash
 model=
@@ -57,6 +67,8 @@ fi
 	echo "head $(git rev-parse HEAD)"
 	echo "stdin $(readlink /proc/self/fd/0)"
 	echo "child $child"
+	echo "stdin text:"
+	cat
 } > "$CALLS/.$model"
 mv "$CALLS/.$model" "$CALLS/$model"
 echo "transcript of $model" >&2
@@ -168,7 +180,7 @@ function review_path(model: string, name: string): string {
 
 /**
  * @param model A reviewer's model.
- * @returns How the fake reviewer for `model` was run: one `arg` line per argument, then its working directory, HEAD, stdin, and the PID of its `sleep` (if any).
+ * @returns How the fake reviewer for `model` was run: one `arg` line per argument, then its working directory, HEAD, stdin, the PID of its `sleep` (if any), and the text it read from stdin.
  */
 function call_of(model: string): Promise<string> {
 	return readFile(join(calls, model), "utf8");
@@ -184,17 +196,24 @@ describe("review-commits", () => {
 			const call = await call_of(model);
 			expect(call).toContain("pwd " + tmp + "/review-commits.");
 			expect(call).toContain("head " + commit + "\n");
-			expect(call).toContain("stdin /dev/null\n");
 			expect(await readFile(review_path(model, commit), "utf8")).toContain("review by " + model + "\n");
 			expect(result.stdout).toContain("=== " + model + " (exit status 0): " + review_path(model, commit) + "\n");
 		}
-		for (const model of CODEX_REVIEWERS) {
-			expect(await call_of(model)).toContain("arg --commit\narg " + commit + "\n");
+		for (const [model, focus] of CODEX_FOCUSES) {
+			const call = await call_of(model);
+			expect(call).toContain("arg exec\n");
+			expect(call).toContain("arg model=" + model + "\narg -c\narg model_reasoning_effort=xhigh\narg -\n");
+			expect(call).toContain("stdin " + tmp + "/review-commits.");
+			const prompt = call.slice(call.indexOf("stdin text:\n") + "stdin text:\n".length);
+			expect(prompt).toMatch(new RegExp("^You are reviewing code changes made by another engineer: commit " + commit + " \\(HEAD\\) in this repository\\."));
+			expect(prompt).toContain(await readFile(join(PROMPTS, "codex-" + focus + ".md"), "utf8"));
+			expect(prompt.endsWith(await readFile(join(PROMPTS, "codex-common.md"), "utf8"))).toBe(true);
 			expect(await readFile(review_path(model, commit), "utf8")).toBe("review by " + model + "\n");
 			expect(await readFile(review_path(model, commit) + ".log", "utf8")).toBe("transcript of " + model + "\n");
 		}
 		for (const model of CLAUDE_REVIEWERS) {
 			const call = await call_of(model);
+			expect(call).toContain("stdin /dev/null\n");
 			expect(call).toContain("arg --fallback-model\narg " + CLAUDE_FALLBACK_MODEL + "\n");
 			expect(call).toContain("arg --settings\narg " + JSON.stringify({ env: { CLAUDE_CODE_SUBAGENT_MODEL: model } }) + "\n");
 			expect(call).toContain("arg /code-review xhigh commit " + commit + "\n");
@@ -213,7 +232,7 @@ describe("review-commits", () => {
 			expect(await readFile(review_path(model, name), "utf8")).toContain("review by " + model + "\n");
 		}
 		for (const model of CODEX_REVIEWERS) {
-			expect(await call_of(model)).toContain("arg --base\narg " + base + "\n");
+			expect(await call_of(model)).toContain("stdin text:\nYou are reviewing code changes made by another engineer: the commits after " + base + " up to and including " + last + " (HEAD) in this repository.");
 		}
 		for (const model of CLAUDE_REVIEWERS) {
 			expect(await call_of(model)).toContain("arg /code-review xhigh commits " + name + "\n");

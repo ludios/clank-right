@@ -15,7 +15,13 @@
 
 set -euo pipefail
 
-codex_reviewers=(gpt-6-astra gpt-6.1-sol gpt-5.6-sol)
+# Each codex reviewer is MODEL:FOCUS. It runs `codex exec` with a prompt that
+# names what to review, followed by review-prompts/codex-FOCUS.md and then
+# review-prompts/codex-common.md. Reviewers with different focuses find
+# different problems; `codex review` is not used, because its built-in rubric
+# tells the model to prefer reporting nothing. Each model appears only once
+# among all the reviewers, because its reviews are saved under its name.
+codex_reviewers=(gpt-6-astra:general gpt-6.1-sol:approach gpt-5.6-sol:text)
 claude_reviewers=(claude-mythos-5-1 claude-opus-5-5)
 # Reviews in place of a Claude reviewer's model where that model is not
 # available to the logged-in account (e.g. an account without Mythos) or keeps
@@ -67,8 +73,7 @@ main() {
 	fi
 
 	# What the reviewers get told to review, and the review files' name
-	local base last name claude_target
-	local -a codex_target
+	local base last name claude_target codex_target
 	if [[ $arg == *..* ]]; then
 		base=$(full_hash "${arg%%..*}")
 		last=$(full_hash "${arg#*..}")
@@ -76,14 +81,23 @@ main() {
 			die_usage "BASE must be an ancestor of LAST, and not LAST itself: $arg"
 		fi
 		name=$base..$last
-		codex_target=(--base "$base")
 		claude_target="commits $base..$last"
+		codex_target="the commits after $base up to and including $last (HEAD)"
 	else
 		last=$(full_hash "$arg")
 		name=$last
-		codex_target=(--commit "$last")
 		claude_target="commit $last"
+		codex_target="commit $last (HEAD)"
 	fi
+
+	local prompts reviewer
+	prompts=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../review-prompts
+	for reviewer in "${codex_reviewers[@]}"; do
+		if [[ ! -r $prompts/codex-${reviewer#*:}.md ]]; then
+			echo "review-commits: no prompt for the focus of $reviewer: $prompts/codex-${reviewer#*:}.md" >&2
+			exit 2
+		fi
+	done
 
 	local top
 	top=$(git rev-parse --show-toplevel)
@@ -95,15 +109,24 @@ main() {
 	git -C "$tmp/repo" checkout --quiet --detach "$last"
 	cd "$tmp/repo"
 
-	# Without job control, bash gives each background command /dev/null as its
-	# stdin, so no reviewer waits for input. setsid makes each reviewer the
-	# leader of a new session and process group, keeping its PID.
+	# A codex reviewer reads its prompt from stdin. Without job control, bash
+	# gives every other background command /dev/null as its stdin, so no
+	# reviewer waits for input. setsid makes each reviewer the leader of a new
+	# session and process group, keeping its PID.
 	local reviews=$HOME/.ai-code-reviews model
 	# Each reviewer's model and PID, in the order that the reviewers started
 	local -a models=() pids=()
-	for model in "${codex_reviewers[@]}"; do
+	for reviewer in "${codex_reviewers[@]}"; do
+		model=${reviewer%%:*}
 		mkdir -p "$reviews/$model"
-		setsid codex review "${codex_target[@]}" -c "model=$model" -c model_reasoning_effort=xhigh \
+		{
+			echo "You are reviewing code changes made by another engineer: $codex_target in this repository. Use git to see the changes and their commit messages."
+			echo
+			cat "$prompts/codex-${reviewer#*:}.md"
+			echo
+			cat "$prompts/codex-common.md"
+		} > "$tmp/$model.prompt"
+		setsid codex exec -c "model=$model" -c model_reasoning_effort=xhigh - < "$tmp/$model.prompt" \
 			> "$reviews/$model/$name" 2> "$reviews/$model/$name.log" &
 		models+=("$model")
 		pids+=($!)
