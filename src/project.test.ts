@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { array, assert, asyncProperty, boolean, constantFrom, record, uniqueArray, type Arbitrary } from "fast-check";
@@ -364,7 +364,16 @@ describe("in a repository", () => {
 			expect(copy).not.toContain("# Using git safely");
 		});
 
-		it("refuses an AGENTS.md at HEAD that isn't what the template makes of it, whose copy would have other rules", async () => {
+		it("reads the AGENTS.md of DIR, when DIR is below the top of the repository", async () => {
+			const { rendered } = await regenerate(header("languages = [\"python\"]"));
+			await mkdir(join(repo, "sub"));
+			await writeFile(join(repo, "sub", AGENTS_MD), rendered);
+			await git(repo, "add", "sub");
+			await git(repo, "commit", "--quiet", "--message", "m");
+			expect(await review_copy(join(repo, "sub"))).toContain("# Working with Python projects");
+		});
+
+		it("refuses an AGENTS.md at HEAD that isn't what the template makes of it, whose copy could have other rules", async () => {
 			await expect(review_copy(repo)).rejects.toThrow(`${AGENTS_MD} at HEAD isn't what the template makes of it`);
 		});
 

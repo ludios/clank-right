@@ -48,7 +48,7 @@ template renders it for agents that review commits: without the instructions
 about asking Astra, saving tokens, committing alongside other sessions and
 getting commits reviewed. It exits with status 1 if that `AGENTS.md` isn't
 what the template makes of it (for example, if the template has changed since
-the last `update`), since the copy would then have different rules than the
+the last `update`), since the copy could then have different rules than the
 committed file.
 
 ## What a managed AGENTS.md looks like

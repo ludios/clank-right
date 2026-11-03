@@ -193,7 +193,7 @@ describe("render", () => {
 		expect(text).toContain(`is overwritten.\n\n${options_text}\n-->\n\n# Before starting\n`);
 	});
 
-	it("leaves out of a reviewer's copy only what applies to making changes, and says so in the header", async () => {
+	it("leaves out of a reviewer's copy only the instructions that its header names, and rewords only the commit template's", async () => {
 		const input: Partial<RenderInput> = { project_sections: [{ heading: "Before committing", body: "\tpnpm test" }] };
 		const full = await render_with({}, input);
 		const review = await render_with({}, { ...input, in_code_review: true });

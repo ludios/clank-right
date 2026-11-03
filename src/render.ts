@@ -76,7 +76,7 @@ export interface RenderInput {
 	project_sections: Section[];
 	/** The existing "# Web design" body; used when options.web_design is "custom". */
 	web_design_body: string;
-	/** Whether to render the copy for an agent that reviews commits, which leaves out what only applies to making changes. */
+	/** Whether to render the copy for agents that review commits, which leaves out some instructions for making changes, as its header says. */
 	in_code_review: boolean;
 }
 

@@ -16,7 +16,7 @@ export const AGENTS_MD = "AGENTS.md";
 const UPDATE_SUBJECT = `${AGENTS_MD}: regenerate from clank-right template`;
 const log = getLogger(["clank-right"]);
 
-/** AGENTS.md can't be regenerated, or copied for a reviewer, as it is; the human has to act. */
+/** A repository's AGENTS.md can't be regenerated, committed or copied for a reviewer as things are; the human has to act. */
 export class ProjectError extends Error {}
 
 interface Regenerated {
@@ -62,6 +62,7 @@ function parse(current: string): { input: RenderInput; sections: Section[] } {
 
 /**
  * @param current The existing AGENTS.md text.
+ * @returns What the template makes of `current`, and which of its template sections the template no longer makes.
  * @throws ProjectError or OptionsError when `current` isn't a managed file the template can rebuild.
  */
 export async function regenerate(current: string): Promise<Regenerated> {
@@ -117,16 +118,16 @@ export async function inspect(dir: string): Promise<Status> {
 
 /**
  * @param dir A checkout of the repository, e.g. one made for reviewing commits.
- * @returns The AGENTS.md committed at its HEAD, as the template renders it for an agent that reviews commits: the
- * same file, without what applies only to making changes.
+ * @returns The AGENTS.md committed at its HEAD, as the template renders it for agents that review commits: the same
+ * file, but with a header that says which instructions for making changes it leaves out or rewords.
  * @throws ProjectError when HEAD has no AGENTS.md, or one that isn't what the template makes of it (e.g. one made
- * by an older template), since the copy would then have rules that the committed file doesn't; OptionsError when its
+ * by an older template), since the copy could then have rules that the committed file doesn't; OptionsError when its
  * options aren't ones that the template takes.
  */
 export async function review_copy(dir: string): Promise<string> {
 	let committed: string;
 	try {
-		committed = await git_raw(dir, "cat-file", "blob", `HEAD:${AGENTS_MD}`);
+		committed = await git_raw(dir, "cat-file", "blob", `HEAD:./${AGENTS_MD}`);
 	} catch (error) {
 		if (error instanceof GitError) {
 			throw new ProjectError(`can't read ${AGENTS_MD} at HEAD: ${error.message}`);
@@ -135,7 +136,7 @@ export async function review_copy(dir: string): Promise<string> {
 	}
 	const { input } = parse(committed);
 	if (await render(input) !== committed) {
-		throw new ProjectError(`${AGENTS_MD} at HEAD isn't what the template makes of it, so a reviewer's copy would have other rules; \`clank-right update\` it first`);
+		throw new ProjectError(`${AGENTS_MD} at HEAD isn't what the template makes of it, so a reviewer's copy could have other rules; \`clank-right update\` it first`);
 	}
 	return render({ ...input, in_code_review: true });
 }

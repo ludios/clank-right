@@ -319,6 +319,19 @@ describe("review-commits", () => {
 		}
 	});
 
+	it("shows every reviewer, without a word, an AGENTS.md that clank-right doesn't manage", async () => {
+		await writeFile(join(repo, AGENTS_MD), "# Notes\n\nhand-written\n");
+		await git(repo, "add", AGENTS_MD);
+		await git(repo, "commit", "--quiet", "--message", "Add AGENTS.md");
+		const result = review_commits(["HEAD"]);
+		expect(result.stderr).toBe("");
+		expect(result.status).toBe(0);
+		for (const model of REVIEWERS) {
+			expect(await call_of(model)).toContain("agents line 3: hand-written\n");
+		}
+		expect(await readdir(tmp)).toEqual([]);
+	});
+
 	it("reviews the commits after BASE up to and including LAST, as BASE..LAST", async () => {
 		const base = await git(repo, "rev-parse", "HEAD~2");
 		const last = await git(repo, "rev-parse", "HEAD");

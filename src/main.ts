@@ -33,9 +33,9 @@ update       Regenerate each differing ${AGENTS_MD} and commit it, alone, amendi
 chatbots     Rewrite chatbots/claude.md and chatbots/chatgpt.md in this checkout
              from templates/chatbot.vto, for pasting into each chatbot's settings.
 review-copy  Print the ${AGENTS_MD} committed at DIR's HEAD as the template renders
-             it for agents that review commits: without what applies only to
-             making changes. Exits 1 if that ${AGENTS_MD} is missing, or isn't
-             what the template makes of it.
+             it for agents that review commits, which leaves out some
+             instructions for making changes, as its header says. Exits 1 if
+             that ${AGENTS_MD} is missing, or isn't what the template makes of it.
 
 For check and update, DIR defaults to every repository listed in
 ${tilde(PROJECTS_FILE)}.

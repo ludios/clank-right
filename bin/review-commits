@@ -236,15 +236,17 @@ claude_home_options() {
 }
 
 # Replaces AGENTS.md in the clone $1 with the copy that `$2 review-copy` makes
-# for agents that review commits, which leaves out the instructions that apply
-# only to making changes, and makes git ignore that change in the working tree,
-# so that no reviewer takes it for part of the commits. Leaves AGENTS.md as
-# committed if HEAD has none, or if $2 (clank-right) can't make the copy.
+# for agents that review commits, which leaves out some instructions for
+# making changes, and makes git ignore that change in the working tree, so that
+# no reviewer takes it for part of the commits. Leaves AGENTS.md as committed
+# if HEAD has none, or one that clank-right doesn't manage (without its header
+# on line 1), or if $2 (clank-right) can't make the copy.
 show_review_copy() {
-	if ! git -C "$1" cat-file -e HEAD:AGENTS.md 2> /dev/null; then
+	if [[ $(git -C "$1" cat-file blob HEAD:AGENTS.md 2> /dev/null | sed -n 1p) != "<!-- clank-right" ]]; then
 		return
 	fi
 	if ! "$2" review-copy "$1" > "$tmp/AGENTS.md"; then
+		rm -f "$tmp/AGENTS.md"
 		echo "review-commits: so the reviewers get AGENTS.md as committed" >&2
 		return
 	fi
