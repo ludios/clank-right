@@ -16,7 +16,7 @@
 set -euo pipefail
 
 codex_reviewers=(gpt-6-astra gpt-6.1-sol gpt-5.6-sol)
-claude_reviewers=(claude-mythos-5-1 claude-opus-5-5)
+claude_reviewers=(claude-fable-5-1 claude-opus-5-5)
 
 # The temporary directory that holds the clone; cleanup() deletes it.
 tmp=
