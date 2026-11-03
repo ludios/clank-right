@@ -90,10 +90,11 @@ main() {
 	git -C "$tmp/repo" checkout --quiet --detach "$last"
 	cd "$tmp/repo"
 
-	# Each reviewer's model and PID. Without job control, bash gives each background command /dev/null as its
+	# Without job control, bash gives each background command /dev/null as its
 	# stdin, so no reviewer waits for input. setsid makes each reviewer the
 	# leader of a new session and process group, keeping its PID.
 	local reviews=$HOME/.ai-code-reviews model
+	# Each reviewer's model and PID, in the order that the reviewers started
 	local -a models=() pids=()
 	for model in "${codex_reviewers[@]}"; do
 		mkdir -p "$reviews/$model"
