@@ -1,5 +1,5 @@
 import { execFileSync, spawn, spawnSync } from "node:child_process";
-import { chmod, mkdir, mkdtemp, readdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { chmod, cp, mkdir, mkdtemp, readdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { A } from "ayy";
@@ -19,7 +19,9 @@ function words_in(script: string, name: string): string[] {
 	const list = new RegExp("^" + name + "=\\(([^)]*)\\)$", "m").exec(script)?.[1];
 	A(list !== undefined, "review-commits must set " + name + " on a line of its own");
 	const words = list.split(" ");
-	A.gte(words.length, 1);
+	for (const word of words) {
+		A.gt(word.length, 0, name + " must list at least one reviewer, separated by single spaces");
+	}
 	return words;
 }
 
@@ -61,6 +63,7 @@ for arg in "$@"; do
 	fi
 	previous=$arg
 done
+status=$(git status --porcelain) || exit 1
 child=
 if [[ -n $FAKE_HANG ]]; then
 	sleep 30 &
@@ -72,7 +75,7 @@ fi
 	echo "head $(git rev-parse HEAD)"
 	echo "stdin $(readlink /proc/self/fd/0)"
 	echo "child $child"
-	echo "status $(git status --porcelain | tr '\\n' ' ')"
+	echo "status $(printf '%s' "$status" | tr '\\n' ' ')"
 	echo "agents line 3: $(sed -n 3p AGENTS.md 2> /dev/null)"
 	printf '%s' "$FAKE_SANDBOX"
 	echo "stdin text:"
@@ -182,7 +185,11 @@ afterEach(async () => {
  * @returns The environment for review-commits, with the fake reviewers on PATH.
  */
 function script_env(fake: Record<string, string> = {}): NodeJS.ProcessEnv {
-	return { ...process.env, PATH: fake_bin + ":" + process.env["PATH"], HOME: home, TMPDIR: tmp, CALLS: calls, ...fake };
+	const env: NodeJS.ProcessEnv = { ...process.env, PATH: fake_bin + ":" + process.env["PATH"], HOME: home, TMPDIR: tmp, CALLS: calls, ...fake };
+	// So that claude's and codex's directories are the ones in `home`, whatever the environment of the tests says
+	delete env["CLAUDE_CONFIG_DIR"];
+	delete env["CODEX_HOME"];
+	return env;
 }
 
 /**
@@ -403,11 +410,17 @@ describe("review-commits", () => {
 		["a codex reviewer isn't MODEL:FOCUS", (script: string) => script.replace(/^codex_reviewers=\(\S+/m, "codex_reviewers=(gpt-x"), "a codex reviewer must be MODEL:FOCUS, not gpt-x\n"],
 		["a model is a reviewer twice", (script: string) => script.replace(/^claude_reviewers=\(\S+/m, "claude_reviewers=(" + CODEX_REVIEWERS[0]), CODEX_REVIEWERS[0] + " is a reviewer twice"],
 		["a focus has no prompt", (script: string) => script.replace(/^codex_reviewers=\(\S+/m, "codex_reviewers=(gpt-x:nonexistent"), "no prompt $ROOT/clank-right/bin/../review-prompts/codex-nonexistent.md\n"],
-	])("refuses to run with status 2, starting no reviewer, when %s", async (_, edit, message) => {
-		// A copy of the script, edited, that finds the real review-prompts/ next to its bin/
+		["codex-common.md is missing", (script: string) => script, "no prompt $ROOT/clank-right/bin/../review-prompts/codex-common.md\n"],
+	])("refuses to run with status 2, starting no reviewer, when %s", async (description, edit, message) => {
+		// A copy of the script, edited, that finds review-prompts/ next to its bin/: the real one, or a copy without codex-common.md
 		const bin = join(root, "clank-right", "bin");
 		await mkdir(bin, { recursive: true });
-		await symlink(PROMPTS, join(root, "clank-right", "review-prompts"));
+		if (description === "codex-common.md is missing") {
+			await cp(PROMPTS, join(root, "clank-right", "review-prompts"), { recursive: true });
+			await rm(join(root, "clank-right", "review-prompts", "codex-common.md"));
+		} else {
+			await symlink(PROMPTS, join(root, "clank-right", "review-prompts"));
+		}
 		await writeFile(join(bin, "review-commits"), edit(SCRIPT_TEXT));
 		await chmod(join(bin, "review-commits"), 0o755);
 		const result = spawnSync(join(bin, "review-commits"), ["HEAD"], { cwd: repo, encoding: "utf8", env: script_env(), timeout: 3_000 });
