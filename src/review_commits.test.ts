@@ -11,30 +11,32 @@ const PROMPTS = join(import.meta.dirname, "..", "review-prompts");
 
 /**
  * @param script The text of review-commits.
- * @param name The name of one of its arrays of models.
- * @returns The models in that array.
+ * @param name The name of one of its arrays of reviewers.
+ * @returns The words in that array: models, or MODEL:FOCUS for codex reviewers.
  */
-function models_in(script: string, name: string): string[] {
+function words_in(script: string, name: string): string[] {
 	const list = new RegExp("^" + name + "=\\(([^)]*)\\)$", "m").exec(script)?.[1];
 	A(list !== undefined, "review-commits must set " + name + " on a line of its own");
-	const models = list.split(" ");
-	A.gte(models.length, 1);
-	return models;
+	const words = list.split(" ");
+	A.gte(words.length, 1);
+	return words;
 }
 
 const SCRIPT_TEXT = await readFile(SCRIPT, "utf8");
 /** Each codex reviewer's model and the focus that picks its prompt, from the MODEL:FOCUS words of codex_reviewers */
-const CODEX_FOCUSES = new Map(
-	models_in(SCRIPT_TEXT, "codex_reviewers").map((reviewer) => {
-		const [model, focus, ...rest] = reviewer.split(":");
-		A(model !== undefined && model !== "" && focus !== undefined && focus !== "" && rest.length === 0, "a codex reviewer must be MODEL:FOCUS, not " + reviewer);
-		return [model, focus];
-	}),
-);
-const CODEX_REVIEWERS = [...CODEX_FOCUSES.keys()];
-const CLAUDE_REVIEWERS = models_in(SCRIPT_TEXT, "claude_reviewers");
+const CODEX_PAIRS = words_in(SCRIPT_TEXT, "codex_reviewers").map((reviewer) => {
+	const parts = reviewer.split(":");
+	A.eq(parts.length, 2, "a codex reviewer must be MODEL:FOCUS, not " + reviewer);
+	const [model, focus] = parts as [string, string];
+	A.gt(model.length, 0);
+	A.gt(focus.length, 0);
+	return [model, focus] as const;
+});
+const CODEX_REVIEWERS = CODEX_PAIRS.map(([model]) => model);
+const CLAUDE_REVIEWERS = words_in(SCRIPT_TEXT, "claude_reviewers");
 const REVIEWERS = [...CODEX_REVIEWERS, ...CLAUDE_REVIEWERS];
 A.eq(new Set(REVIEWERS).size, REVIEWERS.length);
+const CODEX_FOCUSES = new Map(CODEX_PAIRS);
 const CLAUDE_FALLBACK_MODEL = /^claude_fallback_model=(\S+)$/m.exec(SCRIPT_TEXT)?.[1];
 A(CLAUDE_FALLBACK_MODEL !== undefined, "review-commits must set claude_fallback_model on a line of its own");
 
@@ -228,7 +230,7 @@ function review_path(model: string, name: string): string {
 
 /**
  * @param model A reviewer's model.
- * @returns How the fake reviewer for `model` was run: one `arg` line per argument, then its working directory, HEAD, stdin, the PID of its `sleep` (if any), and the text it read from stdin.
+ * @returns How the fake reviewer for `model` was run: one `arg` line per argument, then its working directory, HEAD, stdin, the PID of its `sleep` (if any), one `sandbox` line per option that the fake bwrap got, and the text it read from stdin.
  */
 function call_of(model: string): Promise<string> {
 	return readFile(join(calls, model), "utf8");
@@ -343,6 +345,24 @@ describe("review-commits", () => {
 		const result = spawnSync(SCRIPT, ["HEAD"], { cwd: repo, encoding: "utf8", env: { ...script_env(), PATH: bare_bin }, timeout: 3_000 });
 		expect(result.status).toBe(2);
 		expect(result.stderr).toContain("bwrap is not on PATH");
+		expect(await readdir(calls)).toEqual([]);
+		expect(await readdir(tmp)).toEqual([]);
+	});
+
+	it.each([
+		["a codex reviewer isn't MODEL:FOCUS", (script: string) => script.replace(/^codex_reviewers=\(\S+/m, "codex_reviewers=(gpt-x"), "a codex reviewer must be MODEL:FOCUS, not gpt-x\n"],
+		["a model is a reviewer twice", (script: string) => script.replace(/^claude_reviewers=\(\S+/m, "claude_reviewers=(" + CODEX_REVIEWERS[0]), CODEX_REVIEWERS[0] + " is a reviewer twice"],
+		["a focus has no prompt", (script: string) => script.replace(/^codex_reviewers=\(\S+/m, "codex_reviewers=(gpt-x:nonexistent"), "no prompt $ROOT/clank-right/bin/../review-prompts/codex-nonexistent.md\n"],
+	])("refuses to run with status 2, starting no reviewer, when %s", async (_, edit, message) => {
+		// A copy of the script, edited, that finds the real review-prompts/ next to its bin/
+		const bin = join(root, "clank-right", "bin");
+		await mkdir(bin, { recursive: true });
+		await symlink(PROMPTS, join(root, "clank-right", "review-prompts"));
+		await writeFile(join(bin, "review-commits"), edit(SCRIPT_TEXT));
+		await chmod(join(bin, "review-commits"), 0o755);
+		const result = spawnSync(join(bin, "review-commits"), ["HEAD"], { cwd: repo, encoding: "utf8", env: script_env(), timeout: 3_000 });
+		expect(result.stderr).toContain("review-commits: " + message.replace("$ROOT", root));
+		expect(result.status).toBe(2);
 		expect(await readdir(calls)).toEqual([]);
 		expect(await readdir(tmp)).toEqual([]);
 	});

@@ -22,8 +22,9 @@ set -euo pipefail
 # names what to review, followed by review-prompts/codex-FOCUS.md and then
 # review-prompts/codex-common.md. Reviewers with different focuses find
 # different problems; `codex review` is not used, because its built-in rubric
-# tells the model to prefer reporting nothing. Each model appears only once
-# among all the reviewers, because its reviews are saved under its name.
+# says: "If there is no finding that a person would definitely love to see and
+# fix, prefer outputting no findings." Each model appears only once among all
+# the reviewers, because its reviews are saved under its name.
 codex_reviewers=(gpt-6-astra:general gpt-6.1-sol:approach gpt-5.6-sol:text)
 claude_reviewers=(claude-mythos-5-1 claude-opus-5-5)
 # Reviews in place of a Claude reviewer's model where that model is not
@@ -38,6 +39,12 @@ claude_hook_files=(.config/claude-outbound-firewall)
 
 # The temporary directory that holds the clone; cleanup() deletes it.
 tmp=
+
+# Prints $1 to stderr, then exits with status 2.
+die() {
+	echo "review-commits: $1" >&2
+	exit 2
+}
 
 # Prints $1 and the usage to stderr, then exits with status 2.
 die_usage() {
@@ -184,15 +191,25 @@ main() {
 	fi
 
 	if ! command -v bwrap > /dev/null; then
-		echo "review-commits: bwrap is not on PATH; install bubblewrap (pkgs.bubblewrap on NixOS), which runs each codex reviewer in a sandbox" >&2
-		exit 2
+		die "bwrap is not on PATH; install bubblewrap (pkgs.bubblewrap on NixOS), which runs each reviewer in a sandbox"
 	fi
-	local prompts reviewer
+	local prompts reviewer model focus
+	local -A seen=()
 	prompts=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../review-prompts
 	for reviewer in "${codex_reviewers[@]}"; do
-		if [[ ! -r $prompts/codex-${reviewer#*:}.md ]]; then
-			echo "review-commits: no prompt for the focus of $reviewer: $prompts/codex-${reviewer#*:}.md" >&2
-			exit 2
+		if [[ ! $reviewer =~ ^[^:]+:[^:]+$ ]]; then
+			die "a codex reviewer must be MODEL:FOCUS, not $reviewer"
+		fi
+	done
+	for model in "${codex_reviewers[@]%%:*}" "${claude_reviewers[@]}"; do
+		if [[ -n ${seen[$model]-} ]]; then
+			die "$model is a reviewer twice, and its reviews would overwrite each other"
+		fi
+		seen[$model]=1
+	done
+	for focus in "${codex_reviewers[@]#*:}" common; do
+		if [[ ! -r $prompts/codex-$focus.md ]]; then
+			die "no prompt $prompts/codex-$focus.md"
 		fi
 	done
 
@@ -213,16 +230,17 @@ main() {
 	# prompt from stdin, and a Claude reviewer gets /dev/null as its stdin, so
 	# that it doesn't wait for input. setsid makes each reviewer the leader of a
 	# new session and process group, keeping its PID.
-	local reviews=$HOME/.ai-code-reviews model transcript
+	local reviews=$HOME/.ai-code-reviews transcript
 	# Each reviewer's model and PID, in the order that the reviewers started
 	local -a models=() pids=()
 	for reviewer in "${codex_reviewers[@]}"; do
 		model=${reviewer%%:*}
+		focus=${reviewer#*:}
 		mkdir -p "$reviews/$model"
 		{
 			echo "You are reviewing code changes made by another engineer: $codex_target in this repository. Use git to see the changes and their commit messages."
 			echo
-			cat "$prompts/codex-${reviewer#*:}.md"
+			cat "$prompts/codex-$focus.md"
 			echo
 			cat "$prompts/codex-common.md"
 		} > "$tmp/$model.prompt"
