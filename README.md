@@ -135,8 +135,12 @@ reviewer's model is the template's `astra_model`, so change the two together.
 
 Each codex reviewer is `MODEL:FOCUS`: it runs `codex exec` with a prompt that
 names the commits, then `review-prompts/codex-FOCUS.md`, then
-`review-prompts/codex-common.md`. It does not run `codex review`, whose
-built-in rubric tells the model to prefer reporting nothing. Where a
+`review-prompts/codex-common.md`. The script resolves its own path through any
+links, and looks for `review-prompts/` next to the `bin/` directory that it is
+in; so a link to the script works, but a copy of it elsewhere does not. It
+does not run `codex review`, whose built-in rubric says: "If there is no
+finding that a person would definitely love to see and fix, prefer outputting
+no findings." Where a
 Claude reviewer's model is not available to the account that `claude` is
 logged into, or keeps being overloaded, `claude_fallback_model` reviews in its
 place, and the review is saved under the reviewer's model. Where the account
