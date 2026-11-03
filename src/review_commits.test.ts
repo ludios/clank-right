@@ -192,7 +192,9 @@ describe("review-commits", () => {
 			expect(await readFile(review_path(model, commit) + ".log", "utf8")).toBe("transcript of " + model + "\n");
 		}
 		for (const model of CLAUDE_REVIEWERS) {
-			expect(await call_of(model)).toContain("arg /code-review xhigh commit " + commit + "\n");
+			const call = await call_of(model);
+			expect(call).toContain("arg --settings\narg " + JSON.stringify({ env: { CLAUDE_CODE_SUBAGENT_MODEL: model } }) + "\n");
+			expect(call).toContain("arg /code-review xhigh commit " + commit + "\n");
 		}
 		expect(await readdir(tmp)).toEqual([]);
 	});

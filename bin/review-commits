@@ -103,9 +103,13 @@ main() {
 		models+=("$model")
 		pids+=($!)
 	done
+	# /code-review runs in a subagent, which uses the model in
+	# CLAUDE_CODE_SUBAGENT_MODEL (if the user's settings set it) instead of
+	# --model; --settings overrides it, so that the reviewer's model reviews.
 	for model in "${claude_reviewers[@]}"; do
 		mkdir -p "$reviews/$model"
-		setsid claude -p --model "$model" --effort xhigh "/code-review xhigh $claude_target" > "$reviews/$model/$name" 2>&1 &
+		setsid claude -p --model "$model" --settings "{\"env\":{\"CLAUDE_CODE_SUBAGENT_MODEL\":\"$model\"}}" \
+			--effort xhigh "/code-review xhigh $claude_target" > "$reviews/$model/$name" 2>&1 &
 		models+=("$model")
 		pids+=($!)
 	done
