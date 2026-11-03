@@ -105,6 +105,23 @@ echo "processes $(ls /proc | grep -c '^[0-9]')"
 echo "prompt $(head -c 120)"
 `;
 
+/**
+ * Stands in for `claude` inside a real sandbox, and prints what it can see: the
+ * files in $HOME outside ~/.claude, the files in ~/.claude, whether it can read
+ * ~/.claude/history.jsonl, claude's login, and how many processes there are.
+ * Then it saves a session file in ~/.claude/projects, and makes a directory in
+ * ~/.claude, as claude does to lock its login while it refreshes it.
+ */
+const PROBE_CLAUDE = `#!/usr/bin/env bash
+echo "home $(cd "$HOME" && find . -mindepth 1 -not -path './.claude/*' | LC_ALL=C sort | tr '\\n' ' ')"
+echo "claude $(cd "$HOME/.claude" && find . -mindepth 1 | LC_ALL=C sort | tr '\\n' ' ')"
+echo "history $(cat "$HOME/.claude/history.jsonl" 2> /dev/null || echo unreadable)"
+echo "login $(cat "$HOME/.claude/.credentials.json")"
+echo "processes $(ls /proc | grep -c '^[0-9]')"
+mkdir -p "$HOME/.claude/projects/p" "$HOME/.claude/.refresh.lock"
+echo "own session" > "$HOME/.claude/projects/p/s.jsonl"
+`;
+
 /** Whether a real bwrap is on PATH, and can make a sandbox here (it needs unprivileged user namespaces). */
 const REAL_BWRAP_WORKS = spawnSync("bwrap", ["--ro-bind", "/", "/", "--unshare-pid", "true"]).status === 0;
 
@@ -252,7 +269,10 @@ describe("review-commits", () => {
 		for (const model of CLAUDE_REVIEWERS) {
 			const call = await call_of(model);
 			expect(call).toContain("stdin /dev/null\n");
-			expect(call).not.toContain("sandbox ");
+			for (const option of ["--unshare-pid", "--tmpfs\nsandbox " + home, "--tmpfs\nsandbox /tmp", "--bind-try\nsandbox " + home + "/.claude\nsandbox " + home + "/.claude", "--bind\nsandbox " + review_path(model, commit) + ".transcript\nsandbox " + home + "/.claude/projects"]) {
+				expect(call).toContain("sandbox " + option + "\n");
+			}
+			expect(call).not.toContain("sandbox " + home + "/.codex");
 			expect(call).toContain("arg --fallback-model\narg " + CLAUDE_FALLBACK_MODEL + "\n");
 			expect(call).toContain("arg --settings\narg " + JSON.stringify({ env: { CLAUDE_CODE_SUBAGENT_MODEL: model } }) + "\n");
 			expect(call).toContain("arg /code-review xhigh commit " + commit + "\n");
@@ -327,18 +347,23 @@ describe("review-commits", () => {
 		expect(await readdir(tmp)).toEqual([]);
 	});
 
-	it.skipIf(!REAL_BWRAP_WORKS)("hides other reviews, transcripts, files in /tmp and other processes from a codex reviewer", async () => {
-		// PATH dirs in the home directory are visible in the sandbox, so the probe and the fake claude go there
+	it.skipIf(!REAL_BWRAP_WORKS)("hides other reviews, transcripts, files in /tmp and other processes from every reviewer", async () => {
+		// PATH dirs in the home directory are visible in the sandbox, so the probes go there
 		const home_bin = join(home, "bin");
 		await mkdir(home_bin);
 		await writeFile(join(home_bin, "codex"), PROBE_CODEX);
-		await writeFile(join(home_bin, "claude"), FAKE_REVIEWER);
-		for (const name of ["codex", "claude"]) {
-			await chmod(join(home_bin, name), 0o755);
-		}
-		for (const [file, text] of [[".ai-code-reviews/m/old", "old review"], [".claude/projects/p/s.jsonl", "transcript"], [".codex/sessions/s.jsonl", "transcript"], [".codex/auth.json", "token"], [".codex/config.toml", "x = 1"]] as const) {
+		await writeFile(join(home_bin, "claude"), PROBE_CLAUDE);
+		const settings = { hooks: { PreToolUse: [{ matcher: "Bash", hooks: [{ type: "command", command: home + "/hooks/firewall --strict" }] }] } };
+		for (const [file, text] of [
+			[".ai-code-reviews/m/old", "old review"], [".codex/sessions/s.jsonl", "transcript"], [".codex/auth.json", "token"], [".codex/config.toml", "x = 1"],
+			[".claude/projects/p/s.jsonl", "transcript"], [".claude/sessions/1.json", "session"], [".claude/history.jsonl", "prompts"], [".claude/.credentials.json", "claude token"],
+			[".claude/settings.json", JSON.stringify(settings)], ["hooks/firewall", "#!/bin/sh"], [".config/claude-outbound-firewall/blocked-strings", "name"], [".config/gh/hosts.yml", "secret"],
+		] as const) {
 			await mkdir(join(home, file, ".."), { recursive: true });
 			await writeFile(join(home, file), text);
+		}
+		for (const file of ["bin/codex", "bin/claude", "hooks/firewall"]) {
+			await chmod(join(home, file), 0o755);
 		}
 		const commit = await git(repo, "rev-parse", "HEAD");
 		const result = spawnSync(SCRIPT, ["HEAD"], { cwd: repo, encoding: "utf8", env: { ...script_env(), PATH: home_bin + ":" + process.env["PATH"] }, timeout: 10_000 });
@@ -357,6 +382,22 @@ describe("review-commits", () => {
 			A(processes !== null, "the probe must count the processes it sees");
 			A.lte(Number(processes[1]), 10);
 		}
+		for (const model of CLAUDE_REVIEWERS) {
+			const review = await readFile(review_path(model, commit), "utf8");
+			// Outside ~/.claude, the home directory has only the PATH dirs, the hook's directory, and the file that the hook reads
+			expect(review).toContain("home ./.claude ./.config ./.config/claude-outbound-firewall ./.config/claude-outbound-firewall/blocked-strings ./bin ./bin/claude ./bin/codex ./hooks ./hooks/firewall \n");
+			// In ~/.claude, other files can't be read, and other directories are empty
+			expect(review).toContain("claude ./.credentials.json ./history.jsonl ./projects ./sessions ./settings.json \n");
+			expect(review).toContain("history unreadable\n");
+			expect(review).toContain("login claude token\n");
+			const processes = /^processes (\d+)$/m.exec(review);
+			A(processes !== null, "the probe must count the processes it sees");
+			A.lte(Number(processes[1]), 10);
+			expect(await readFile(review_path(model, commit) + ".transcript/p/s.jsonl", "utf8")).toBe("own session\n");
+		}
+		// The lock that claude makes in its directory is in the real one, which every claude shares
+		expect(await readdir(join(home, ".claude", ".refresh.lock"))).toEqual([]);
+		expect(await readFile(join(home, ".claude/projects/p/s.jsonl"), "utf8")).toBe("transcript");
 	});
 
 	it.each([
