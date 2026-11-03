@@ -17,9 +17,10 @@ set -euo pipefail
 
 codex_reviewers=(gpt-6-astra gpt-6.1-sol gpt-5.6-sol)
 claude_reviewers=(claude-mythos-5-1 claude-opus-5-5)
-# Reviews in place of a Claude reviewer's model where that model is
-# overloaded or not available to the logged-in account (e.g. an account
-# without Mythos). Its review is saved under the reviewer's model.
+# Reviews in place of a Claude reviewer's model where that model is not
+# available to the logged-in account (e.g. an account without Mythos) or keeps
+# being overloaded, but not where the account has hit that model's usage limit.
+# Its review is saved under the reviewer's model.
 claude_fallback_model=claude-fable-5-1
 
 # The temporary directory that holds the clone; cleanup() deletes it.
@@ -108,8 +109,9 @@ main() {
 		pids+=($!)
 	done
 	# /code-review runs in a subagent, which uses the model in
-	# CLAUDE_CODE_SUBAGENT_MODEL (if the user's settings set it) instead of
-	# --model; --settings overrides it, so that the reviewer's model reviews.
+	# CLAUDE_CODE_SUBAGENT_MODEL (if the environment or the user's settings set
+	# it) instead of --model; --settings overrides both, so that the reviewer's
+	# model (or the fallback model) reviews.
 	for model in "${claude_reviewers[@]}"; do
 		mkdir -p "$reviews/$model"
 		setsid claude -p --model "$model" --fallback-model "$claude_fallback_model" \

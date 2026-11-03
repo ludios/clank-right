@@ -133,7 +133,9 @@ and `claude_reviewers` review it at once; the comment at its top says where the
 reviews go. To change the reviewers, edit those two lists. The first codex
 reviewer is the template's `astra_model`, so change the two together. Where a
 Claude reviewer's model is not available to the account that `claude` is
-logged into, `claude_fallback_model` reviews in its place.
+logged into, or keeps being overloaded, `claude_fallback_model` reviews in its
+place, and the review is saved under the reviewer's model. Where the account
+has hit that model's usage limit, the reviewer fails instead.
 
 `review-commits` gives `codex review` no permission or sandbox options, so
 `~/.codex/config.toml` must set `approval_policy = "never"` and
