@@ -258,7 +258,7 @@ describe("review-commits", () => {
 			expect(call).toContain("arg exec\n");
 			expect(call).toContain("arg model=" + model + "\narg -c\narg model_reasoning_effort=xhigh\narg -\n");
 			expect(call).toContain("stdin " + tmp + "/review-commits.");
-			for (const option of ["--unshare-pid", "--tmpfs\nsandbox " + home, "--tmpfs\nsandbox /tmp", "--tmpfs\nsandbox " + tmp, "--tmpfs\nsandbox " + home + "/.codex", "--ro-bind\nsandbox " + repo + "/.git/objects"]) {
+			for (const option of ["--unshare-pid", "--tmpfs\nsandbox " + home, "--tmpfs\nsandbox /tmp", "--tmpfs\nsandbox " + tmp, "--dir\nsandbox " + home + "/.codex", "--ro-bind\nsandbox " + repo + "/.git/objects"]) {
 				expect(call).toContain("sandbox " + option + "\n");
 			}
 			expect(call).toContain("sandbox --bind\nsandbox " + tmp + "/review-commits.");
@@ -399,6 +399,31 @@ describe("review-commits", () => {
 		expect(await readdir(tmp)).toEqual([]);
 	});
 
+	it.skipIf(!REAL_BWRAP_WORKS).each([
+		["the repository is in the directory that holds the clone", false],
+		["the repository borrows its objects from another one", true],
+	])("lets every reviewer read the commits when %s", async (_, borrowing) => {
+		const home_bin = join(home, "bin");
+		await mkdir(home_bin);
+		for (const name of ["codex", "claude"]) {
+			await writeFile(join(home_bin, name), "#!/usr/bin/env bash\necho \"subject $(git log -1 --format=%s)\"\n");
+			await chmod(join(home_bin, name), 0o755);
+		}
+		let reviewed = repo;
+		if (borrowing) {
+			reviewed = join(root, "borrower");
+			execFileSync("git", ["clone", "--quiet", "--shared", repo, reviewed]);
+		}
+		const commit = await git(reviewed, "rev-parse", "HEAD");
+		// With TMPDIR at the test's directory, the sandbox hides the directory that holds the repository too
+		const env = { ...script_env(), PATH: home_bin + ":" + process.env["PATH"], ...(borrowing ? {} : { TMPDIR: root }) };
+		const result = spawnSync(SCRIPT, ["HEAD"], { cwd: reviewed, encoding: "utf8", env, timeout: 10_000 });
+		expect(result.status).toBe(0);
+		for (const model of REVIEWERS) {
+			expect(await readFile(review_path(model, commit), "utf8")).toBe("subject Commit 3\n");
+		}
+	});
+
 	it.skipIf(!REAL_BWRAP_WORKS)("hides other reviews, transcripts, files in /tmp and other processes from every reviewer", async () => {
 		// PATH dirs in the home directory are visible in the sandbox, so the probes go there
 		const home_bin = join(home, "bin");
@@ -422,8 +447,8 @@ describe("review-commits", () => {
 		expect(result.status).toBe(0);
 		for (const model of CODEX_REVIEWERS) {
 			const review = await readFile(review_path(model, commit), "utf8");
-			// The home directory has only the PATH dirs in it and codex's own files
-			expect(review).toContain("home ./.codex ./.codex/auth.json ./.codex/auth.lock ./.codex/config.toml ./bin ./bin/claude ./bin/codex \n");
+			// The home directory has only the PATH dirs in it, codex's own files, and claude's directory, empty
+			expect(review).toContain("home ./.claude ./.codex ./.codex/auth.json ./.codex/auth.lock ./.codex/config.toml ./bin ./bin/claude ./bin/codex \n");
 			// Of the test's directory in /tmp, only the clone's directory and the objects that it borrows are there
 			expect(review).toContain("root home repo tmp \n");
 			expect(review).not.toContain("calls");
@@ -436,8 +461,8 @@ describe("review-commits", () => {
 		}
 		for (const model of CLAUDE_REVIEWERS) {
 			const review = await readFile(review_path(model, commit), "utf8");
-			// Outside ~/.claude, the home directory has only the PATH dirs, the hook's directory, and the file that the hook reads
-			expect(review).toContain("home ./.claude ./.config ./.config/claude-outbound-firewall ./.config/claude-outbound-firewall/blocked-strings ./bin ./bin/claude ./bin/codex ./hooks ./hooks/firewall \n");
+			// Outside ~/.claude, the home directory has only codex's directory, empty, the PATH dirs, the hook's directory, and claude_hook_files
+			expect(review).toContain("home ./.claude ./.codex ./.config ./.config/claude-outbound-firewall ./.config/claude-outbound-firewall/blocked-strings ./bin ./bin/claude ./bin/codex ./hooks ./hooks/firewall \n");
 			// In ~/.claude, other files can't be read, and other directories are empty
 			expect(review).toContain("claude ./.credentials.json ./history.jsonl ./projects ./sessions ./settings.json \n");
 			expect(review).toContain("history unreadable\n");

@@ -40,6 +40,9 @@ claude_hook_files=(.config/claude-outbound-firewall)
 
 # The temporary directory that holds the clone; cleanup() deletes it.
 tmp=
+# The directories of codex and claude, which hold their transcripts
+codex_home=${CODEX_HOME:-$HOME/.codex}
+claude_dir=${CLAUDE_CONFIG_DIR:-$HOME/.claude}
 
 # Prints $1 to stderr, then exits with status 2.
 die() {
@@ -62,46 +65,95 @@ full_hash() {
 	git rev-parse --verify --quiet "$1^{commit}" || die_usage "not a commit: $1"
 }
 
+# Succeeds if the reviewers may see the directory $1, which is in the home
+# directory: it isn't the home directory, and it neither holds nor is in
+# ~/.ai-code-reviews or the directory of claude or codex.
+may_show_dir() {
+	local hidden
+	if [[ $1 != "$HOME"/?* ]]; then
+		return 1
+	fi
+	for hidden in "$HOME/.ai-code-reviews" "$claude_dir" "$codex_home"; do
+		if [[ $hidden == "$1" || $hidden == "$1"/* || $1 == "$hidden"/* ]]; then
+			return 1
+		fi
+	done
+}
+
 # Sets the array `sandbox` (which main declares) to the start of a bwrap
 # command line that runs a reviewer without letting it read other reviews of
 # the same commits: it hides the home directory (~/.ai-code-reviews, and the
-# transcripts of claude and codex), /tmp, /var/tmp and the directory that $tmp
-# is in (the clones and files of other runs), and other processes. The
-# reviewer still gets, read-only: the objects that the clone in $tmp/repo
-# borrows, every directory on PATH that is in the home directory, and ~/.rustup
-# (the toolchains that rustup's rustc and cargo run). A link in one of those
-# directories to elsewhere in the home directory, such as uv's
-# ~/.local/bin/python3, is broken in the sandbox. The reviewer also gets $tmp.
+# transcripts of claude and codex), the directories of claude and codex
+# wherever they are, /tmp, /var/tmp and the directory that $tmp is in (the
+# clones and files of other runs), and other processes. Then it shows the
+# reviewer, read-only: the objects that the clone in $tmp/repo borrows,
+# directly or through the repositories that it borrows from; every directory on
+# PATH that is in the home directory (see may_show_dir), and ~/.rustup (the
+# toolchains that rustup's rustc and cargo run); and the directory of the file
+# that `claude` or `codex` on PATH links to, if it's in the home directory, as
+# with Claude's native installer. Any other link in a PATH directory to
+# elsewhere in the home directory, such as uv's ~/.local/bin/python3, is broken
+# in the sandbox. Last, it shows the reviewer $tmp, writable.
 # codex_home_options and claude_home_options make the rest of the options for
 # each kind of reviewer.
 make_sandbox() {
 	sandbox=(bwrap --ro-bind / / --dev /dev --proc /proc --unshare-pid --die-with-parent
-		--tmpfs "$HOME" --tmpfs /tmp --tmpfs /var/tmp)
-	local dir
+		--tmpfs "$HOME" --tmpfs /tmp --tmpfs /var/tmp --tmpfs "${tmp%/*}")
+	local dir store tool
+	for dir in "$claude_dir" "$codex_home"; do
+		if [[ -d $dir ]]; then
+			sandbox+=(--tmpfs "$dir")
+		fi
+	done
+	# Object stores whose alternates are still to be read, and those already shown
+	local -a stores=("$tmp/repo/.git/objects")
+	local -A shown=()
+	while (( ${#stores[@]} > 0 )); do
+		store=${stores[0]}
+		stores=("${stores[@]:1}")
+		if [[ ! -r $store/info/alternates ]]; then
+			continue
+		fi
+		while read -r dir; do
+			if [[ -z $dir || $dir == '#'* ]]; then
+				continue
+			fi
+			if [[ $dir != /* ]]; then
+				dir=$store/$dir
+			fi
+			if [[ -z ${shown[$dir]-} ]]; then
+				shown[$dir]=1
+				sandbox+=(--ro-bind "$dir" "$dir")
+				stores+=("$dir")
+			fi
+		done < "$store/info/alternates"
+	done
 	local -a path_dirs
-	while read -r dir; do
-		sandbox+=(--ro-bind "$dir" "$dir")
-	done < "$tmp/repo/.git/objects/info/alternates"
 	IFS=: read -ra path_dirs <<< "$PATH"
+	for tool in claude codex; do
+		if dir=$(readlink -f "$(command -v "$tool")"); then
+			path_dirs+=("${dir%/*}")
+		fi
+	done
 	for dir in "${path_dirs[@]}" "$HOME/.rustup"; do
-		if [[ $dir == "$HOME"/* && -d $dir ]]; then
+		if [[ -d $dir ]] && may_show_dir "$dir"; then
 			sandbox+=(--ro-bind "$dir" "$dir")
 		fi
 	done
-	sandbox+=(--tmpfs "${tmp%/*}" --bind "$tmp" "$tmp")
+	sandbox+=(--bind "$tmp" "$tmp")
 }
 
 # Sets the array `codex_options` (which main declares) to the rest of the bwrap
-# options for a codex reviewer, ending in `--`: codex's directory (~/.codex, or
-# CODEX_HOME), empty but for its config.toml and auth.json. Codex rewrites auth.json in place to save refreshed tokens,
-# holding a lock on auth.lock, so every codex reviewer gets the same auth.lock
-# (made here if missing), writable, and refreshes don't race.
+# options for a codex reviewer, ending in `--`: in codex's directory (~/.codex,
+# or CODEX_HOME), which make_sandbox empties, its config.toml, auth.json and
+# auth.lock. Codex rewrites auth.json in place to save refreshed tokens, holding
+# a lock on auth.lock, so every codex reviewer gets the same auth.lock (made
+# here if missing), writable, and refreshes don't race.
 codex_home_options() {
-	local codex_home=${CODEX_HOME:-$HOME/.codex}
 	if [[ -d $codex_home ]]; then
 		: >> "$codex_home/auth.lock"
 	fi
-	codex_options=(--tmpfs "$codex_home"
+	codex_options=(--dir "$codex_home"
 		--bind-try "$codex_home/auth.json" "$codex_home/auth.json"
 		--bind-try "$codex_home/auth.lock" "$codex_home/auth.lock"
 		--ro-bind-try "$codex_home/config.toml" "$codex_home/config.toml" --)
@@ -118,7 +170,7 @@ codex_home_options() {
 # each hook command in claude's settings that is in the home directory, and
 # claude_hook_files.
 claude_home_options() {
-	local claude_dir=${CLAUDE_CONFIG_DIR:-$HOME/.claude} entry hook file
+	local entry hook file
 	claude_options=(--bind-try "$claude_dir" "$claude_dir")
 	while IFS= read -r -d '' entry; do
 		case ${entry##*/} in

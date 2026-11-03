@@ -158,16 +158,16 @@ place, and the review is saved under the reviewer's model. Where the account
 has hit that model's usage limit, the reviewer fails instead.
 
 `review-commits` runs each reviewer in a bwrap sandbox that hides the home
-directory (other reviews, and the transcripts of claude and codex), `/tmp` and
-`/var/tmp`, and other processes, so `bwrap` (bubblewrap) must be on the
-`PATH`. Of `~/.claude`, a Claude reviewer sees only claude's login, settings,
+directory (other reviews, and the transcripts of claude and codex), the
+directories of claude and codex wherever they are, `/tmp` and `/var/tmp`, and
+other processes, so `bwrap` (bubblewrap) must be on the `PATH`. Of `~/.claude`, a Claude reviewer sees only claude's login, settings,
 plugins and skills, and its own session files, which go next to its review.
 Elsewhere in the home directory, it also sees the directory of each hook in
 claude's settings, and `claude_hook_files`: the files those hooks read. If a
 hook reads a file in the home directory that isn't in that list, the hook may
 deny every command. In the sandbox, `review-commits` gives `codex exec` no
 permission or sandbox options, so
-`~/.codex/config.toml` must set `approval_policy = "never"` and
+`~/.codex/config.toml` (or `$CODEX_HOME/config.toml`) must set `approval_policy = "never"` and
 `sandbox_mode = "danger-full-access"`.
 
 ## Changing the template
