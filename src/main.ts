@@ -1,17 +1,19 @@
 // The command line: `clank-right check` reports which repositories' AGENTS.md
 // no longer match the template; `clank-right update` regenerates and commits
 // the ones that don't; `clank-right chatbots` rewrites the chatbots'
-// instructions in this checkout.
+// instructions in this checkout; `clank-right review-copy` prints the
+// AGENTS.md that a reviewer of commits gets.
 
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { ansiColorFormatter, configureSync, getConsoleSink } from "@logtape/logtape";
 import { CHATBOTS, chatbot_file, write_chatbot } from "./chatbots.ts";
+import { OptionsError } from "./config.ts";
 import { GitError, git } from "./git.ts";
 import { config_home, tilde, untilde } from "./paths.ts";
 import { run_process } from "./process.ts";
-import { AGENTS_MD, ProjectError, commit_existing, inspect, update, type Status, type Updated } from "./project.ts";
+import { AGENTS_MD, ProjectError, commit_existing, inspect, review_copy, update, type Status, type Updated } from "./project.ts";
 import { TOOL_DIR } from "./render.ts";
 
 const PROJECTS_FILE = join(config_home(), "clank-right", "projects.txt");
@@ -19,22 +21,26 @@ const PROJECTS_FILE = join(config_home(), "clank-right", "projects.txt");
 const USAGE = `clank-right check [--diff] [DIR...]
 clank-right update [--commit-existing-changes MESSAGE] [DIR...]
 clank-right chatbots
+clank-right review-copy DIR
 
-check     Report which repositories' ${AGENTS_MD} differ from what the template
-          generates, or are not committed; --diff shows how. Exits 1 if any.
-update    Regenerate each differing ${AGENTS_MD} and commit it, alone, amending
-          the previous regeneration instead when that's an unpushed HEAD. One
-          that already has uncommitted changes is refused, unless
-          --commit-existing-changes first commits it as it is, alone, with MESSAGE.
-chatbots  Rewrite chatbots/claude.md and chatbots/chatgpt.md in this checkout
-          from templates/chatbot.vto, for pasting into each chatbot's settings.
+check        Report which repositories' ${AGENTS_MD} differ from what the template
+             generates, or are not committed; --diff shows how. Exits 1 if any.
+update       Regenerate each differing ${AGENTS_MD} and commit it, alone, amending
+             the previous regeneration instead when that's an unpushed HEAD. One
+             that already has uncommitted changes is refused, unless
+             --commit-existing-changes first commits it as it is, alone, with MESSAGE.
+chatbots     Rewrite chatbots/claude.md and chatbots/chatgpt.md in this checkout
+             from templates/chatbot.vto, for pasting into each chatbot's settings.
+review-copy  Print the ${AGENTS_MD} that the template makes of DIR's for an agent
+             that reviews commits, without what only applies to making changes.
+             Exits 1 if DIR's ${AGENTS_MD} is missing or can't be rebuilt.
 
 DIR defaults to every repository listed in ${tilde(PROJECTS_FILE)}.
 --verbose logs each git invocation.`;
 
 interface Cli {
-	command: "check" | "update" | "chatbots";
-	/** For check and update: the repositories named on the command line. */
+	command: "check" | "update" | "chatbots" | "review-copy";
+	/** For check, update and review-copy: the repositories named on the command line. */
 	dirs: string[];
 	diff: boolean;
 	/** For update: the message to commit each AGENTS.md's existing changes with, first; undefined refuses such files. */
@@ -74,11 +80,14 @@ function parse_cli(argv: string[]): Cli {
 	if (values.help || command === undefined) {
 		throw new UsageError(USAGE);
 	}
-	if (command !== "check" && command !== "update" && command !== "chatbots") {
+	if (command !== "check" && command !== "update" && command !== "chatbots" && command !== "review-copy") {
 		throw new UsageError(`unknown command ${JSON.stringify(command)}\n\n${USAGE}`);
 	}
 	if (command === "chatbots" && dirs.length > 0) {
 		throw new UsageError(`chatbots takes no DIR\n\n${USAGE}`);
+	}
+	if (command === "review-copy" && dirs.length !== 1) {
+		throw new UsageError(`review-copy takes one DIR\n\n${USAGE}`);
 	}
 	if (values.diff && command !== "check") {
 		throw new UsageError(`--diff only applies to check\n\n${USAGE}`);
@@ -223,6 +232,23 @@ async function write_chatbots(): Promise<void> {
 	}
 }
 
+/**
+ * @param dir A checkout of a repository, as written on the command line.
+ * @returns The process's exit status: 0 once the copy is printed, 1 when it can't be made.
+ */
+async function print_review_copy(dir: string): Promise<number> {
+	try {
+		process.stdout.write(await review_copy(untilde(dir)));
+		return 0;
+	} catch (error) {
+		if (error instanceof ProjectError || error instanceof OptionsError) {
+			console.error(`${join(dir, AGENTS_MD)}: ${error.message}`);
+			return 1;
+		}
+		throw error;
+	}
+}
+
 /** @returns The process's exit status. */
 async function main(argv: string[]): Promise<number> {
 	try {
@@ -237,6 +263,9 @@ async function main(argv: string[]): Promise<number> {
 		if (cli.command === "chatbots") {
 			await write_chatbots();
 			return 0;
+		}
+		if (cli.command === "review-copy") {
+			return await print_review_copy(cli.dirs[0]!);
 		}
 		const dirs = await project_dirs(cli.dirs);
 		return cli.command === "check"

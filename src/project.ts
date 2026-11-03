@@ -27,9 +27,10 @@ interface Regenerated {
 
 /**
  * @param current The existing AGENTS.md text.
+ * @param in_code_review Whether to render the copy for an agent that reviews commits, rather than the file to commit.
  * @throws ProjectError or OptionsError when `current` isn't a managed file the template can rebuild.
  */
-export async function regenerate(current: string): Promise<Regenerated> {
+export async function regenerate(current: string, in_code_review = false): Promise<Regenerated> {
 	const split = split_header(current);
 	if (split === null) {
 		throw new ProjectError("no `<!-- clank-right` header on line 1; see README.md");
@@ -52,6 +53,7 @@ export async function regenerate(current: string): Promise<Regenerated> {
 		options,
 		project_sections: sections.filter((section) => !is_template_heading(section.heading)),
 		web_design_body:  web_design?.body ?? "",
+		in_code_review,
 	});
 	const rendered_split = split_header(rendered);
 	A(rendered_split !== null, "the template must emit the header it was given");
@@ -74,19 +76,27 @@ export type Status =
 
 /**
  * @param dir The repository's working directory.
- * @returns Whether its AGENTS.md matches the template and is committed, or why that can't be decided.
+ * @returns Its AGENTS.md text.
+ * @throws ProjectError when it has no AGENTS.md.
  */
-export async function inspect(dir: string): Promise<Status> {
-	let current: string;
+async function read_agents_md(dir: string): Promise<string> {
 	try {
-		current = await readFile(join(dir, AGENTS_MD), "utf8");
+		return await readFile(join(dir, AGENTS_MD), "utf8");
 	} catch (error) {
 		if (error instanceof Error && "code" in error && error.code === "ENOENT") {
-			return { kind: "error", message: `no ${AGENTS_MD}; create one with just a header (see README.md)` };
+			throw new ProjectError(`no ${AGENTS_MD}; create one with just a header (see README.md)`);
 		}
 		throw error;
 	}
+}
+
+/**
+ * @param dir The repository's working directory.
+ * @returns Whether its AGENTS.md matches the template and is committed, or why that can't be decided.
+ */
+export async function inspect(dir: string): Promise<Status> {
 	try {
+		const current = await read_agents_md(dir);
 		const { rendered, dropped } = await regenerate(current);
 		if (rendered !== current) {
 			return { kind: "dirty", rendered, dropped };
@@ -99,6 +109,16 @@ export async function inspect(dir: string): Promise<Status> {
 		}
 		throw error;
 	}
+}
+
+/**
+ * @param dir A checkout of the repository, e.g. one made for reviewing commits.
+ * @returns Its AGENTS.md as the template renders it for an agent that reviews commits.
+ * @throws ProjectError or OptionsError when it has no AGENTS.md, or one that the template can't rebuild.
+ */
+export async function review_copy(dir: string): Promise<string> {
+	const { rendered } = await regenerate(await read_agents_md(dir), true);
+	return rendered;
 }
 
 /**

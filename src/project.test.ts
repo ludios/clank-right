@@ -6,7 +6,7 @@ import { stringify as stringify_toml } from "smol-toml";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { COLOR_SCHEMES, CONVENTIONS, LANGUAGES, PACKAGE_MANAGERS, PYTHON_INDENTS, WEB_DESIGNS, split_header, type ProjectOptions } from "./config.ts";
 import { file_state, git } from "./git.ts";
-import { AGENTS_MD, ProjectError, commit_existing, inspect, regenerate, update, type Status } from "./project.ts";
+import { AGENTS_MD, ProjectError, commit_existing, inspect, regenerate, review_copy, update, type Status } from "./project.ts";
 import { TEMPLATE_HEADINGS } from "./render.ts";
 import { join_sections, split_sections, type Section } from "./sections.ts";
 
@@ -343,6 +343,20 @@ describe("in a repository", () => {
 			await update(repo, status.rendered, "v1");
 			expect(await git(repo, "log", "--format=%s")).toBe(`${subject("v1")}\ninitial`);
 			expect(await inspect(repo)).toEqual({ kind: "clean" });
+		});
+	});
+
+	describe("review_copy", () => {
+		it("renders the reviewer's copy of the AGENTS.md in the working tree, with the project's sections", async () => {
+			const copy = await review_copy(repo);
+			expect(copy).toBe((await regenerate(await readFile(agents(), "utf8"), true)).rendered);
+			expect(copy).toContain("# Project map\n\n- a/\n");
+			expect(copy).not.toContain("# Using git safely");
+		});
+
+		it("rejects a repository without an AGENTS.md", async () => {
+			await rm(agents());
+			await expect(review_copy(repo)).rejects.toThrow(ProjectError);
 		});
 	});
 });

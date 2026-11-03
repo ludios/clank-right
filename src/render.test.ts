@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_OPTIONS, LANGUAGES, type ProjectOptions } from "./config.ts";
+import { DEFAULT_OPTIONS, LANGUAGES, split_header, type ProjectOptions } from "./config.ts";
 import { render, type RenderInput } from "./render.ts";
+import { split_sections } from "./sections.ts";
 
 /** The languages that have classes, for which the template advises on when to use them. */
 const CLASS_LANGUAGES: ReadonlySet<string> = new Set(["typescript", "javascript", "svelte", "python", "cpp", "csharp"]);
 
-const BASE: RenderInput = { options_text: "", options: DEFAULT_OPTIONS, project_sections: [], web_design_body: "" };
+const BASE: RenderInput = { options_text: "", options: DEFAULT_OPTIONS, project_sections: [], web_design_body: "", in_code_review: false };
 
 /** @returns The rendered file for the defaults overridden by `patch`. */
 function render_with(patch: Partial<ProjectOptions>, input: Partial<RenderInput> = {}): Promise<string> {
@@ -192,9 +193,26 @@ describe("render", () => {
 		expect(text).toContain(`is overwritten.\n\n${options_text}\n-->\n\n# Before starting\n`);
 	});
 
+	it("leaves out of a reviewer's copy only what applies to making changes, and says so in the header", async () => {
+		const input: Partial<RenderInput> = { project_sections: [{ heading: "Before committing", body: "\tpnpm test" }] };
+		const full = await render_with({}, input);
+		const review = await render_with({}, { ...input, in_code_review: true });
+		expect(review).toContain("is overwritten.\n# This copy is for reviewing commits, so it leaves out the sections that only apply to making changes; `git show HEAD:AGENTS.md` shows the whole file as committed.\n-->\n\n# Before starting\n");
+		const making_changes = new Set(["Avoid consuming tokens in excess", "Using git safely", "Code review after each commit"]);
+		const astra = "\n\nIf you're Claude, you can also ask Astra to rewrite stuff, with the `codex exec` command shown earlier in this file.";
+		expect(full).toContain(astra);
+		const expected = split_sections(split_header(full)!.body).sections.filter((section) => !making_changes.has(section.heading));
+		const english = expected.find((section) => section.heading === "English")!;
+		english.body = english.body.replace(astra, "");
+		expect(split_sections(split_header(review)!.body).sections).toEqual(expected);
+		expect(review).not.toContain("Astra");
+		expect(review).toContain("# Before committing\n\n\tpnpm test\n\n# Commit sizes and messages\n");
+	});
+
 	it("never leaves runs of blank lines and ends with one newline", async () => {
 		const upstream: Partial<ProjectOptions> = { languages: ["typescript"], conventions: "upstream", libraries_extra: ["`ws` for sockets."] };
-		for (const text of [await render_with({}), await render_with({ languages: ["typescript", "c", "sql"], web_design: "2010" }), await render_with(upstream)]) {
+		const reviewed = await render_with({ languages: ["typescript", "c", "sql"], web_design: "2010" }, { in_code_review: true });
+		for (const text of [await render_with({}), await render_with({ languages: ["typescript", "c", "sql"], web_design: "2010" }), await render_with(upstream), reviewed]) {
 			expect(text).not.toMatch(/\n{3,}/);
 			expect(text.endsWith("\n")).toBe(true);
 			expect(text.endsWith("\n\n")).toBe(false);

@@ -76,6 +76,8 @@ export interface RenderInput {
 	project_sections: Section[];
 	/** The existing "# Web design" body; used when options.web_design is "custom". */
 	web_design_body: string;
+	/** Whether to render the copy for an agent that reviews commits, which leaves out what only applies to making changes. */
+	in_code_review: boolean;
 }
 
 /**
@@ -88,6 +90,7 @@ export async function render(input: RenderInput): Promise<string> {
 		options_text:     input.options_text.trim(),
 		project_sections: input.project_sections,
 		web_design_body:  input.web_design_body,
+		in_code_review:   input.in_code_review,
 	};
 	const content = await render_template(TEMPLATE_FILE, data);
 	const open = HEADER_OPEN + "\n";
