@@ -14,7 +14,8 @@
 # reviewer failed. On SIGINT or SIGTERM, stops every reviewer together with the
 # processes it started, deletes the clone, and exits with status 130 or 143.
 # Runs each reviewer in a bwrap sandbox (see make_sandbox), and exits with
-# status 2 if bwrap is not on PATH.
+# status 2 if bwrap is not on PATH. Shows the reviewers the copy of AGENTS.md
+# that is for agents that review commits (see show_review_copy).
 
 set -euo pipefail
 
@@ -147,6 +148,23 @@ claude_home_options() {
 	claude_options+=(--)
 }
 
+# Replaces AGENTS.md in the clone $1 with the copy that `$2 review-copy` makes
+# for agents that review commits, which leaves out the instructions that apply
+# only to making changes, and makes git ignore that change in the working tree,
+# so that no reviewer takes it for part of the commits. Leaves AGENTS.md as
+# committed if HEAD has none, or if $2 (clank-right) can't make the copy.
+show_review_copy() {
+	if ! git -C "$1" cat-file -e HEAD:AGENTS.md 2> /dev/null; then
+		return
+	fi
+	if ! "$2" review-copy "$1" > "$tmp/AGENTS.md"; then
+		echo "review-commits: so the reviewers get AGENTS.md as committed" >&2
+		return
+	fi
+	mv "$tmp/AGENTS.md" "$1/AGENTS.md"
+	git -C "$1" update-index --skip-worktree AGENTS.md
+}
+
 # Stops every reviewer still running, together with the processes it started,
 # waits for them to exit, then deletes the clone.
 cleanup() {
@@ -193,9 +211,10 @@ main() {
 	if ! command -v bwrap > /dev/null; then
 		die "bwrap is not on PATH; install bubblewrap (pkgs.bubblewrap on NixOS), which runs each reviewer in a sandbox"
 	fi
-	local prompts reviewer model focus
+	local bin prompts reviewer model focus
 	local -A seen=()
-	prompts=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../review-prompts
+	bin=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
+	prompts=$bin/../review-prompts
 	for reviewer in "${codex_reviewers[@]}"; do
 		if [[ ! $reviewer =~ ^[^:]+:[^:]+$ ]]; then
 			die "a codex reviewer must be MODEL:FOCUS, not $reviewer"
@@ -221,6 +240,7 @@ main() {
 	tmp=$(mktemp -d "${TMPDIR:-/tmp}/review-commits.XXXXXX")
 	git clone --quiet --shared --no-checkout "$top" "$tmp/repo"
 	git -C "$tmp/repo" checkout --quiet --detach "$last"
+	show_review_copy "$tmp/repo" "$bin/clank-right"
 	cd "$tmp/repo"
 	local -a sandbox codex_options claude_options
 	make_sandbox

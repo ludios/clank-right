@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { A } from "ayy";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { git } from "./git.ts";
+import { AGENTS_MD, regenerate } from "./project.ts";
 
 const SCRIPT = join(import.meta.dirname, "..", "bin", "review-commits");
 const PROMPTS = join(import.meta.dirname, "..", "review-prompts");
@@ -44,7 +45,8 @@ A(CLAUDE_FALLBACK_MODEL !== undefined, "review-commits must set claude_fallback_
  * Stands in for both `codex` and `claude`. Finds its model in `-c model=MODEL`
  * or `--model MODEL`; if $FAKE_HANG is set, starts a `sleep` that it waits for
  * at the end. Writes how it was run (with the options of the fake bwrap that
- * started it, if any), followed by what it read from stdin, to $CALLS/MODEL,
+ * started it, if any), what `git status` says, and the third line of AGENTS.md,
+ * followed by what it read from stdin, to $CALLS/MODEL,
  * all at once, prints a transcript line to stderr and a review to stdout, and
  * exits with status 1 if its model is $FAKE_FAIL.
  */
@@ -70,6 +72,8 @@ fi
 	echo "head $(git rev-parse HEAD)"
 	echo "stdin $(readlink /proc/self/fd/0)"
 	echo "child $child"
+	echo "status $(git status --porcelain | tr '\\n' ' ')"
+	echo "agents line 3: $(sed -n 3p AGENTS.md 2> /dev/null)"
 	printf '%s' "$FAKE_SANDBOX"
 	echo "stdin text:"
 	cat
@@ -230,7 +234,7 @@ function review_path(model: string, name: string): string {
 
 /**
  * @param model A reviewer's model.
- * @returns How the fake reviewer for `model` was run: one `arg` line per argument, then its working directory, HEAD, stdin, the PID of its `sleep` (if any), one `sandbox` line per option that the fake bwrap got, and the text it read from stdin.
+ * @returns How the fake reviewer for `model` was run: one `arg` line per argument, then its working directory, HEAD, stdin, the PID of its `sleep` (if any), what `git status` said, the third line of AGENTS.md, one `sandbox` line per option that the fake bwrap got, and the text it read from stdin.
  */
 function call_of(model: string): Promise<string> {
 	return readFile(join(calls, model), "utf8");
@@ -280,6 +284,34 @@ describe("review-commits", () => {
 			expect(call).toContain("arg /code-review xhigh commit " + commit + "\n");
 		}
 		expect(await readdir(tmp)).toEqual([]);
+	});
+
+	it("shows every reviewer the copy of a current AGENTS.md for agents that review commits, which git doesn't count as a change", async () => {
+		const { rendered } = await regenerate("<!-- clank-right\n-->\n");
+		await writeFile(join(repo, AGENTS_MD), rendered);
+		await git(repo, "add", AGENTS_MD);
+		await git(repo, "commit", "--quiet", "--message", "Add AGENTS.md");
+		const result = review_commits(["HEAD"]);
+		expect(result.stderr).toBe("");
+		expect(result.status).toBe(0);
+		for (const model of REVIEWERS) {
+			const call = await call_of(model);
+			expect(call).toContain("agents line 3: # This copy is for an agent that reviews commits");
+			expect(call).toContain("status \n");
+		}
+	});
+
+	it("shows every reviewer AGENTS.md as committed when the template doesn't make it, and says so", async () => {
+		await writeFile(join(repo, AGENTS_MD), "<!-- clank-right\n# old\n-->\n\n# Project map\n");
+		await git(repo, "add", AGENTS_MD);
+		await git(repo, "commit", "--quiet", "--message", "Add AGENTS.md");
+		const result = review_commits(["HEAD"]);
+		expect(result.stderr).toContain("AGENTS.md at HEAD isn't what the template makes of it");
+		expect(result.stderr).toContain("review-commits: so the reviewers get AGENTS.md as committed\n");
+		expect(result.status).toBe(0);
+		for (const model of REVIEWERS) {
+			expect(await call_of(model)).toContain("agents line 3: -->\n");
+		}
 	});
 
 	it("reviews the commits after BASE up to and including LAST, as BASE..LAST", async () => {

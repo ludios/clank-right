@@ -141,6 +141,8 @@ takes a commit, or `BASE..LAST`, and has every model in its `codex_reviewers`
 and `claude_reviewers` review it at once; the comment at its top says where the
 reviews go. To change the reviewers, edit those two lists. The first codex
 reviewer's model is the template's `astra_model`, so change the two together.
+In the clone, AGENTS.md is the copy that `clank-right review-copy` makes for
+the reviewers, unless it refuses to make one.
 
 Each codex reviewer is `MODEL:FOCUS`: it runs `codex exec` with a prompt that
 names the commits, then `review-prompts/codex-FOCUS.md`, then
