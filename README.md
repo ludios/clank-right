@@ -17,6 +17,7 @@ Put `bin/` on your `PATH` (or run `pnpm clank-right ...` from this directory).
 	clank-right check [--diff] [DIR...]
 	clank-right update [--commit-existing-changes MESSAGE] [DIR...]
 	clank-right chatbots
+	clank-right review-copy DIR
 
 `check` reports which repositories' `AGENTS.md` differ from what the template
 generates, or match it but aren't committed; `--diff` shows how. `update`
@@ -38,9 +39,17 @@ which git checks while holding the branch's lock; otherwise the regeneration
 stays a commit of its own. So another session committing in the same
 repository at the same moment never has its commit rewritten or lost.
 
-Without `DIR`s, both commands go through every repository listed in
+Without `DIR`s, `check` and `update` go through every repository listed in
 `~/.config/clank-right/projects.txt` (`$XDG_CONFIG_HOME` is honoured when set).
 `clank-right update .` regenerates the repository you're in.
+
+`review-copy` prints the `AGENTS.md` committed at `DIR`'s `HEAD` as the
+template renders it for agents that review commits: without the instructions
+about asking Astra, saving tokens, committing alongside other sessions and
+getting commits reviewed. It exits with status 1 if that `AGENTS.md` isn't
+what the template makes of it (for example, if the template has changed since
+the last `update`), since the copy would then have different rules than the
+committed file.
 
 ## What a managed AGENTS.md looks like
 

@@ -197,15 +197,20 @@ describe("render", () => {
 		const input: Partial<RenderInput> = { project_sections: [{ heading: "Before committing", body: "\tpnpm test" }] };
 		const full = await render_with({}, input);
 		const review = await render_with({}, { ...input, in_code_review: true });
-		expect(review).toContain("is overwritten.\n# This copy is for reviewing commits, so it leaves out the sections that only apply to making changes; `git show HEAD:AGENTS.md` shows the whole file as committed.\n-->\n\n# Before starting\n");
+		expect(review).toContain("templates/AGENTS.md.vto.\n# This copy is for an agent that reviews commits, so it leaves out the instructions about asking Astra, saving tokens, committing alongside other sessions and getting commits reviewed, and it gives the commit template as a rule for commit messages. `git show HEAD:AGENTS.md` shows the whole file as committed.\n-->\n\n# Before starting\n");
+		expect(review).not.toContain("Using git safely");
 		const making_changes = new Set(["Avoid consuming tokens in excess", "Using git safely", "Code review after each commit"]);
 		const astra = "\n\nIf you're Claude, you can also ask Astra to rewrite stuff, with the `codex exec` command shown earlier in this file.";
 		expect(full).toContain(astra);
 		const expected = split_sections(split_header(full)!.body).sections.filter((section) => !making_changes.has(section.heading));
 		const english = expected.find((section) => section.heading === "English")!;
 		english.body = english.body.replace(astra, "");
+		const commit_template = "\n\nAutomatically commit your changes with this commit template:\n\n";
+		expect(full).toContain(commit_template);
+		const commits = expected.find((section) => section.heading === "Commit sizes and messages")!;
+		commits.body = commits.body.replace(commit_template, "\n\nEach commit message follows this template:\n\n");
 		expect(split_sections(split_header(review)!.body).sections).toEqual(expected);
-		expect(review).not.toContain("Astra");
+		expect(review).not.toContain("codex exec");
 		expect(review).toContain("# Before committing\n\n\tpnpm test\n\n# Commit sizes and messages\n");
 	});
 

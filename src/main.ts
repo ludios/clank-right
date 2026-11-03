@@ -4,6 +4,7 @@
 // instructions in this checkout; `clank-right review-copy` prints the
 // AGENTS.md that a reviewer of commits gets.
 
+import { Console } from "node:console";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
@@ -31,12 +32,14 @@ update       Regenerate each differing ${AGENTS_MD} and commit it, alone, amendi
              --commit-existing-changes first commits it as it is, alone, with MESSAGE.
 chatbots     Rewrite chatbots/claude.md and chatbots/chatgpt.md in this checkout
              from templates/chatbot.vto, for pasting into each chatbot's settings.
-review-copy  Print the ${AGENTS_MD} that the template makes of DIR's for an agent
-             that reviews commits, without what only applies to making changes.
-             Exits 1 if DIR's ${AGENTS_MD} is missing or can't be rebuilt.
+review-copy  Print the ${AGENTS_MD} committed at DIR's HEAD as the template renders
+             it for agents that review commits: without what applies only to
+             making changes. Exits 1 if that ${AGENTS_MD} is missing, or isn't
+             what the template makes of it.
 
-DIR defaults to every repository listed in ${tilde(PROJECTS_FILE)}.
---verbose logs each git invocation.`;
+For check and update, DIR defaults to every repository listed in
+${tilde(PROJECTS_FILE)}.
+--verbose logs each git invocation, to stderr.`;
 
 interface Cli {
 	command: "check" | "update" | "chatbots" | "review-copy";
@@ -234,15 +237,16 @@ async function write_chatbots(): Promise<void> {
 
 /**
  * @param dir A checkout of a repository, as written on the command line.
- * @returns The process's exit status: 0 once the copy is printed, 1 when it can't be made.
+ * @returns The process's exit status: 0 once the copy is printed, 1 when review_copy refuses to make it.
  */
 async function print_review_copy(dir: string): Promise<number> {
+	const repo = untilde(dir);
 	try {
-		process.stdout.write(await review_copy(untilde(dir)));
+		process.stdout.write(await review_copy(repo));
 		return 0;
 	} catch (error) {
 		if (error instanceof ProjectError || error instanceof OptionsError) {
-			console.error(`${join(dir, AGENTS_MD)}: ${error.message}`);
+			console.error(`${tilde(repo)}: ${error.message}`);
 			return 1;
 		}
 		throw error;
@@ -254,7 +258,8 @@ async function main(argv: string[]): Promise<number> {
 	try {
 		const cli = parse_cli(argv);
 		configureSync({
-			sinks:   { console: getConsoleSink({ formatter: ansiColorFormatter }) },
+			// To stderr, so that logs never mix with what a command prints, such as review-copy's AGENTS.md
+			sinks:   { console: getConsoleSink({ formatter: ansiColorFormatter, console: new Console(process.stderr) }) },
 			loggers: [
 				{ category: ["clank-right"],     sinks: ["console"], lowestLevel: cli.verbose ? "debug" : "warning" },
 				{ category: ["logtape", "meta"], sinks: ["console"], lowestLevel: "warning" },

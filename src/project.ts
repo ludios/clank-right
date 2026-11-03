@@ -1,21 +1,22 @@
 // One managed repository: reading its AGENTS.md, deciding whether it matches
-// the template, and committing a regenerated one.
+// the template, committing a regenerated one, and rendering the copy of it for
+// agents that review commits.
 
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { A } from "ayy";
 import { getLogger } from "@logtape/logtape";
 import { OptionsError, parse_options, split_header } from "./config.ts";
-import { GitError, commit_only, file_state, git, head_commit, move_head, other_refs_containing_head, squash_head_into } from "./git.ts";
-import { is_template_heading, render } from "./render.ts";
-import { split_sections } from "./sections.ts";
+import { GitError, commit_only, file_state, git, git_raw, head_commit, move_head, other_refs_containing_head, squash_head_into } from "./git.ts";
+import { is_template_heading, render, type RenderInput } from "./render.ts";
+import { split_sections, type Section } from "./sections.ts";
 
 export const AGENTS_MD = "AGENTS.md";
 /** The subject of every commit `update` makes, up to the template's version in parentheses. */
 const UPDATE_SUBJECT = `${AGENTS_MD}: regenerate from clank-right template`;
 const log = getLogger(["clank-right"]);
 
-/** The file can't be regenerated as it is; the human has to act. */
+/** AGENTS.md can't be regenerated, or copied for a reviewer, as it is; the human has to act. */
 export class ProjectError extends Error {}
 
 interface Regenerated {
@@ -26,11 +27,12 @@ interface Regenerated {
 }
 
 /**
- * @param current The existing AGENTS.md text.
- * @param in_code_review Whether to render the copy for an agent that reviews commits, rather than the file to commit.
+ * @param current An AGENTS.md text.
+ * @returns What the template needs to rebuild `current` as the file to commit, and every section of `current`, the
+ * template's and the project's.
  * @throws ProjectError or OptionsError when `current` isn't a managed file the template can rebuild.
  */
-export async function regenerate(current: string, in_code_review = false): Promise<Regenerated> {
+function parse(current: string): { input: RenderInput; sections: Section[] } {
 	const split = split_header(current);
 	if (split === null) {
 		throw new ProjectError("no `<!-- clank-right` header on line 1; see README.md");
@@ -48,13 +50,23 @@ export async function regenerate(current: string, in_code_review = false): Promi
 	if (options.web_design === "custom" && web_design === undefined) {
 		throw new ProjectError("web_design = \"custom\" but there is no \"# Web design\" section to keep");
 	}
-	const rendered = await render({
+	const input: RenderInput = {
 		options_text:     split.options_text,
 		options,
 		project_sections: sections.filter((section) => !is_template_heading(section.heading)),
 		web_design_body:  web_design?.body ?? "",
-		in_code_review,
-	});
+		in_code_review:   false,
+	};
+	return { input, sections };
+}
+
+/**
+ * @param current The existing AGENTS.md text.
+ * @throws ProjectError or OptionsError when `current` isn't a managed file the template can rebuild.
+ */
+export async function regenerate(current: string): Promise<Regenerated> {
+	const { input, sections } = parse(current);
+	const rendered = await render(input);
 	const rendered_split = split_header(rendered);
 	A(rendered_split !== null, "the template must emit the header it was given");
 	const emitted_headings = split_sections(rendered_split.body).sections.map((section) => section.heading);
@@ -76,27 +88,19 @@ export type Status =
 
 /**
  * @param dir The repository's working directory.
- * @returns Its AGENTS.md text.
- * @throws ProjectError when it has no AGENTS.md.
- */
-async function read_agents_md(dir: string): Promise<string> {
-	try {
-		return await readFile(join(dir, AGENTS_MD), "utf8");
-	} catch (error) {
-		if (error instanceof Error && "code" in error && error.code === "ENOENT") {
-			throw new ProjectError(`no ${AGENTS_MD}; create one with just a header (see README.md)`);
-		}
-		throw error;
-	}
-}
-
-/**
- * @param dir The repository's working directory.
  * @returns Whether its AGENTS.md matches the template and is committed, or why that can't be decided.
  */
 export async function inspect(dir: string): Promise<Status> {
+	let current: string;
 	try {
-		const current = await read_agents_md(dir);
+		current = await readFile(join(dir, AGENTS_MD), "utf8");
+	} catch (error) {
+		if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+			return { kind: "error", message: `no ${AGENTS_MD}; create one with just a header (see README.md)` };
+		}
+		throw error;
+	}
+	try {
 		const { rendered, dropped } = await regenerate(current);
 		if (rendered !== current) {
 			return { kind: "dirty", rendered, dropped };
@@ -113,12 +117,27 @@ export async function inspect(dir: string): Promise<Status> {
 
 /**
  * @param dir A checkout of the repository, e.g. one made for reviewing commits.
- * @returns Its AGENTS.md as the template renders it for an agent that reviews commits.
- * @throws ProjectError or OptionsError when it has no AGENTS.md, or one that the template can't rebuild.
+ * @returns The AGENTS.md committed at its HEAD, as the template renders it for an agent that reviews commits: the
+ * same file, without what applies only to making changes.
+ * @throws ProjectError when HEAD has no AGENTS.md, or one that isn't what the template makes of it (e.g. one made
+ * by an older template), since the copy would then have rules that the committed file doesn't; OptionsError when its
+ * options aren't ones that the template takes.
  */
 export async function review_copy(dir: string): Promise<string> {
-	const { rendered } = await regenerate(await read_agents_md(dir), true);
-	return rendered;
+	let committed: string;
+	try {
+		committed = await git_raw(dir, "cat-file", "blob", `HEAD:${AGENTS_MD}`);
+	} catch (error) {
+		if (error instanceof GitError) {
+			throw new ProjectError(`can't read ${AGENTS_MD} at HEAD: ${error.message}`);
+		}
+		throw error;
+	}
+	const { input } = parse(committed);
+	if (await render(input) !== committed) {
+		throw new ProjectError(`${AGENTS_MD} at HEAD isn't what the template makes of it, so a reviewer's copy would have other rules; \`clank-right update\` it first`);
+	}
+	return render({ ...input, in_code_review: true });
 }
 
 /**

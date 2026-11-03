@@ -12,16 +12,26 @@ export class GitError extends Error {}
 /**
  * @param repo The repository's working directory.
  * @param args Arguments to git.
- * @returns Trimmed stdout.
+ * @returns Stdout, exactly as git printed it.
  * @throws GitError on a non-zero exit status.
  */
-export async function git(repo: string, ...args: string[]): Promise<string> {
+export async function git_raw(repo: string, ...args: string[]): Promise<string> {
 	log.debug("git {args} in {repo}", { args, repo });
 	const result = await run_process("git", ["-C", repo, ...args]);
 	if (result.code !== 0) {
 		throw new GitError(`git ${args.join(" ")} failed in ${repo}: ${result.stderr.trim()}`);
 	}
-	return result.stdout.trim();
+	return result.stdout;
+}
+
+/**
+ * @param repo The repository's working directory.
+ * @param args Arguments to git.
+ * @returns Trimmed stdout.
+ * @throws GitError on a non-zero exit status.
+ */
+export async function git(repo: string, ...args: string[]): Promise<string> {
+	return (await git_raw(repo, ...args)).trim();
 }
 
 /** How a file's working-tree contents relate to HEAD. */

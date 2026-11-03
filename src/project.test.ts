@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { array, assert, asyncProperty, boolean, constantFrom, record, uniqueArray, type Arbitrary } from "fast-check";
 import { stringify as stringify_toml } from "smol-toml";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { COLOR_SCHEMES, CONVENTIONS, LANGUAGES, PACKAGE_MANAGERS, PYTHON_INDENTS, WEB_DESIGNS, split_header, type ProjectOptions } from "./config.ts";
+import { COLOR_SCHEMES, CONVENTIONS, LANGUAGES, OptionsError, PACKAGE_MANAGERS, PYTHON_INDENTS, WEB_DESIGNS, split_header, type ProjectOptions } from "./config.ts";
 import { file_state, git } from "./git.ts";
 import { AGENTS_MD, ProjectError, commit_existing, inspect, regenerate, review_copy, update, type Status } from "./project.ts";
 import { TEMPLATE_HEADINGS } from "./render.ts";
@@ -347,16 +347,38 @@ describe("in a repository", () => {
 	});
 
 	describe("review_copy", () => {
-		it("renders the reviewer's copy of the AGENTS.md in the working tree, with the project's sections", async () => {
+		/** Commits `text` as AGENTS.md. */
+		const commit_agents = async (text: string) => {
+			await writeFile(agents(), text);
+			await git(repo, "commit", "--quiet", "--message", "m", "--", AGENTS_MD);
+		};
+
+		it("renders the reviewer's copy of the AGENTS.md committed at HEAD, ignoring the working tree", async () => {
+			const { rendered } = await regenerate(await readFile(agents(), "utf8"));
+			await commit_agents(rendered);
+			await writeFile(agents(), rendered.replace("- a/\n", "- a/\n- uncommitted/\n"));
 			const copy = await review_copy(repo);
-			expect(copy).toBe((await regenerate(await readFile(agents(), "utf8"), true)).rendered);
-			expect(copy).toContain("# Project map\n\n- a/\n");
+			expect(copy).toContain("# This copy is for an agent that reviews commits");
+			expect(copy).toContain("# Project map\n\n- a/\n\n# Commit sizes and messages\n");
+			expect(copy).not.toContain("uncommitted");
 			expect(copy).not.toContain("# Using git safely");
 		});
 
-		it("rejects a repository without an AGENTS.md", async () => {
-			await rm(agents());
-			await expect(review_copy(repo)).rejects.toThrow(ProjectError);
+		it("refuses an AGENTS.md at HEAD that isn't what the template makes of it, whose copy would have other rules", async () => {
+			await expect(review_copy(repo)).rejects.toThrow(`${AGENTS_MD} at HEAD isn't what the template makes of it`);
+		});
+
+		it("refuses an AGENTS.md at HEAD with an option that the template no longer takes", async () => {
+			await commit_agents(header("checks = [\"pnpm\"]"));
+			await expect(review_copy(repo)).rejects.toThrow(OptionsError);
+		});
+
+		it("refuses a HEAD without an AGENTS.md, even if the working tree has one", async () => {
+			const text = await readFile(agents(), "utf8");
+			await git(repo, "rm", "--quiet", AGENTS_MD);
+			await git(repo, "commit", "--quiet", "--message", "m");
+			await writeFile(agents(), text);
+			await expect(review_copy(repo)).rejects.toThrow(`can't read ${AGENTS_MD} at HEAD`);
 		});
 	});
 });
