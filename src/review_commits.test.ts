@@ -252,7 +252,7 @@ describe("review-commits", () => {
 			expect(call).toContain("arg exec\n");
 			expect(call).toContain("arg model=" + model + "\narg -c\narg model_reasoning_effort=xhigh\narg -\n");
 			expect(call).toContain("stdin " + tmp + "/review-commits.");
-			for (const option of ["--unshare-pid", "--tmpfs\nsandbox " + home, "--tmpfs\nsandbox /tmp", "--ro-bind\nsandbox " + repo + "/.git/objects"]) {
+			for (const option of ["--unshare-pid", "--tmpfs\nsandbox " + home, "--tmpfs\nsandbox /tmp", "--tmpfs\nsandbox " + tmp, "--tmpfs\nsandbox " + home + "/.codex", "--ro-bind\nsandbox " + repo + "/.git/objects"]) {
 				expect(call).toContain("sandbox " + option + "\n");
 			}
 			expect(call).toContain("sandbox --bind\nsandbox " + tmp + "/review-commits.");

@@ -57,12 +57,15 @@ full_hash() {
 # Sets the array `sandbox` (which main declares) to the start of a bwrap
 # command line that runs a reviewer without letting it read other reviews of
 # the same commits: it hides the home directory (~/.ai-code-reviews, and the
-# transcripts of claude and codex), /tmp and /var/tmp (the clones and files of
-# other runs), and other processes. The reviewer still gets, read-only: the
-# objects that the clone in $tmp/repo borrows, every directory on PATH that is
-# in the home directory, and ~/.rustup (the toolchains that rustup's rustc and
-# cargo run). It also gets $tmp. codex_home_options and claude_home_options
-# make the rest of the options for each kind of reviewer.
+# transcripts of claude and codex), /tmp, /var/tmp and the directory that $tmp
+# is in (the clones and files of other runs), and other processes. The
+# reviewer still gets, read-only: the objects that the clone in $tmp/repo
+# borrows, every directory on PATH that is in the home directory, and ~/.rustup
+# (the toolchains that rustup's rustc and cargo run). A link in one of those
+# directories to elsewhere in the home directory, such as uv's
+# ~/.local/bin/python3, is broken in the sandbox. The reviewer also gets $tmp.
+# codex_home_options and claude_home_options make the rest of the options for
+# each kind of reviewer.
 make_sandbox() {
 	sandbox=(bwrap --ro-bind / / --dev /dev --proc /proc --unshare-pid --die-with-parent
 		--tmpfs "$HOME" --tmpfs /tmp --tmpfs /var/tmp)
@@ -77,12 +80,12 @@ make_sandbox() {
 			sandbox+=(--ro-bind "$dir" "$dir")
 		fi
 	done
-	sandbox+=(--bind "$tmp" "$tmp")
+	sandbox+=(--tmpfs "${tmp%/*}" --bind "$tmp" "$tmp")
 }
 
 # Sets the array `codex_options` (which main declares) to the rest of the bwrap
-# options for a codex reviewer, ending in `--`: codex's config.toml and
-# auth.json. Codex rewrites auth.json in place to save refreshed tokens,
+# options for a codex reviewer, ending in `--`: codex's directory (~/.codex, or
+# CODEX_HOME), empty but for its config.toml and auth.json. Codex rewrites auth.json in place to save refreshed tokens,
 # holding a lock on auth.lock, so every codex reviewer gets the same auth.lock
 # (made here if missing), writable, and refreshes don't race.
 codex_home_options() {
@@ -90,7 +93,7 @@ codex_home_options() {
 	if [[ -d $codex_home ]]; then
 		: >> "$codex_home/auth.lock"
 	fi
-	codex_options=(--dir "$codex_home"
+	codex_options=(--tmpfs "$codex_home"
 		--bind-try "$codex_home/auth.json" "$codex_home/auth.json"
 		--bind-try "$codex_home/auth.lock" "$codex_home/auth.lock"
 		--ro-bind-try "$codex_home/config.toml" "$codex_home/config.toml" --)
