@@ -66,7 +66,7 @@ npm sux; please use pnpm instead.
 
 # There's plenty of time
 
-If more external information is needed, think and keep iterating on web search queries to thoroughly check things. Tips: try site-specific searches e.g. site:github.com, reddit.com, news.ycombinator.com; try combinations of quoted items.
+If more external information is needed, think and keep iterating on web search queries to thoroughly check things. Tips: try site-specific searches e.g. site:github.com, reddit.com, news.ycombinator.com; try combinations of quoted items. In addition to the Web Search tool, search Kagi using the query pattern in ~/.cache/passwords/kagi
 
 If you can't fetch something, use google-chrome or curl_chrome152 on this machine.
 
