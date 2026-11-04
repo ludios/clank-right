@@ -9,14 +9,15 @@
 # FULL_BASE..FULL_LAST; next to its review, a codex reviewer's transcript goes
 # to NAME.log, and a Claude reviewer's session files go to the directory
 # NAME.transcript/RUN, where RUN is the name of the run's temporary directory.
-# Prints the reviews in the order that the reviewers started,
-# each once its reviewer and every reviewer started before it have exited. Once
-# every reviewer has exited, deletes the clone, and exits with status 1 if any
-# reviewer failed. On SIGINT or SIGTERM, stops every reviewer together with the
+# Prints each review as soon as its reviewer exits (one review at a time),
+# followed by a line that names the reviewers whose reviews aren't printed yet,
+# if any. Once every reviewer has exited, deletes the clone, and exits with
+# status 1 if any reviewer failed. On SIGINT or SIGTERM, stops every reviewer together with the
 # processes it started, deletes the clone, and exits with status 130 or 143.
-# Runs each reviewer in a bwrap sandbox (see make_sandbox), and exits with
-# status 2 if bwrap or jq is not on PATH. Shows the reviewers the copy of AGENTS.md
-# that is for agents that review commits (see show_review_copy).
+# Runs each reviewer in a bwrap sandbox (see make_sandbox). Exits with status 2
+# if bash is older than 5.3, or if bwrap or jq is not on PATH. Shows the
+# reviewers the copy of AGENTS.md that is for agents that review commits (see
+# show_review_copy).
 
 set -euo pipefail
 
@@ -297,6 +298,12 @@ main() {
 		codex_target="commit $last (HEAD)"
 	fi
 
+	# Bash 5.1 and 5.2 have `wait -n -p`, but once they report a reviewer
+	# that a signal killed, they delete its job, and `wait -n` then never
+	# returns that reviewer
+	if (( BASH_VERSINFO[0] * 100 + BASH_VERSINFO[1] < 503 )); then
+		die "this is bash $BASH_VERSION, but review-commits needs bash 5.3 or later, whose \`wait -n\` returns every reviewer that has exited"
+	fi
 	if ! command -v bwrap > /dev/null; then
 		die "bwrap is not on PATH; install bubblewrap (pkgs.bubblewrap on NixOS), which runs each reviewer in a sandbox"
 	fi
@@ -345,8 +352,10 @@ main() {
 	# that it doesn't wait for input. setsid makes each reviewer the leader of a
 	# new session and process group, keeping its PID.
 	local reviews=$HOME/.ai-code-reviews transcript
-	# Each reviewer's model and PID, in the order that the reviewers started
-	local -a models=() pids=()
+	# The model of each reviewer whose review isn't printed yet, in the order
+	# that the reviewers started; and by each one's PID, the index of its model
+	local -a models=()
+	local -A index_of=()
 	for reviewer in "${codex_reviewers[@]}"; do
 		model=${reviewer%%:*}
 		focus=${reviewer#*:}
@@ -360,8 +369,8 @@ main() {
 		} > "$tmp/$model.prompt"
 		setsid "${sandbox[@]}" "${codex_options[@]}" codex exec -c "model=$model" -c model_reasoning_effort=xhigh - < "$tmp/$model.prompt" \
 			> "$reviews/$model/$name" 2> "$reviews/$model/$name.log" &
+		index_of[$!]=${#models[@]}
 		models+=("$model")
-		pids+=($!)
 	done
 	# /code-review runs in a subagent, which uses the model in
 	# CLAUDE_CODE_SUBAGENT_MODEL (if the environment or the user's settings set
@@ -375,18 +384,21 @@ main() {
 		setsid "${sandbox[@]}" "${claude_options[@]}" --bind "$transcript" "$claude_sessions" -- claude -p --model "$model" --fallback-model "$claude_fallback_model" \
 			--settings "{\"env\":{\"CLAUDE_CODE_SUBAGENT_MODEL\":\"$model\"}}" --effort xhigh \
 			"/code-review xhigh $claude_target" < /dev/null > "$reviews/$model/$name" 2>&1 &
+		index_of[$!]=${#models[@]}
 		models+=("$model")
-		pids+=($!)
 	done
 	echo "review-commits: started ${#models[@]} reviews of $name in $tmp/repo"
 
-	local i file status failed=0
-	for i in "${!pids[@]}"; do
-		file=$reviews/${models[$i]}/$name
+	local i pid file status failed=0
+	while (( ${#models[@]} > 0 )); do
 		status=0
-		wait "${pids[$i]}" || status=$?
+		wait -n -p pid "${!index_of[@]}" || status=$?
+		i=${index_of[$pid]}
+		model=${models[$i]}
+		unset "index_of[$pid]" "models[$i]"
+		file=$reviews/$model/$name
 		echo
-		echo "=== ${models[$i]} (exit status $status): $file"
+		echo "=== $model (exit status $status): $file"
 		cat "$file"
 		if (( status != 0 )); then
 			failed=1
@@ -396,6 +408,10 @@ main() {
 				echo "--- the end of its transcript, $file.log:"
 				tail -n 20 "$file.log"
 			fi
+		fi
+		if (( ${#models[@]} > 0 )); then
+			echo
+			echo "review-commits: waiting for the reviews of: ${models[*]}"
 		fi
 	done
 	return $failed

@@ -136,10 +136,12 @@ The files are committed, so their history tells you when to paste again.
 ## Reviewing commits
 
 The template tells agents to run `review-commits` after each commit, so put
-`bin/` on the `PATH` of every machine that agents run on. `bin/review-commits`
-takes a commit, or `BASE..LAST`, and has every model in its `codex_reviewers`
-and `claude_reviewers` review it at once; the comment at its top says where the
-reviews go. To change the reviewers, edit those two lists. The first codex
+`bin/` on the `PATH` of every machine that agents run on. The first `bash` on
+that `PATH` must be bash 5.3 or later (see the version check in the script).
+`bin/review-commits` takes a commit, or `BASE..LAST`, and has every model in
+its `codex_reviewers` and `claude_reviewers` review it at once; the comment at
+its top says where the reviews go. To change the reviewers, edit those two
+lists. The first codex
 reviewer's model is the template's `astra_model`, so change the two together.
 In the clone, AGENTS.md is the copy that `clank-right review-copy` makes for
 the reviewers, unless it refuses to make one.

@@ -49,8 +49,9 @@ A(CLAUDE_FALLBACK_MODEL !== undefined, "review-commits must set claude_fallback_
  * at the end. Writes how it was run (with the options of the fake bwrap that
  * started it, if any), what `git status` says, and the third line of AGENTS.md,
  * followed by what it read from stdin, to $CALLS/MODEL,
- * all at once, prints a transcript line to stderr and a review to stdout, and
- * exits with status 1 if its model is $FAKE_FAIL.
+ * all at once, and prints a transcript line to stderr and a review to stdout.
+ * If $FAKE_HOLDS is set and the file $FAKE_HOLDS/MODEL exists, it then waits
+ * until that file is gone. It exits with status 1 if its model is $FAKE_FAIL.
  */
 const FAKE_REVIEWER = `#!/usr/bin/env bash
 model=
@@ -85,6 +86,9 @@ mv "$CALLS/.$model" "$CALLS/$model"
 echo "transcript of $model" >&2
 echo "review by $model"
 wait
+while [[ -n $FAKE_HOLDS && -e $FAKE_HOLDS/$model ]]; do
+	sleep 0.02
+done
 [[ $model != "$FAKE_FAIL" ]]
 `;
 
@@ -181,7 +185,7 @@ afterEach(async () => {
 });
 
 /**
- * @param fake The settings for the fake reviewers: FAKE_FAIL, FAKE_HANG, or none.
+ * @param fake More environment variables, for the fake reviewers (see FAKE_REVIEWER): FAKE_FAIL (a model), FAKE_HANG (set to anything), and FAKE_HOLDS (a directory).
  * @returns The environment for review-commits, with the fake reviewers on PATH.
  */
 function script_env(fake: Record<string, string> = {}): NodeJS.ProcessEnv {
@@ -373,6 +377,50 @@ describe("review-commits", () => {
 		expect(await readdir(tmp)).toEqual([]);
 	});
 
+	it("prints each review as soon as its reviewer exits, then names the reviewers whose reviews aren't printed yet", async () => {
+		const commit = await git(repo, "rev-parse", "HEAD");
+		// The two reviewers that review-commits starts first; this test makes them exit last, the second one before the first one
+		const [first, second] = REVIEWERS;
+		A(first);
+		A(second);
+		const holds = join(root, "holds");
+		await mkdir(holds);
+		await writeFile(join(holds, first), "");
+		await writeFile(join(holds, second), "");
+		const script = spawn(SCRIPT, ["HEAD"], { cwd: repo, env: script_env({ FAKE_HOLDS: holds }) });
+		let stdout = "";
+		let stderr = "";
+		script.stdout.setEncoding("utf8").on("data", (chunk: string) => {
+			stdout += chunk;
+		});
+		script.stderr.setEncoding("utf8").on("data", (chunk: string) => {
+			stderr += chunk;
+		});
+		// "close" comes after all of the output, unlike "exit"
+		const exit_status = new Promise<number | null>((resolve) => {
+			script.on("close", (code) => {
+				resolve(code);
+			});
+		});
+		try {
+			await until(() => stdout.includes("\nreview-commits: waiting for the reviews of: " + first + " " + second + "\n"), "every other review is printed");
+			for (const model of REVIEWERS) {
+				expect(stdout.includes("review by " + model + "\n")).toBe(model !== first && model !== second);
+			}
+			await rm(join(holds, second));
+			await until(() => stdout.includes("\nreview-commits: waiting for the reviews of: " + first + "\n"), "the review by " + second + " is printed");
+			expect(stdout).toContain("review by " + second + "\n");
+			expect(stdout).not.toContain("review by " + first + "\n");
+		} finally {
+			// So that every held reviewer exits, and review-commits with them, before afterEach deletes the test's directory, even if the test fails
+			await rm(holds, { recursive: true, force: true });
+			await exit_status;
+		}
+		expect(await exit_status).toBe(0);
+		expect(stderr).toBe("");
+		expect(stdout.endsWith("\n=== " + first + " (exit status 0): " + review_path(first, commit) + "\nreview by " + first + "\n")).toBe(true);
+	});
+
 	it("on SIGTERM, stops every reviewer and what it started, deletes the clone, and exits with status 143", async () => {
 		const script = spawn(SCRIPT, ["HEAD"], { cwd: repo, env: script_env({ FAKE_HANG: "1" }), stdio: "ignore" });
 		const exit_status = new Promise<number | null>((resolve) => {
@@ -407,6 +455,7 @@ describe("review-commits", () => {
 	});
 
 	it.each([
+		["bash is too old", (script: string) => script.replace("< 503 ))", "< 99999 ))"), "this is bash " + execFileSync("bash", ["-c", "echo $BASH_VERSION"], { encoding: "utf8" }).trim() + ", but"],
 		["a codex reviewer isn't MODEL:FOCUS", (script: string) => script.replace(/^codex_reviewers=\(\S+/m, "codex_reviewers=(gpt-x"), "a codex reviewer must be MODEL:FOCUS, not gpt-x\n"],
 		["a model is a reviewer twice", (script: string) => script.replace(/^claude_reviewers=\(\S+/m, "claude_reviewers=(" + CODEX_REVIEWERS[0]), CODEX_REVIEWERS[0] + " is a reviewer twice"],
 		["a focus has no prompt", (script: string) => script.replace(/^codex_reviewers=\(\S+/m, "codex_reviewers=(gpt-x:nonexistent"), "no prompt $ROOT/clank-right/bin/../review-prompts/codex-nonexistent.md\n"],
