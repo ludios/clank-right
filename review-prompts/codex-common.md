@@ -6,6 +6,8 @@ Running the build, the type checker, the linter or the tests is not a review, an
 
 Do not drop a candidate because the change looks intentional, because the tradeoff looks acceptable, or because it seems unlikely or minor. Report it as a finding, say how likely or severe you think it is, and let the author decide. A risk that you noticed belongs in a finding, not in the overall verdict. Report every finding that survives; do not stop after the first few.
 
+Do not check the `Model-output:` and `Session-file:` lines in the commit messages: not whether they are there, and not what they say. The sandbox is meant to hide the session files that they name.
+
 ## Output format
 
 End your final message with the findings, most severe first, in exactly this format (one blank line between findings):
