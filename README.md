@@ -153,8 +153,11 @@ links, and looks for `review-prompts/` next to the `bin/` directory that it is
 in; so a link to the script works, but a copy of it elsewhere does not. It
 does not run `codex review`, whose built-in rubric says: "If there is no
 finding that a person would definitely love to see and fix, prefer outputting
-no findings." Where a
-Claude reviewer's model is not available to the account that `claude` is
+no findings." `codex-common.md` asks for the JSON array of findings that
+Claude Code's built-in `/code-review` prints (`file`, `line`, `summary`,
+`failure_scenario`), so that the same finding is quick to match across all the
+reviews; if Claude Code changes that format, change `codex-common.md` to match.
+Where a Claude reviewer's model is not available to the account that `claude` is
 logged into, or keeps being overloaded, `claude_fallback_model` reviews in its
 place, and the review is saved under the reviewer's model. Where the account
 has hit that model's usage limit, the reviewer fails instead.
