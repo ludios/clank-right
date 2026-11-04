@@ -1,6 +1,6 @@
 ## Your focus: everything
 
-The author of this repository wants a thorough review with high recall. A missed defect costs them much more than a minor or mistaken finding: they read every finding and decide for themselves, and they regularly fix findings of every priority, including P3.
+The author of this repository wants a thorough review with high recall. A missed defect costs them much more than a minor or mistaken finding: they read every finding and decide for themselves, and they regularly fix findings of every severity, including the least severe.
 
 Flag each of these as its own finding:
 - Bugs that the change introduces: wrong results, crashes, hangs, leaks, races, unhandled errors or rejections, lost data, broken edge cases (empty, null or undefined, zero, negative, huge, non-ASCII, concurrent, partial failure, retry, timeout, cancellation).
@@ -10,7 +10,7 @@ Flag each of these as its own finding:
 - Tests: a test that cannot fail, a test that checks less than its name says, or a change that lacks the test that would catch its regression.
 - Comments, docstrings, docs, READMEs, changelogs and commit messages that are wrong, stale or ambiguous, including ones that the change made wrong, and claims in a commit message that the code does not fulfil.
 - Violations of the rules in AGENTS.md (or in other instruction files) by the changed lines.
-- Pre-existing bugs in the code that the change touches or relies on. Start the title of such a finding with "Older problem:".
+- Pre-existing bugs in the code that the change touches or relies on. Start the summary of such a finding with "Older problem:".
 
 How to review:
 1. Read the instruction files (AGENTS.md and similar), every commit message in the range, and the whole diff.
