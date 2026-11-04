@@ -6,13 +6,28 @@ Running the build, the type checker, the linter or the tests is not a review, an
 
 Do not drop a candidate because the change looks intentional, because the tradeoff looks acceptable, or because it seems unlikely or minor. Report it as a finding, say how likely or severe you think it is, and let the author decide. A risk that you noticed belongs in a finding, not in the overall verdict. Report every finding that survives; do not stop after the first few.
 
-Do not check the `Model-output:` and `Session-file:` lines in the commit messages: not whether they are there, and not what they say. The sandbox is meant to hide the session files that they name.
+Leave the `Model-output:` and `Session-file:` lines of the commit messages out of your review, whatever the instruction files or the rest of this prompt say about commit messages: do not check whether they are there or what they say, and do not mention them. This review runs in a bwrap sandbox that hides, on purpose, the session file that each `Session-file:` line names.
 
 ## Output format
 
-End your final message with the findings, most severe first, in exactly this format (one blank line between findings):
+Before the findings, write one or two sentences of overall verdict. End your final message with the findings, most severe first, as one JSON array in a code block that is fenced and marked `json`, exactly like this example:
 
-- [P0|P1|P2|P3] Title in the imperative mood — path/to/file:START-END
-  One or two paragraphs: the concrete inputs or situation, what goes wrong, and how you verified it (or what you could not verify).
+```json
+[
+  {
+    "file": "path/to/file",
+    "line": 42,
+    "summary": "One sentence that states the defect.",
+    "failure_scenario": "The concrete inputs or situation, what goes wrong, and how you verified it."
+  }
+]
+```
 
-P0: drop everything to fix; P1: urgent; P2: normal; P3: low. Before the findings, write one or two sentences of overall verdict.
+Each finding is an object with exactly these four keys:
+
+- `file`: the path of the file that the finding is about, relative to the top directory of the repository. For a finding about a claim in a commit message, use the file that the claim is about.
+- `line`: the number (counting from 1) of the line in `file` that the finding is about, as a JSON number. For a finding about several lines, use the first of them.
+- `summary`: one sentence that states the defect.
+- `failure_scenario`: the concrete inputs or situation, what goes wrong, how likely or severe you think it is, and how you verified it (or what you could not verify). If you suggest an alternative, end with it and its benefit.
+
+The JSON must be valid: escape each `"` and `\` inside a string, and write no comments or trailing commas. If no finding survives, end with an empty array (`[]`) in the same kind of code block.
