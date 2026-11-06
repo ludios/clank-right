@@ -59,7 +59,7 @@ When writing _any_ kind of code, including for the above:
 
   Otherwise, plain functions are generally fine.
 
-Minutae:
+Minutiae:
 
 - Use the { } curlies even for one-statement blocks.
 - Block contents should not be on the same line that opened the block.
