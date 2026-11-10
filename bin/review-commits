@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
-# Usage: review-commits COMMIT
-#    or: review-commits BASE..LAST
+# Usage: review-commits [--skip REVIEWER]... COMMIT
+#    or: review-commits [--skip REVIEWER]... BASE..LAST
 #
 # Gets COMMIT, or the commits after BASE up to and including LAST, reviewed by
 # every reviewer below at xhigh reasoning, all at once, in a `git clone --shared`
-# of the current repository with COMMIT (or LAST) checked out. Saves each review
+# of the current repository with COMMIT (or LAST) checked out. Each --skip
+# leaves out its REVIEWER, which must be a word of codex_reviewers or
+# claude_reviewers below, e.g. gpt-6-astra:general. Saves each review
 # to ~/.ai-code-reviews/MODEL/NAME, where NAME is the full hash of COMMIT, or
 # FULL_BASE..FULL_LAST; next to its review, a codex reviewer's transcript goes
 # to NAME.log, and a Claude reviewer's session files go to the directory
@@ -15,9 +17,10 @@
 # status 1 if any reviewer failed. On SIGINT or SIGTERM, stops every reviewer together with the
 # processes it started, deletes the clone, and exits with status 130 or 143.
 # Runs each reviewer in a bwrap sandbox (see make_sandbox). Exits with status 2
-# if bash is older than 5.3, or if bwrap or jq is not on PATH. Shows the
-# reviewers the copy of AGENTS.md that is for agents that review commits (see
-# show_review_copy).
+# if bash is older than 5.3, if bwrap or jq is not on PATH, if a REVIEWER is
+# not a word of codex_reviewers or claude_reviewers, or if --skip leaves out
+# every reviewer. Shows the reviewers the copy of AGENTS.md that is for agents
+# that review commits (see show_review_copy).
 
 set -euo pipefail
 
@@ -56,7 +59,7 @@ die() {
 # Prints $1 and the usage to stderr, then exits with status 2.
 die_usage() {
 	echo "review-commits: $1" >&2
-	echo "Usage: review-commits COMMIT, or review-commits BASE..LAST" >&2
+	echo "Usage: review-commits [--skip REVIEWER]... COMMIT, or review-commits [--skip REVIEWER]... BASE..LAST" >&2
 	exit 2
 }
 
@@ -81,6 +84,20 @@ may_show_dir() {
 			return 1
 		fi
 	done
+}
+
+# Removes from the array named $1 every reviewer that is a key of `skip`
+# (which main declares).
+drop_skipped() {
+	local -n list=$1
+	local -a kept=()
+	local reviewer
+	for reviewer in "${list[@]}"; do
+		if [[ -z ${skip[$reviewer]-} ]]; then
+			kept+=("$reviewer")
+		fi
+	done
+	list=("${kept[@]}")
 }
 
 # Sets the array `sandbox` (which main declares) to the start of a bwrap
@@ -272,8 +289,18 @@ cleanup() {
 }
 
 main() {
+	# The reviewers that --skip leaves out, as keys. An empty REVIEWER is
+	# refused: it names no reviewer, and bash refuses an empty string as a key.
+	local -A skip=()
+	while (( $# > 0 )) && [[ $1 == --skip ]]; do
+		if (( $# < 2 )) || [[ -z $2 ]]; then
+			die_usage "--skip needs a REVIEWER"
+		fi
+		skip[$2]=1
+		shift 2
+	done
 	if (( $# != 1 )); then
-		die_usage "expected one argument, got $#"
+		die_usage "expected one COMMIT or BASE..LAST, got $# arguments"
 	fi
 	local arg=$1
 	if [[ $arg == *...* ]]; then
@@ -330,6 +357,20 @@ main() {
 			die "no prompt $prompts/codex-$focus.md"
 		fi
 	done
+	local -A known=()
+	for reviewer in "${codex_reviewers[@]}" "${claude_reviewers[@]}"; do
+		known[$reviewer]=1
+	done
+	for reviewer in "${!skip[@]}"; do
+		if [[ -z ${known[$reviewer]-} ]]; then
+			die "--skip $reviewer: no reviewer is named that; the reviewers are: ${codex_reviewers[*]} ${claude_reviewers[*]}"
+		fi
+	done
+	drop_skipped codex_reviewers
+	drop_skipped claude_reviewers
+	if (( ${#codex_reviewers[@]} + ${#claude_reviewers[@]} == 0 )); then
+		die "--skip leaves out every reviewer, so nothing would review $arg"
+	fi
 
 	local top
 	top=$(git rev-parse --show-toplevel)

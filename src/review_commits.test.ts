@@ -36,6 +36,8 @@ const CODEX_PAIRS = words_in(SCRIPT_TEXT, "codex_reviewers").map((reviewer) => {
 	return [model, focus] as const;
 });
 const CODEX_REVIEWERS = CODEX_PAIRS.map(([model]) => model);
+/** The words of codex_reviewers, MODEL:FOCUS each, which is what --skip takes for a codex reviewer */
+const CODEX_WORDS = CODEX_PAIRS.map((pair) => pair.join(":"));
 const CLAUDE_REVIEWERS = words_in(SCRIPT_TEXT, "claude_reviewers");
 const REVIEWERS = [...CODEX_REVIEWERS, ...CLAUDE_REVIEWERS];
 A.eq(new Set(REVIEWERS).size, REVIEWERS.length);
@@ -343,6 +345,31 @@ describe("review-commits", () => {
 		expect(await readdir(tmp)).toEqual([]);
 	});
 
+	it("leaves out each reviewer that --skip names, a codex reviewer as MODEL:FOCUS", async () => {
+		const commit = await git(repo, "rev-parse", "HEAD");
+		const skipped = [CODEX_REVIEWERS[0]!, CLAUDE_REVIEWERS[0]!];
+		const result = review_commits(["--skip", CODEX_WORDS[0]!, "--skip", CLAUDE_REVIEWERS[0]!, "HEAD"]);
+		expect(result.stderr).toBe("");
+		expect(result.status).toBe(0);
+		expect(result.stdout).toContain("review-commits: started " + (REVIEWERS.length - 2) + " reviews of " + commit + " in ");
+		expect((await readdir(calls)).toSorted()).toEqual(REVIEWERS.filter((model) => !skipped.includes(model)).toSorted());
+		for (const model of skipped) {
+			expect(result.stdout).not.toContain("=== " + model + " ");
+		}
+	});
+
+	it.each([
+		["a codex reviewer's model without its focus", [CODEX_REVIEWERS[0]!], "--skip " + CODEX_REVIEWERS[0] + ": no reviewer is named that; the reviewers are: " + [...CODEX_WORDS, ...CLAUDE_REVIEWERS].join(" ") + "\n"],
+		["no reviewer", ["gpt-x:general"], "--skip gpt-x:general: no reviewer is named that"],
+		["every reviewer", [...CODEX_WORDS, ...CLAUDE_REVIEWERS], "--skip leaves out every reviewer, so nothing would review HEAD\n"],
+	])("refuses with status 2, starting no reviewer, when --skip names %s", async (_, skips, message) => {
+		const result = review_commits([...skips.flatMap((skip) => ["--skip", skip]), "HEAD"]);
+		expect(result.stderr).toContain("review-commits: " + message);
+		expect(result.status).toBe(2);
+		expect(await readdir(calls)).toEqual([]);
+		expect(await readdir(tmp)).toEqual([]);
+	});
+
 	it("reviews the commits after BASE up to and including LAST, as BASE..LAST", async () => {
 		const base = await git(repo, "rev-parse", "HEAD~2");
 		const last = await git(repo, "rev-parse", "HEAD");
@@ -574,10 +601,14 @@ describe("review-commits", () => {
 		[["HEAD..HEAD~1"]],
 		[["HEAD..HEAD"]],
 		[["..HEAD"]],
+		[["--skip"]],
+		[["--skip", "", "HEAD"]],
+		[["--skip", CLAUDE_REVIEWERS[0]!]],
+		[["HEAD", "--skip", CLAUDE_REVIEWERS[0]!]],
 	])("refuses the arguments %j with status 2, starting no reviewer", async (args: string[]) => {
 		const result = review_commits(args);
 		expect(result.status).toBe(2);
-		expect(result.stderr).toContain("Usage: review-commits COMMIT, or review-commits BASE..LAST\n");
+		expect(result.stderr).toContain("Usage: review-commits [--skip REVIEWER]... COMMIT, or review-commits [--skip REVIEWER]... BASE..LAST\n");
 		expect(await readdir(calls)).toEqual([]);
 		expect(await readdir(tmp)).toEqual([]);
 	});
