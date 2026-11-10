@@ -289,6 +289,15 @@ cleanup() {
 }
 
 main() {
+	# First, so that an old bash gets this message rather than failing on
+	# something that it lacks, such as `local -A` (before bash 4). Bash 5.1
+	# and 5.2 have `wait -n -p`, but once they report a reviewer that a
+	# signal killed, they delete its job, and `wait -n` then never returns
+	# that reviewer
+	if (( BASH_VERSINFO[0] * 100 + BASH_VERSINFO[1] < 503 )); then
+		die "this is bash $BASH_VERSION, but review-commits needs bash 5.3 or later, whose \`wait -n\` returns every reviewer that has exited"
+	fi
+
 	# The reviewers that --skip leaves out, as keys. An empty REVIEWER is
 	# refused: it names no reviewer, and bash refuses an empty string as a key.
 	local -A skip=()
@@ -325,12 +334,6 @@ main() {
 		codex_target="commit $last (HEAD)"
 	fi
 
-	# Bash 5.1 and 5.2 have `wait -n -p`, but once they report a reviewer
-	# that a signal killed, they delete its job, and `wait -n` then never
-	# returns that reviewer
-	if (( BASH_VERSINFO[0] * 100 + BASH_VERSINFO[1] < 503 )); then
-		die "this is bash $BASH_VERSION, but review-commits needs bash 5.3 or later, whose \`wait -n\` returns every reviewer that has exited"
-	fi
 	if ! command -v bwrap > /dev/null; then
 		die "bwrap is not on PATH; install bubblewrap (pkgs.bubblewrap on NixOS), which runs each reviewer in a sandbox"
 	fi
