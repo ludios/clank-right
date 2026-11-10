@@ -104,6 +104,7 @@ Every option has a default, so an empty header is valid.
 | `color_scheme` | `"both"`     | `"light"`, `"dark"`, or `"both"`, for the `"2010"` web design.                                       |
 | `sandbox_note` | `""`         | Appended to the sandbox hostname bullet, e.g. `"you're unable to hit production"`.                   |
 | `tools_extra`  | `[]`         | Installed tools worth mentioning, e.g. `["ffmpeg"]`; listed after `uv`.                              |
+| `skip_reviewers` | `[]`       | Reviewers that the `review-commits` commands in "Code review after each commit" leave out, each with a `--skip`, e.g. `["gpt-6-astra:general"]` for the expensive Astra review; each must be a word of `codex_reviewers` or `claude_reviewers` in `bin/review-commits`, or `review-commits` refuses to run. |
 
 Facts that change over time (model names, the installed tools, the
 curl-impersonate binary) are `set` at the top of `templates/AGENTS.md.vto`. The

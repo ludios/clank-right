@@ -135,6 +135,17 @@ describe("render", () => {
 		expect(await render_with({})).toContain("- If it ends in \"clank\", run whatever commands you need.");
 	});
 
+	it("gives the review-commits commands a --skip for each of skip_reviewers", async () => {
+		const plain = await render_with({});
+		expect(plain).toContain("\n\treview-commits <sha>\n");
+		expect(plain).toContain("either run `review-commits <sha>` once for each commit, or review the whole batch at once with `review-commits <sha before your first commit>..");
+		const skipping = await render_with({ skip_reviewers: ["gpt-6-astra:general", "claude-opus-5-5"] });
+		const command = "review-commits --skip gpt-6-astra:general --skip claude-opus-5-5";
+		expect(skipping).toContain("\n\t" + command + " <sha>\n");
+		expect(skipping).toContain("either run `" + command + " <sha>` once for each commit, or review the whole batch at once with `" + command + " <sha before your first commit>..");
+		expect(skipping).toContain("\n`review-commits` runs the reviewers in a `git clone --shared`");
+	});
+
 	it("renders the web design variants", async () => {
 		expect(await render_with({})).not.toContain("# Web design");
 		const dark = await render_with({ web_design: "2010", color_scheme: "dark" });

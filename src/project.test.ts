@@ -41,6 +41,7 @@ const options_arb: Arbitrary<ProjectOptions> = record({
 	color_scheme:    constantFrom(...COLOR_SCHEMES),
 	sandbox_note:    constantFrom("", "you're unable to hit production"),
 	tools_extra:     array(constantFrom("ffmpeg", "nm", "natscli (bin: nats)"), { maxLength: 2 }),
+	skip_reviewers:  uniqueArray(constantFrom("gpt-6-astra:general", "claude-opus-5-5"), { maxLength: 2 }),
 });
 
 const section_arb: Arbitrary<Section> = record({

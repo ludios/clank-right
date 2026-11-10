@@ -50,6 +50,11 @@ export interface ProjectOptions {
 	sandbox_note: string;
 	/** Installed tools worth mentioning for this project, e.g. "ffmpeg", listed among the standard ones. */
 	tools_extra: string[];
+	/**
+	 * Reviewers that the `review-commits` commands in "Code review after each commit" leave out, with a
+	 * `--skip REVIEWER` each, e.g. "gpt-6-astra:general"; each is a word of a reviewer list in bin/review-commits.
+	 */
+	skip_reviewers: string[];
 }
 
 /** The header can't be understood; the human has to fix it. */
@@ -67,6 +72,7 @@ export const DEFAULT_OPTIONS: Readonly<ProjectOptions> = {
 	color_scheme:    "both",
 	sandbox_note:    "",
 	tools_extra:     [],
+	skip_reviewers:  [],
 };
 
 function describe_type(value: unknown): string {
@@ -104,6 +110,18 @@ function expect_line_list(key: string, value: unknown): string[] {
 		throw new OptionsError(`\`${key}\` must be an array of strings`);
 	}
 	return value.map((item) => expect_line(key, item));
+}
+
+/** A word that the template can put in a shell command without quoting it, and that isn't an option such as `--x`. */
+const SHELL_WORD = /^[A-Za-z0-9._:][A-Za-z0-9._:-]*$/;
+
+function expect_shell_word_list(key: string, value: unknown): string[] {
+	return expect_line_list(key, value).map((item) => {
+		if (!SHELL_WORD.test(item)) {
+			throw new OptionsError(`\`${key}\` must hold only words of letters, digits and \`.\` \`_\` \`:\` \`-\` that don't start with \`-\`, not ${JSON.stringify(item)}`);
+		}
+		return item;
+	});
 }
 
 function expect_one_of<T extends string>(key: string, value: unknown, allowed: readonly T[]): T {
@@ -165,6 +183,9 @@ export function parse_options(toml: string): ProjectOptions {
 				break;
 			case "tools_extra":
 				options.tools_extra = expect_line_list(key, value);
+				break;
+			case "skip_reviewers":
+				options.skip_reviewers = expect_shell_word_list(key, value);
 				break;
 			default:
 				throw new OptionsError(`unknown option \`${key}\``);
