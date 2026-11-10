@@ -26,8 +26,10 @@ function words_in(script: string, name: string): string[] {
 }
 
 const SCRIPT_TEXT = await readFile(SCRIPT, "utf8");
-/** Each codex reviewer's model and the focus that picks its prompt, from the MODEL:FOCUS words of codex_reviewers */
-const CODEX_PAIRS = words_in(SCRIPT_TEXT, "codex_reviewers").map((reviewer) => {
+/** The words of codex_reviewers, MODEL:FOCUS each, which is what --skip takes for a codex reviewer */
+const CODEX_WORDS = words_in(SCRIPT_TEXT, "codex_reviewers");
+/** Each codex reviewer's model and the focus that picks its prompt, from CODEX_WORDS */
+const CODEX_PAIRS = CODEX_WORDS.map((reviewer) => {
 	const parts = reviewer.split(":");
 	A.eq(parts.length, 2, "a codex reviewer must be MODEL:FOCUS, not " + reviewer);
 	const [model, focus] = parts as [string, string];
@@ -36,8 +38,6 @@ const CODEX_PAIRS = words_in(SCRIPT_TEXT, "codex_reviewers").map((reviewer) => {
 	return [model, focus] as const;
 });
 const CODEX_REVIEWERS = CODEX_PAIRS.map(([model]) => model);
-/** The words of codex_reviewers, MODEL:FOCUS each, which is what --skip takes for a codex reviewer */
-const CODEX_WORDS = CODEX_PAIRS.map((pair) => pair.join(":"));
 const CLAUDE_REVIEWERS = words_in(SCRIPT_TEXT, "claude_reviewers");
 const REVIEWERS = [...CODEX_REVIEWERS, ...CLAUDE_REVIEWERS];
 A.eq(new Set(REVIEWERS).size, REVIEWERS.length);
@@ -345,13 +345,13 @@ describe("review-commits", () => {
 		expect(await readdir(tmp)).toEqual([]);
 	});
 
-	it("leaves out each reviewer that --skip names, a codex reviewer as MODEL:FOCUS", async () => {
+	it("leaves out each reviewer that --skip names, a codex reviewer as MODEL:FOCUS, even every Claude reviewer", async () => {
 		const commit = await git(repo, "rev-parse", "HEAD");
-		const skipped = [CODEX_REVIEWERS[0]!, CLAUDE_REVIEWERS[0]!];
-		const result = review_commits(["--skip", CODEX_WORDS[0]!, "--skip", CLAUDE_REVIEWERS[0]!, "HEAD"]);
+		const skipped = [CODEX_REVIEWERS[0]!, ...CLAUDE_REVIEWERS];
+		const result = review_commits([CODEX_WORDS[0]!, ...CLAUDE_REVIEWERS].flatMap((skip) => ["--skip", skip]).concat("HEAD"));
 		expect(result.stderr).toBe("");
 		expect(result.status).toBe(0);
-		expect(result.stdout).toContain("review-commits: started " + (REVIEWERS.length - 2) + " reviews of " + commit + " in ");
+		expect(result.stdout).toContain("review-commits: started " + (REVIEWERS.length - skipped.length) + " reviews of " + commit + " in ");
 		expect((await readdir(calls)).toSorted()).toEqual(REVIEWERS.filter((model) => !skipped.includes(model)).toSorted());
 		for (const model of skipped) {
 			expect(result.stdout).not.toContain("=== " + model + " ");
@@ -359,12 +359,14 @@ describe("review-commits", () => {
 	});
 
 	it.each([
-		["a codex reviewer's model without its focus", [CODEX_REVIEWERS[0]!], "--skip " + CODEX_REVIEWERS[0] + ": no reviewer is named that; the reviewers are: " + [...CODEX_WORDS, ...CLAUDE_REVIEWERS].join(" ") + "\n"],
-		["no reviewer", ["gpt-x:general"], "--skip gpt-x:general: no reviewer is named that"],
-		["every reviewer", [...CODEX_WORDS, ...CLAUDE_REVIEWERS], "--skip leaves out every reviewer, so nothing would review HEAD\n"],
-	])("refuses with status 2, starting no reviewer, when --skip names %s", async (_, skips, message) => {
+		["a codex reviewer's model without its focus", [CODEX_REVIEWERS[0]!], ["review-commits: --skip got names that no reviewer has: " + CODEX_REVIEWERS[0] + "; the reviewers are: " + [...CODEX_WORDS, ...CLAUDE_REVIEWERS].join(" ") + ". If AGENTS.md gave this command, ask the user to fix skip_reviewers in its header"]],
+		["two words that no reviewer has, along with a reviewer's word", ["gpt-x:general", CLAUDE_REVIEWERS[0]!, "gpt-y:general"], ["review-commits: --skip got names that no reviewer has: ", "gpt-x:general", "gpt-y:general"]],
+		["every reviewer", [...CODEX_WORDS, ...CLAUDE_REVIEWERS], ["review-commits: --skip leaves out every reviewer, so nothing would review HEAD\n"]],
+	])("refuses with status 2, starting no reviewer, when --skip names %s", async (_, skips, messages) => {
 		const result = review_commits([...skips.flatMap((skip) => ["--skip", skip]), "HEAD"]);
-		expect(result.stderr).toContain("review-commits: " + message);
+		for (const message of messages) {
+			expect(result.stderr).toContain(message);
+		}
 		expect(result.status).toBe(2);
 		expect(await readdir(calls)).toEqual([]);
 		expect(await readdir(tmp)).toEqual([]);

@@ -87,13 +87,16 @@ may_show_dir() {
 }
 
 # Removes from the array named $1 every reviewer that is a key of `skip`
-# (which main declares).
+# (which main declares), and removes that key from `skip`; so once every
+# reviewer list has been through here, the keys left name no reviewer.
 drop_skipped() {
 	local -n list=$1
 	local -a kept=()
 	local reviewer
 	for reviewer in "${list[@]}"; do
-		if [[ -z ${skip[$reviewer]-} ]]; then
+		if [[ -n ${skip[$reviewer]-} ]]; then
+			unset 'skip[$reviewer]'
+		else
 			kept+=("$reviewer")
 		fi
 	done
@@ -309,7 +312,7 @@ main() {
 		shift 2
 	done
 	if (( $# != 1 )); then
-		die_usage "expected one COMMIT or BASE..LAST, got $# arguments"
+		die_usage "expected one COMMIT or BASE..LAST after any --skip REVIEWER pairs (which go first), but got $# arguments after them"
 	fi
 	local arg=$1
 	if [[ $arg == *...* ]]; then
@@ -360,17 +363,12 @@ main() {
 			die "no prompt $prompts/codex-$focus.md"
 		fi
 	done
-	local -A known=()
-	for reviewer in "${codex_reviewers[@]}" "${claude_reviewers[@]}"; do
-		known[$reviewer]=1
-	done
-	for reviewer in "${!skip[@]}"; do
-		if [[ -z ${known[$reviewer]-} ]]; then
-			die "--skip $reviewer: no reviewer is named that; the reviewers are: ${codex_reviewers[*]} ${claude_reviewers[*]}"
-		fi
-	done
+	local reviewers="${codex_reviewers[*]} ${claude_reviewers[*]}"
 	drop_skipped codex_reviewers
 	drop_skipped claude_reviewers
+	if (( ${#skip[@]} > 0 )); then
+		die "--skip got names that no reviewer has: ${!skip[*]}; the reviewers are: $reviewers. If AGENTS.md gave this command, ask the user to fix skip_reviewers in its header, rather than running review-commits without the --skip options"
+	fi
 	if (( ${#codex_reviewers[@]} + ${#claude_reviewers[@]} == 0 )); then
 		die "--skip leaves out every reviewer, so nothing would review $arg"
 	fi
