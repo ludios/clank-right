@@ -144,7 +144,10 @@ its `codex_reviewers` and `claude_reviewers` review it at once, except each
 reviewer that a `--skip REVIEWER` names with its word in those lists (e.g.
 `--skip gpt-6-astra:general`); the comment at its top says where the reviews
 go. To change the reviewers, edit those two
-lists. The first codex
+lists. Renaming or removing a reviewer, or changing a codex reviewer's FOCUS,
+makes `review-commits` refuse to run in each repository whose `skip_reviewers`
+names the old word, until that `skip_reviewers` is fixed and `clank-right
+update` has regenerated that repository's `AGENTS.md`. The first codex
 reviewer's model is the template's `astra_model`, so change the two together.
 In the clone, AGENTS.md is the copy that `clank-right review-copy` makes for
 the reviewers, unless it refuses to make one.
