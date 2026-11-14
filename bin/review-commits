@@ -6,7 +6,9 @@
 # every reviewer below at xhigh reasoning, all at once, in a `git clone --shared`
 # of the current repository with COMMIT (or LAST) checked out; except that each
 # reviewer of optional_reviewers below reviews only if an --extra names it,
-# with its word there, e.g. --extra gpt-6-astra:general. Saves each review
+# with its word in codex_reviewers or claude_reviewers, e.g. --extra
+# gpt-6-astra:general. An --extra that names a reviewer that isn't optional
+# changes nothing. Saves each review
 # to ~/.ai-code-reviews/MODEL/NAME, where NAME is the full hash of COMMIT, or
 # FULL_BASE..FULL_LAST; next to its review, a codex reviewer's transcript goes
 # to NAME.log, and a Claude reviewer's session files go to the directory
@@ -17,9 +19,11 @@
 # status 1 if any reviewer failed. On SIGINT or SIGTERM, stops every reviewer together with the
 # processes it started, deletes the clone, and exits with status 130 or 143.
 # Runs each reviewer in a bwrap sandbox (see make_sandbox). Exits with status 2
-# if bash is older than 5.3, if bwrap or jq is not on PATH, or if a REVIEWER
-# is not a word of optional_reviewers. Shows the reviewers the copy of
-# AGENTS.md that is for agents that review commits (see show_review_copy).
+# if bash is older than 5.3, if bwrap or jq is not on PATH, if a REVIEWER is
+# not a word of codex_reviewers or claude_reviewers, or if no reviewer would
+# review (every reviewer is optional, and no --extra names one). Shows the
+# reviewers the copy of AGENTS.md that is for agents that review commits (see
+# show_review_copy).
 
 set -euo pipefail
 
@@ -34,7 +38,7 @@ codex_reviewers=(gpt-6-astra:general gpt-6.1-sol:approach gpt-5.6-sol:text)
 claude_reviewers=(claude-mythos-5-2 claude-opus-5-5)
 # The reviewers above that review only if an --extra names them, each with its
 # word above. gpt-6-astra is here because, in November 2026, its reviews were
-# taking about 65% of our usage.
+# taking about 65% of our Codex usage.
 optional_reviewers=(gpt-6-astra:general)
 # Reviews in place of a Claude reviewer's model where that model is not
 # available to the logged-in account (e.g. an account without Mythos) or keeps
@@ -89,14 +93,14 @@ may_show_dir() {
 	done
 }
 
-# Removes from the array named $1 every reviewer that is a key of `unasked`
-# (which main declares).
+# Removes from the array named $1 every reviewer that is a key of `optional`
+# but not of `extra` (both of which main declares).
 drop_unasked() {
 	local -n list=$1
 	local -a kept=()
 	local reviewer
 	for reviewer in "${list[@]}"; do
-		if [[ -z ${unasked[$reviewer]-} ]]; then
+		if [[ -z ${optional[$reviewer]-} || -n ${extra[$reviewer]-} ]]; then
 			kept+=("$reviewer")
 		fi
 	done
@@ -301,14 +305,14 @@ main() {
 		die "this is bash $BASH_VERSION, but review-commits needs bash 5.3 or later, whose \`wait -n\` returns every reviewer that has exited"
 	fi
 
-	# The reviewers that --extra names, as keys. An empty REVIEWER is
+	# The reviewers that --extra names, in order. An empty REVIEWER is
 	# refused: it names no reviewer, and bash refuses an empty string as a key.
-	local -A extra=()
+	local -a extras=()
 	while (( $# > 0 )) && [[ $1 == --extra ]]; do
 		if (( $# < 2 )) || [[ -z $2 ]]; then
 			die_usage "--extra needs a REVIEWER"
 		fi
-		extra[$2]=1
+		extras+=("$2")
 		shift 2
 	done
 	if (( $# != 1 )); then
@@ -363,9 +367,10 @@ main() {
 			die "no prompt $prompts/codex-$focus.md"
 		fi
 	done
-	# Each reviewer's word, as keys; and the optional reviewers that no
-	# --extra names, as keys, while `extra` keeps the names that aren't optional
-	local -A words=() unasked=()
+	# Each reviewer's word, each optional reviewer's word, and each word that
+	# an --extra names, as keys; and the names of --extra that aren't words
+	local -A words=() optional=() extra=()
+	local -a unknown=()
 	for reviewer in "${codex_reviewers[@]}" "${claude_reviewers[@]}"; do
 		words[$reviewer]=1
 	done
@@ -373,14 +378,16 @@ main() {
 		if [[ -z ${words[$reviewer]-} ]]; then
 			die "optional_reviewers has $reviewer, which is not a word of codex_reviewers or claude_reviewers"
 		fi
-		if [[ -n ${extra[$reviewer]-} ]]; then
-			unset 'extra[$reviewer]'
-		else
-			unasked[$reviewer]=1
-		fi
+		optional[$reviewer]=1
 	done
-	if (( ${#extra[@]} > 0 )); then
-		die "--extra got names that no optional reviewer has: ${!extra[*]}; the optional reviewers are: ${optional_reviewers[*]}. If AGENTS.md gave this command, ask the user to fix extra_reviewers in its header, rather than running review-commits without the --extra options"
+	for reviewer in "${extras[@]}"; do
+		if [[ -z ${words[$reviewer]-} ]]; then
+			unknown+=("$reviewer")
+		fi
+		extra[$reviewer]=1
+	done
+	if (( ${#unknown[@]} > 0 )); then
+		die "--extra got names that no reviewer has: ${unknown[*]}; the reviewers are: ${codex_reviewers[*]} ${claude_reviewers[*]}. If AGENTS.md gave this command, ask the user to fix extra_reviewers in its header, rather than running review-commits without the --extra options"
 	fi
 	drop_unasked codex_reviewers
 	drop_unasked claude_reviewers

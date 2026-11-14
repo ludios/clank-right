@@ -13,20 +13,20 @@ const PROMPTS = join(import.meta.dirname, "..", "review-prompts");
 /**
  * @param script The text of review-commits.
  * @param name The name of one of its arrays of reviewers.
- * @returns The words in that array: models, or MODEL:FOCUS for codex reviewers.
+ * @returns The words in that array, maybe none: models, or MODEL:FOCUS for codex reviewers.
  */
 function words_in(script: string, name: string): string[] {
 	const list = new RegExp("^" + name + "=\\(([^)]*)\\)$", "m").exec(script)?.[1];
 	A(list !== undefined, "review-commits must set " + name + " on a line of its own");
-	const words = list.split(" ");
+	const words = list === "" ? [] : list.split(" ");
 	for (const word of words) {
-		A.gt(word.length, 0, name + " must list at least one reviewer, separated by single spaces");
+		A.gt(word.length, 0, name + " must separate its reviewers by single spaces");
 	}
 	return words;
 }
 
 const SCRIPT_TEXT = await readFile(SCRIPT, "utf8");
-/** The words of codex_reviewers, MODEL:FOCUS each, which is what --extra takes for a codex reviewer */
+/** The words of codex_reviewers, MODEL:FOCUS each, which is how --extra and optional_reviewers name a codex reviewer */
 const CODEX_WORDS = words_in(SCRIPT_TEXT, "codex_reviewers");
 /** Each codex reviewer's model and the focus that picks its prompt, from CODEX_WORDS */
 const CODEX_PAIRS = CODEX_WORDS.map((reviewer) => {
@@ -42,13 +42,18 @@ const CLAUDE_REVIEWERS = words_in(SCRIPT_TEXT, "claude_reviewers");
 const REVIEWERS = [...CODEX_REVIEWERS, ...CLAUDE_REVIEWERS];
 A.eq(new Set(REVIEWERS).size, REVIEWERS.length);
 const CODEX_FOCUSES = new Map(CODEX_PAIRS);
-/** The words of the reviewers that review only if an --extra names them */
+/** The words of every reviewer, which is what --extra takes */
+const WORDS = [...CODEX_WORDS, ...CLAUDE_REVIEWERS];
+/** The words of the reviewers that review only if an --extra names them; maybe none */
 const OPTIONAL_WORDS = words_in(SCRIPT_TEXT, "optional_reviewers");
+for (const word of OPTIONAL_WORDS) {
+	A(WORDS.includes(word), "optional_reviewers must have only words of reviewers, not " + word);
+}
 /** The models of the reviewers that review only if an --extra names them */
 const OPTIONAL_REVIEWERS = OPTIONAL_WORDS.map((word) => word.split(":")[0]!);
-for (const model of OPTIONAL_REVIEWERS) {
-	A(REVIEWERS.includes(model), "optional_reviewers must have only words of reviewers, not " + model);
-}
+/** The word of a reviewer that reviews without an --extra */
+const DEFAULT_WORD = WORDS.find((word) => !OPTIONAL_WORDS.includes(word));
+A(DEFAULT_WORD !== undefined, "some reviewer must review without an --extra");
 /** The arguments that have every reviewer review, by naming each optional reviewer with an --extra */
 const EVERY_EXTRA = OPTIONAL_WORDS.flatMap((word) => ["--extra", word]);
 const CLAUDE_FALLBACK_MODEL = /^claude_fallback_model=(\S+)$/m.exec(SCRIPT_TEXT)?.[1];
@@ -354,9 +359,9 @@ describe("review-commits", () => {
 		expect(await readdir(tmp)).toEqual([]);
 	});
 
-	it("leaves out every optional reviewer that no --extra names", async () => {
+	it("leaves out every optional reviewer that no --extra names, and changes nothing for an --extra that names a reviewer that isn't optional", async () => {
 		const commit = await git(repo, "rev-parse", "HEAD");
-		const result = review_commits(["HEAD"]);
+		const result = review_commits(["--extra", DEFAULT_WORD, "HEAD"]);
 		expect(result.stderr).toBe("");
 		expect(result.status).toBe(0);
 		expect(result.stdout).toContain("review-commits: started " + (REVIEWERS.length - OPTIONAL_REVIEWERS.length) + " reviews of " + commit + " in ");
@@ -367,8 +372,8 @@ describe("review-commits", () => {
 	});
 
 	it.each([
-		["the model of an optional codex reviewer, without its focus", [OPTIONAL_REVIEWERS[0]!], ["review-commits: --extra got names that no optional reviewer has: " + OPTIONAL_REVIEWERS[0] + "; the optional reviewers are: " + OPTIONAL_WORDS.join(" ") + ". If AGENTS.md gave this command, ask the user to fix extra_reviewers in its header"]],
-		["two words that no reviewer has and a reviewer that isn't optional, along with an optional reviewer", ["gpt-x:general", CLAUDE_REVIEWERS[0]!, OPTIONAL_WORDS[0]!, "gpt-y:general"], ["review-commits: --extra got names that no optional reviewer has: ", "gpt-x:general", "gpt-y:general", CLAUDE_REVIEWERS[0]!]],
+		["a codex reviewer's model without its focus", [CODEX_REVIEWERS[0]!], ["review-commits: --extra got names that no reviewer has: " + CODEX_REVIEWERS[0] + "; the reviewers are: " + WORDS.join(" ") + ". If AGENTS.md gave this command, ask the user to fix extra_reviewers in its header"]],
+		["two words that no reviewer has, among reviewers' words", ["gpt-x:general", CLAUDE_REVIEWERS[0]!, CODEX_WORDS[0]!, "gpt-y:general"], ["review-commits: --extra got names that no reviewer has: gpt-x:general gpt-y:general; the reviewers are: "]],
 	])("refuses with status 2, starting no reviewer, when --extra names %s", async (_, extras, messages) => {
 		const result = review_commits([...extras.flatMap((extra) => ["--extra", extra]), "HEAD"]);
 		for (const message of messages) {
@@ -497,7 +502,7 @@ describe("review-commits", () => {
 		["a focus has no prompt", (script: string) => script.replace(/^codex_reviewers=\(\S+/m, "codex_reviewers=(gpt-x:nonexistent"), "no prompt $ROOT/clank-right/bin/../review-prompts/codex-nonexistent.md\n"],
 		["codex-common.md is missing", (script: string) => script, "no prompt $ROOT/clank-right/bin/../review-prompts/codex-common.md\n"],
 		["optional_reviewers has a word that no reviewer has", (script: string) => script.replace(/^optional_reviewers=\(/m, "optional_reviewers=(gpt-x:general "), "optional_reviewers has gpt-x:general, which is not a word of codex_reviewers or claude_reviewers\n"],
-		["every reviewer is optional", (script: string) => script.replace(/^optional_reviewers=\(.*$/m, "optional_reviewers=(" + [...CODEX_WORDS, ...CLAUDE_REVIEWERS].join(" ") + ")"), "every reviewer is optional and no --extra names one, so nothing would review HEAD\n"],
+		["every reviewer is optional", (script: string) => script.replace(/^optional_reviewers=\(.*$/m, "optional_reviewers=(" + WORDS.join(" ") + ")"), "every reviewer is optional and no --extra names one, so nothing would review HEAD\n"],
 	])("refuses to run with status 2, starting no reviewer, when %s", async (description, edit, message) => {
 		// A copy of the script, edited, that finds review-prompts/ next to its bin/: the real one, or a copy without codex-common.md
 		const bin = join(root, "clank-right", "bin");
@@ -614,8 +619,8 @@ describe("review-commits", () => {
 		[["..HEAD"]],
 		[["--extra"]],
 		[["--extra", "", "HEAD"]],
-		[["--extra", OPTIONAL_WORDS[0]!]],
-		[["HEAD", "--extra", OPTIONAL_WORDS[0]!]],
+		[["--extra", CLAUDE_REVIEWERS[0]!]],
+		[["HEAD", "--extra", CLAUDE_REVIEWERS[0]!]],
 		[["--skip", CLAUDE_REVIEWERS[0]!, "HEAD"]],
 	])("refuses the arguments %j with status 2, starting no reviewer", async (args: string[]) => {
 		const result = review_commits(args);
