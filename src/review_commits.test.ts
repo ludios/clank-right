@@ -37,22 +37,17 @@ const CODEX_PAIRS = CODEX_WORDS.map((reviewer) => {
 	A.gt(focus.length, 0);
 	return [model, focus] as const;
 });
-const CODEX_REVIEWERS = CODEX_PAIRS.map(([model]) => model);
 const CLAUDE_REVIEWERS = words_in(SCRIPT_TEXT, "claude_reviewers");
-const REVIEWERS = [...CODEX_REVIEWERS, ...CLAUDE_REVIEWERS];
+/** The words of every reviewer, which is what --extra takes, and what the fake reviewers go by */
+const REVIEWERS = [...CODEX_WORDS, ...CLAUDE_REVIEWERS];
 A.eq(new Set(REVIEWERS).size, REVIEWERS.length);
-const CODEX_FOCUSES = new Map(CODEX_PAIRS);
-/** The words of every reviewer, which is what --extra takes */
-const WORDS = [...CODEX_WORDS, ...CLAUDE_REVIEWERS];
 /** The words of the reviewers that review only if an --extra names them; maybe none */
 const OPTIONAL_WORDS = words_in(SCRIPT_TEXT, "optional_reviewers");
 for (const word of OPTIONAL_WORDS) {
-	A(WORDS.includes(word), "optional_reviewers must have only words of reviewers, not " + word);
+	A(REVIEWERS.includes(word), "optional_reviewers must have only words of reviewers, not " + word);
 }
-/** The models of the reviewers that review only if an --extra names them */
-const OPTIONAL_REVIEWERS = OPTIONAL_WORDS.map((word) => word.split(":")[0]!);
 /** The word of a reviewer that reviews without an --extra */
-const DEFAULT_WORD = WORDS.find((word) => !OPTIONAL_WORDS.includes(word));
+const DEFAULT_WORD = REVIEWERS.find((word) => !OPTIONAL_WORDS.includes(word));
 A(DEFAULT_WORD !== undefined, "some reviewer must review without an --extra");
 /** The arguments that have every reviewer review, by naming each optional reviewer with an --extra */
 const EVERY_EXTRA = OPTIONAL_WORDS.flatMap((word) => ["--extra", word]);
@@ -60,26 +55,19 @@ const CLAUDE_FALLBACK_MODEL = /^claude_fallback_model=(\S+)$/m.exec(SCRIPT_TEXT)
 A(CLAUDE_FALLBACK_MODEL !== undefined, "review-commits must set claude_fallback_model on a line of its own");
 
 /**
- * Stands in for both `codex` and `claude`. Finds its model in `-c model=MODEL`
- * or `--model MODEL`; if $FAKE_HANG is set, starts a `sleep` that it waits for
- * at the end. Writes how it was run (with the options of the fake bwrap that
- * started it, if any), what `git status` says, and the third line of AGENTS.md,
- * followed by what it read from stdin, to $CALLS/MODEL,
- * all at once, and prints a transcript line to stderr and a review to stdout.
- * If $FAKE_HOLDS is set and the file $FAKE_HOLDS/MODEL exists, it then waits
- * until that file is gone. It exits with status 1 if its model is $FAKE_FAIL.
+ * Stands in for both `codex` and `claude`. Takes its reviewer's WORD from the
+ * name of the directory that its stdout (the review) is in, where a codex
+ * reviewer's MODEL:FOCUS is MODEL+FOCUS. If $FAKE_HANG is set, starts a `sleep`
+ * that it waits for at the end. Writes how it was run (with the options of the
+ * fake bwrap that started it, if any), what `git status` says, and the third
+ * line of AGENTS.md, followed by what it read from stdin, to $CALLS/WORD, all at
+ * once, and prints a transcript line to stderr and a review to stdout. If
+ * $FAKE_HOLDS is set and the file $FAKE_HOLDS/WORD exists, it then waits until
+ * that file is gone. It exits with status 1 if its WORD is $FAKE_FAIL.
  */
 const FAKE_REVIEWER = `#!/usr/bin/env bash
-model=
-previous=
-for arg in "$@"; do
-	if [[ $arg == model=* ]]; then
-		model=\${arg#model=}
-	elif [[ $previous == --model ]]; then
-		model=$arg
-	fi
-	previous=$arg
-done
+reviewer=$(basename "$(dirname "$(readlink /proc/$$/fd/1)")")
+reviewer=\${reviewer/+/:}
 status=$(git status --porcelain) || exit 1
 child=
 if [[ -n $FAKE_HANG ]]; then
@@ -97,15 +85,15 @@ fi
 	printf '%s' "$FAKE_SANDBOX"
 	echo "stdin text:"
 	cat
-} > "$CALLS/.$model"
-mv "$CALLS/.$model" "$CALLS/$model"
-echo "transcript of $model" >&2
-echo "review by $model"
+} > "$CALLS/.$reviewer"
+mv "$CALLS/.$reviewer" "$CALLS/$reviewer"
+echo "transcript of $reviewer" >&2
+echo "review by $reviewer"
 wait
-while [[ -n $FAKE_HOLDS && -e $FAKE_HOLDS/$model ]]; do
+while [[ -n $FAKE_HOLDS && -e $FAKE_HOLDS/$reviewer ]]; do
 	sleep 0.02
 done
-[[ $model != "$FAKE_FAIL" ]]
+[[ $reviewer != "$FAKE_FAIL" ]]
 `;
 
 /** Stands in for bwrap: runs the command after `--`, giving it the options before `--` in $FAKE_SANDBOX, as a "sandbox OPTION" line each. */
@@ -201,7 +189,7 @@ afterEach(async () => {
 });
 
 /**
- * @param fake More environment variables, for the fake reviewers (see FAKE_REVIEWER): FAKE_FAIL (a model), FAKE_HANG (set to anything), and FAKE_HOLDS (a directory).
+ * @param fake More environment variables, for the fake reviewers (see FAKE_REVIEWER): FAKE_FAIL (a reviewer's word), FAKE_HANG (set to anything), and FAKE_HOLDS (a directory).
  * @returns The environment for review-commits, with the fake reviewers on PATH.
  */
 function script_env(fake: Record<string, string> = {}): NodeJS.ProcessEnv {
@@ -214,7 +202,7 @@ function script_env(fake: Record<string, string> = {}): NodeJS.ProcessEnv {
 
 /**
  * @param args The arguments for review-commits.
- * @param fail The model whose fake reviewer exits with status 1, or "" for none.
+ * @param fail The word of the reviewer whose fake exits with status 1, or "" for none.
  * @returns The exit status and output of review-commits, run in `repo`.
  */
 function review_commits(args: string[], fail = ""): { status: number | null; stdout: string; stderr: string } {
@@ -254,20 +242,20 @@ function exists(pid: number): boolean {
 }
 
 /**
- * @param model A reviewer's model.
+ * @param reviewer A reviewer's word.
  * @param name The name of the review, a full hash or a range of them.
- * @returns The path of that review.
+ * @returns The path of that review, in the reviewer's directory: MODEL+FOCUS for a codex reviewer, the model for a Claude reviewer.
  */
-function review_path(model: string, name: string): string {
-	return join(home, ".ai-code-reviews", model, name);
+function review_path(reviewer: string, name: string): string {
+	return join(home, ".ai-code-reviews", reviewer.replace(":", "+"), name);
 }
 
 /**
- * @param model A reviewer's model.
- * @returns How the fake reviewer for `model` was run: one `arg` line per argument, then its working directory, HEAD, stdin, the PID of its `sleep` (if any), what `git status` said, the third line of AGENTS.md, one `sandbox` line per option that the fake bwrap got, and the text it read from stdin.
+ * @param reviewer A reviewer's word.
+ * @returns How the fake reviewer for `reviewer` was run: one `arg` line per argument, then its working directory, HEAD, stdin, the PID of its `sleep` (if any), what `git status` said, the third line of AGENTS.md, one `sandbox` line per option that the fake bwrap got, and the text it read from stdin.
  */
-function call_of(model: string): Promise<string> {
-	return readFile(join(calls, model), "utf8");
+function call_of(reviewer: string): Promise<string> {
+	return readFile(join(calls, reviewer), "utf8");
 }
 
 describe("review-commits", () => {
@@ -276,15 +264,16 @@ describe("review-commits", () => {
 		const result = review_commits([...EVERY_EXTRA, "HEAD~1"]);
 		expect(result.stderr).toBe("");
 		expect(result.status).toBe(0);
-		for (const model of REVIEWERS) {
-			const call = await call_of(model);
+		for (const reviewer of REVIEWERS) {
+			const call = await call_of(reviewer);
 			expect(call).toContain("pwd " + tmp + "/review-commits.");
 			expect(call).toContain("head " + commit + "\n");
-			expect(await readFile(review_path(model, commit), "utf8")).toContain("review by " + model + "\n");
-			expect(result.stdout).toContain("=== " + model + " (exit status 0): " + review_path(model, commit) + "\n");
+			expect(await readFile(review_path(reviewer, commit), "utf8")).toContain("review by " + reviewer + "\n");
+			expect(result.stdout).toContain("=== " + reviewer + " (exit status 0): " + review_path(reviewer, commit) + "\n");
 		}
-		for (const [model, focus] of CODEX_FOCUSES) {
-			const call = await call_of(model);
+		for (const [model, focus] of CODEX_PAIRS) {
+			const reviewer = model + ":" + focus;
+			const call = await call_of(reviewer);
 			expect(call).toContain("arg exec\n");
 			expect(call).toContain("arg model=" + model + "\narg -c\narg model_reasoning_effort=xhigh\narg -\n");
 			expect(call).toContain("stdin " + tmp + "/review-commits.");
@@ -299,8 +288,8 @@ describe("review-commits", () => {
 			expect(prompt).toMatch(new RegExp("^You are reviewing code changes made by another engineer: commit " + commit + " \\(HEAD\\) in this repository\\."));
 			expect(prompt).toContain(await readFile(join(PROMPTS, "codex-" + focus + ".md"), "utf8"));
 			expect(prompt.endsWith(await readFile(join(PROMPTS, "codex-common.md"), "utf8"))).toBe(true);
-			expect(await readFile(review_path(model, commit), "utf8")).toBe("review by " + model + "\n");
-			expect(await readFile(review_path(model, commit) + ".log", "utf8")).toBe("transcript of " + model + "\n");
+			expect(await readFile(review_path(reviewer, commit), "utf8")).toBe("review by " + reviewer + "\n");
+			expect(await readFile(review_path(reviewer, commit) + ".log", "utf8")).toBe("transcript of " + reviewer + "\n");
 		}
 		for (const model of CLAUDE_REVIEWERS) {
 			const call = await call_of(model);
@@ -326,8 +315,8 @@ describe("review-commits", () => {
 		const result = review_commits([...EVERY_EXTRA, "HEAD"]);
 		expect(result.stderr).toBe("");
 		expect(result.status).toBe(0);
-		for (const model of REVIEWERS) {
-			const call = await call_of(model);
+		for (const reviewer of REVIEWERS) {
+			const call = await call_of(reviewer);
 			expect(call).toContain("agents line 3: # This copy is for an agent that reviews commits");
 			expect(call).toContain("status \n");
 		}
@@ -341,8 +330,8 @@ describe("review-commits", () => {
 		expect(result.stderr).toContain("AGENTS.md at HEAD isn't what the template makes of it");
 		expect(result.stderr).toContain("review-commits: so the reviewers get AGENTS.md as committed\n");
 		expect(result.status).toBe(0);
-		for (const model of REVIEWERS) {
-			expect(await call_of(model)).toContain("agents line 3: -->\n");
+		for (const reviewer of REVIEWERS) {
+			expect(await call_of(reviewer)).toContain("agents line 3: -->\n");
 		}
 	});
 
@@ -353,8 +342,8 @@ describe("review-commits", () => {
 		const result = review_commits([...EVERY_EXTRA, "HEAD"]);
 		expect(result.stderr).toBe("");
 		expect(result.status).toBe(0);
-		for (const model of REVIEWERS) {
-			expect(await call_of(model)).toContain("agents line 3: hand-written\n");
+		for (const reviewer of REVIEWERS) {
+			expect(await call_of(reviewer)).toContain("agents line 3: hand-written\n");
 		}
 		expect(await readdir(tmp)).toEqual([]);
 	});
@@ -364,15 +353,15 @@ describe("review-commits", () => {
 		const result = review_commits(["--extra", DEFAULT_WORD, "HEAD"]);
 		expect(result.stderr).toBe("");
 		expect(result.status).toBe(0);
-		expect(result.stdout).toContain("review-commits: started " + (REVIEWERS.length - OPTIONAL_REVIEWERS.length) + " reviews of " + commit + " in ");
-		expect((await readdir(calls)).toSorted()).toEqual(REVIEWERS.filter((model) => !OPTIONAL_REVIEWERS.includes(model)).toSorted());
-		for (const model of OPTIONAL_REVIEWERS) {
-			expect(result.stdout).not.toContain("=== " + model + " ");
+		expect(result.stdout).toContain("review-commits: started " + (REVIEWERS.length - OPTIONAL_WORDS.length) + " reviews of " + commit + " in ");
+		expect((await readdir(calls)).toSorted()).toEqual(REVIEWERS.filter((reviewer) => !OPTIONAL_WORDS.includes(reviewer)).toSorted());
+		for (const reviewer of OPTIONAL_WORDS) {
+			expect(result.stdout).not.toContain("=== " + reviewer + " ");
 		}
 	});
 
 	it.each([
-		["a codex reviewer's model without its focus", [CODEX_REVIEWERS[0]!], ["review-commits: --extra got names that no reviewer has: " + CODEX_REVIEWERS[0] + "; the reviewers are: " + WORDS.join(" ") + ". If AGENTS.md gave this command, ask the user to fix extra_reviewers in its header"]],
+		["a codex reviewer's model without its focus", [CODEX_PAIRS[0]![0]], ["review-commits: --extra got names that no reviewer has: " + CODEX_PAIRS[0]![0] + "; the reviewers are: " + REVIEWERS.join(" ") + ". If AGENTS.md gave this command, ask the user to fix extra_reviewers in its header"]],
 		["two words that no reviewer has, among reviewers' words", ["gpt-x:general", CLAUDE_REVIEWERS[0]!, CODEX_WORDS[0]!, "gpt-y:general"], ["review-commits: --extra got names that no reviewer has: gpt-x:general gpt-y:general; the reviewers are: "]],
 	])("refuses with status 2, starting no reviewer, when --extra names %s", async (_, extras, messages) => {
 		const result = review_commits([...extras.flatMap((extra) => ["--extra", extra]), "HEAD"]);
@@ -390,12 +379,12 @@ describe("review-commits", () => {
 		const name = base + ".." + last;
 		const result = review_commits([...EVERY_EXTRA, "HEAD~2..HEAD"]);
 		expect(result.status).toBe(0);
-		for (const model of REVIEWERS) {
-			expect(await call_of(model)).toContain("head " + last + "\n");
-			expect(await readFile(review_path(model, name), "utf8")).toContain("review by " + model + "\n");
+		for (const reviewer of REVIEWERS) {
+			expect(await call_of(reviewer)).toContain("head " + last + "\n");
+			expect(await readFile(review_path(reviewer, name), "utf8")).toContain("review by " + reviewer + "\n");
 		}
-		for (const model of CODEX_REVIEWERS) {
-			expect(await call_of(model)).toContain("stdin text:\nYou are reviewing code changes made by another engineer: the commits after " + base + " up to and including " + last + " (HEAD) in this repository.");
+		for (const reviewer of CODEX_WORDS) {
+			expect(await call_of(reviewer)).toContain("stdin text:\nYou are reviewing code changes made by another engineer: the commits after " + base + " up to and including " + last + " (HEAD) in this repository.");
 		}
 		for (const model of CLAUDE_REVIEWERS) {
 			expect(await call_of(model)).toContain("arg /code-review xhigh commits " + name + "\n");
@@ -404,16 +393,17 @@ describe("review-commits", () => {
 
 	it("prints every review and the end of a failed codex transcript, then exits with status 1", async () => {
 		const commit = await git(repo, "rev-parse", "HEAD");
-		const result = review_commits([...EVERY_EXTRA, "HEAD"], "gpt-6.1-sol");
+		const failing = CODEX_WORDS[0]!;
+		const result = review_commits([...EVERY_EXTRA, "HEAD"], failing);
 		expect(result.status).toBe(1);
 		expect(result.stdout).toContain(
-			"=== gpt-6.1-sol (exit status 1): " + review_path("gpt-6.1-sol", commit) + "\n" +
-			"review by gpt-6.1-sol\n" +
-			"--- the end of its transcript, " + review_path("gpt-6.1-sol", commit) + ".log:\n" +
-			"transcript of gpt-6.1-sol\n",
+			"=== " + failing + " (exit status 1): " + review_path(failing, commit) + "\n" +
+			"review by " + failing + "\n" +
+			"--- the end of its transcript, " + review_path(failing, commit) + ".log:\n" +
+			"transcript of " + failing + "\n",
 		);
-		for (const model of REVIEWERS) {
-			expect(result.stdout).toContain("review by " + model + "\n");
+		for (const reviewer of REVIEWERS) {
+			expect(result.stdout).toContain("review by " + reviewer + "\n");
 		}
 		expect(await readdir(tmp)).toEqual([]);
 	});
@@ -445,8 +435,8 @@ describe("review-commits", () => {
 		});
 		try {
 			await until(() => stdout.includes("\nreview-commits: waiting for the reviews of: " + first + " " + second + "\n"), "every other review is printed");
-			for (const model of REVIEWERS) {
-				expect(stdout.includes("review by " + model + "\n")).toBe(model !== first && model !== second);
+			for (const reviewer of REVIEWERS) {
+				expect(stdout.includes("review by " + reviewer + "\n")).toBe(reviewer !== first && reviewer !== second);
 			}
 			await rm(join(holds, second));
 			await until(() => stdout.includes("\nreview-commits: waiting for the reviews of: " + first + "\n"), "the review by " + second + " is printed");
@@ -473,11 +463,11 @@ describe("review-commits", () => {
 		script.kill("SIGTERM");
 		expect(await exit_status).toBe(143);
 		expect(await readdir(tmp)).toEqual([]);
-		for (const model of REVIEWERS) {
-			const child = /^child (\d+)$/m.exec(await call_of(model));
-			A(child !== null, "the fake reviewer for " + model + " must have started a sleep");
+		for (const reviewer of REVIEWERS) {
+			const child = /^child (\d+)$/m.exec(await call_of(reviewer));
+			A(child !== null, "the fake reviewer for " + reviewer + " must have started a sleep");
 			// A killed `sleep` exists as a zombie until its new parent reaps it
-			await until(() => !exists(Number(child[1])), "the sleep of " + model + " has exited");
+			await until(() => !exists(Number(child[1])), "the sleep of " + reviewer + " has exited");
 		}
 	});
 
@@ -498,11 +488,11 @@ describe("review-commits", () => {
 	it.each([
 		["bash is too old", (script: string) => script.replace("< 503 ))", "< 99999 ))"), "this is bash " + execFileSync("bash", ["-c", "echo $BASH_VERSION"], { encoding: "utf8" }).trim() + ", but"],
 		["a codex reviewer isn't MODEL:FOCUS", (script: string) => script.replace(/^codex_reviewers=\(\S+/m, "codex_reviewers=(gpt-x"), "a codex reviewer must be MODEL:FOCUS, not gpt-x\n"],
-		["a model is a reviewer twice", (script: string) => script.replace(/^claude_reviewers=\(\S+/m, "claude_reviewers=(" + CODEX_REVIEWERS[0]), CODEX_REVIEWERS[0] + " is a reviewer twice"],
+		["a reviewer is listed twice", (script: string) => script.replace(/^claude_reviewers=\(/m, "claude_reviewers=(" + CLAUDE_REVIEWERS[0] + " "), CLAUDE_REVIEWERS[0] + " is a reviewer twice, and its reviews would overwrite each other\n"],
 		["a focus has no prompt", (script: string) => script.replace(/^codex_reviewers=\(\S+/m, "codex_reviewers=(gpt-x:nonexistent"), "no prompt $ROOT/clank-right/bin/../review-prompts/codex-nonexistent.md\n"],
 		["codex-common.md is missing", (script: string) => script, "no prompt $ROOT/clank-right/bin/../review-prompts/codex-common.md\n"],
 		["optional_reviewers has a word that no reviewer has", (script: string) => script.replace(/^optional_reviewers=\(/m, "optional_reviewers=(gpt-x:general "), "optional_reviewers has gpt-x:general, which is not a word of codex_reviewers or claude_reviewers\n"],
-		["every reviewer is optional", (script: string) => script.replace(/^optional_reviewers=\(.*$/m, "optional_reviewers=(" + WORDS.join(" ") + ")"), "every reviewer is optional and no --extra names one, so nothing would review HEAD\n"],
+		["every reviewer is optional", (script: string) => script.replace(/^optional_reviewers=\(.*$/m, "optional_reviewers=(" + REVIEWERS.join(" ") + ")"), "every reviewer is optional and no --extra names one, so nothing would review HEAD\n"],
 	])("refuses to run with status 2, starting no reviewer, when %s", async (description, edit, message) => {
 		// A copy of the script, edited, that finds review-prompts/ next to its bin/: the real one, or a copy without codex-common.md
 		const bin = join(root, "clank-right", "bin");
@@ -542,8 +532,8 @@ describe("review-commits", () => {
 		const env = { ...script_env(), PATH: home_bin + ":" + process.env["PATH"], ...(borrowing ? {} : { TMPDIR: root }) };
 		const result = spawnSync(SCRIPT, [...EVERY_EXTRA, "HEAD"], { cwd: reviewed, encoding: "utf8", env, timeout: 10_000 });
 		expect(result.status).toBe(0);
-		for (const model of REVIEWERS) {
-			expect(await readFile(review_path(model, commit), "utf8")).toBe("subject Commit 3\n");
+		for (const reviewer of REVIEWERS) {
+			expect(await readFile(review_path(reviewer, commit), "utf8")).toBe("subject Commit 3\n");
 		}
 	});
 
@@ -572,8 +562,8 @@ describe("review-commits", () => {
 		const commit = await git(repo, "rev-parse", "HEAD");
 		const result = spawnSync(SCRIPT, [...EVERY_EXTRA, "HEAD"], { cwd: repo, encoding: "utf8", env: { ...script_env(), PATH: home_bin + ":" + process.env["PATH"] }, timeout: 10_000 });
 		expect(result.status).toBe(0);
-		for (const model of CODEX_REVIEWERS) {
-			const review = await readFile(review_path(model, commit), "utf8");
+		for (const reviewer of CODEX_WORDS) {
+			const review = await readFile(review_path(reviewer, commit), "utf8");
 			// The home directory has only the PATH dirs in it, codex's own files, and claude's directory, empty
 			expect(review).toContain("home ./.claude ./.codex ./.codex/auth.json ./.codex/auth.lock ./.codex/config.toml ./bin ./bin/claude ./bin/codex \n");
 			// Of the test's directory in /tmp, only the clone's directory and the objects that it borrows are there

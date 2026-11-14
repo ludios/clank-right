@@ -139,7 +139,7 @@ The files are committed, so their history tells you when to paste again.
 The template tells agents to run `review-commits` after each commit, so put
 `bin/` on the `PATH` of every machine that agents run on. The first `bash` on
 that `PATH` must be bash 5.3 or later (see the version check in the script).
-`bin/review-commits` takes a commit, or `BASE..LAST`, and has every model in
+`bin/review-commits` takes a commit, or `BASE..LAST`, and has every reviewer in
 its `codex_reviewers` and `claude_reviewers` review it at once, except each
 reviewer of its `optional_reviewers`, which reviews only if an `--extra
 REVIEWER` names it with its word in `codex_reviewers` or `claude_reviewers`
