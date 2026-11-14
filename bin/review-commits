@@ -9,11 +9,11 @@
 # with its word in codex_reviewers or claude_reviewers, e.g. --extra
 # gpt-6-astra:general. An --extra that names a reviewer that isn't optional
 # changes nothing. Saves each review to ~/.ai-code-reviews/DIR/NAME, where DIR
-# is MODEL+FOCUS for a codex reviewer and MODEL for a Claude reviewer, and NAME
-# is the full hash of COMMIT, or FULL_BASE..FULL_LAST; next to its review, a
-# codex reviewer's transcript goes to NAME.log, and a Claude reviewer's session
-# files go to the directory NAME.transcript/RUN, where RUN is the name of the
-# run's temporary directory.
+# is the reviewer's word with each `:` made `+` (MODEL+FOCUS for a codex
+# reviewer), and NAME is the full hash of COMMIT, or FULL_BASE..FULL_LAST. Next
+# to its review, a codex reviewer's transcript goes to NAME.log, and a Claude
+# reviewer's session files go to the directory NAME.transcript/RUN, where RUN
+# is the name of the run's temporary directory.
 # Prints each review as soon as its reviewer exits (one review at a time),
 # followed by a line that names the reviewers whose reviews aren't printed yet,
 # if any. Once every reviewer has exited, deletes the clone, and exits with
@@ -34,9 +34,9 @@ set -euo pipefail
 # different problems; `codex review` is not used, because its built-in rubric
 # says: "If there is no finding that a person would definitely love to see and
 # fix, prefer outputting no findings." A model may review with several focuses.
-# A codex reviewer's reviews are saved under MODEL+FOCUS, not MODEL:FOCUS,
-# because Windows doesn't allow `:` in file names, and Syncthing may sync
-# ~/.ai-code-reviews to Windows.
+# Each reviewer's reviews are saved under its word with each `:` made `+`
+# (MODEL+FOCUS for a codex reviewer), because Windows allows no `:` in file
+# names, and Syncthing may sync ~/.ai-code-reviews to Windows.
 codex_reviewers=(gpt-6-astra:general gpt-6.1-sol:general gpt-6.1-sol:approach gpt-5.6-sol:text)
 claude_reviewers=(claude-mythos-5-2 claude-opus-5-5)
 # The reviewers above that review only if an --extra names them, each with its
@@ -358,20 +358,24 @@ main() {
 			die "a codex reviewer must be MODEL:FOCUS, not $reviewer"
 		fi
 	done
-	# Each reviewer's word, each optional reviewer's word, and each word that
-	# an --extra names, as keys; and the names of --extra that aren't words
-	local -A words=() optional=() extra=()
-	local -a unknown=()
-	for reviewer in "${codex_reviewers[@]}" "${claude_reviewers[@]}"; do
-		if [[ -n ${words[$reviewer]-} ]]; then
-			die "$reviewer is a reviewer twice, and its reviews would overwrite each other"
-		fi
-		words[$reviewer]=1
-	done
 	for focus in "${codex_reviewers[@]#*:}" common; do
 		if [[ ! -r $prompts/codex-$focus.md ]]; then
 			die "no prompt $prompts/codex-$focus.md"
 		fi
+	done
+	# Each reviewer's word, each optional reviewer's word, and each word that
+	# an --extra names, as keys; by the directory of each reviewer's reviews,
+	# its word; and the names of --extra that aren't words
+	local -A words=() word_in=() optional=() extra=()
+	local -a unknown=()
+	local dir
+	for reviewer in "${codex_reviewers[@]}" "${claude_reviewers[@]}"; do
+		dir=${reviewer//:/+}
+		if [[ -n ${word_in[$dir]-} ]]; then
+			die "reviewers ${word_in[$dir]} and $reviewer would both save their reviews in ~/.ai-code-reviews/$dir"
+		fi
+		word_in[$dir]=$reviewer
+		words[$reviewer]=1
 	done
 	for reviewer in "${optional_reviewers[@]}"; do
 		if [[ -z ${words[$reviewer]-} ]]; then
@@ -414,15 +418,16 @@ main() {
 	# prompt from stdin, and a Claude reviewer gets /dev/null as its stdin, so
 	# that it doesn't wait for input. setsid makes each reviewer the leader of a
 	# new session and process group, keeping its PID.
-	local reviews=$HOME/.ai-code-reviews transcript dir
+	local reviews=$HOME/.ai-code-reviews transcript
 	# The word of each reviewer whose review isn't printed yet, in the order
-	# that the reviewers started; and by each one's PID, the index of its word
-	local -a pending=()
+	# that the reviewers started, and the file of that review; and by each
+	# one's PID, the index of its word and file
+	local -a pending=() files=()
 	local -A index_of=()
 	for reviewer in "${codex_reviewers[@]}"; do
 		model=${reviewer%%:*}
 		focus=${reviewer#*:}
-		dir=$model+$focus
+		dir=${reviewer//:/+}
 		mkdir -p "$reviews/$dir"
 		{
 			echo "You are reviewing code changes made by another engineer: $codex_target in this repository. Use git to see the changes and their commit messages."
@@ -435,21 +440,24 @@ main() {
 			> "$reviews/$dir/$name" 2> "$reviews/$dir/$name.log" &
 		index_of[$!]=${#pending[@]}
 		pending+=("$reviewer")
+		files+=("$reviews/$dir/$name")
 	done
 	# /code-review runs in a subagent, which uses the model in
 	# CLAUDE_CODE_SUBAGENT_MODEL (if the environment or the user's settings set
 	# it) instead of --model; --settings overrides both, so that the reviewer's
 	# model (or the fallback model) reviews.
 	for model in "${claude_reviewers[@]}"; do
+		dir=${model//:/+}
 		# A directory of this run's own, so that the reviewer sees no session of
 		# another run, and another run can't delete this one's
-		transcript=$reviews/$model/$name.transcript/${tmp##*/}
+		transcript=$reviews/$dir/$name.transcript/${tmp##*/}
 		mkdir -p "$transcript"
 		setsid "${sandbox[@]}" "${claude_options[@]}" --bind "$transcript" "$claude_sessions" -- claude -p --model "$model" --fallback-model "$claude_fallback_model" \
 			--settings "{\"env\":{\"CLAUDE_CODE_SUBAGENT_MODEL\":\"$model\"}}" --effort xhigh \
-			"/code-review xhigh $claude_target" < /dev/null > "$reviews/$model/$name" 2>&1 &
+			"/code-review xhigh $claude_target" < /dev/null > "$reviews/$dir/$name" 2>&1 &
 		index_of[$!]=${#pending[@]}
 		pending+=("$model")
+		files+=("$reviews/$dir/$name")
 	done
 	echo "review-commits: started ${#pending[@]} reviews of $name in $tmp/repo"
 
@@ -459,10 +467,8 @@ main() {
 		wait -n -p pid "${!index_of[@]}" || status=$?
 		i=${index_of[$pid]}
 		reviewer=${pending[$i]}
-		unset "index_of[$pid]" "pending[$i]"
-		# The directory of a codex reviewer is its MODEL+FOCUS, and the
-		# directory of a Claude reviewer is its model, which has no `:`
-		file=$reviews/${reviewer/:/+}/$name
+		file=${files[$i]}
+		unset "index_of[$pid]" "pending[$i]" "files[$i]"
 		echo
 		echo "=== $reviewer (exit status $status): $file"
 		cat "$file"

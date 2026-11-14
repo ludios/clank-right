@@ -488,7 +488,8 @@ describe("review-commits", () => {
 	it.each([
 		["bash is too old", (script: string) => script.replace("< 503 ))", "< 99999 ))"), "this is bash " + execFileSync("bash", ["-c", "echo $BASH_VERSION"], { encoding: "utf8" }).trim() + ", but"],
 		["a codex reviewer isn't MODEL:FOCUS", (script: string) => script.replace(/^codex_reviewers=\(\S+/m, "codex_reviewers=(gpt-x"), "a codex reviewer must be MODEL:FOCUS, not gpt-x\n"],
-		["a reviewer is listed twice", (script: string) => script.replace(/^claude_reviewers=\(/m, "claude_reviewers=(" + CLAUDE_REVIEWERS[0] + " "), CLAUDE_REVIEWERS[0] + " is a reviewer twice, and its reviews would overwrite each other\n"],
+		["a reviewer is listed twice", (script: string) => script.replace(/^claude_reviewers=\(/m, "claude_reviewers=(" + CLAUDE_REVIEWERS[0] + " "), "reviewers " + CLAUDE_REVIEWERS[0] + " and " + CLAUDE_REVIEWERS[0] + " would both save their reviews in ~/.ai-code-reviews/" + CLAUDE_REVIEWERS[0] + "\n"],
+		["two reviewers' words differ only in `:` and `+`", (script: string) => script.replace(/^claude_reviewers=\(/m, "claude_reviewers=(" + CODEX_WORDS[0]!.replace(":", "+") + " "), "reviewers " + CODEX_WORDS[0] + " and " + CODEX_WORDS[0]!.replace(":", "+") + " would both save their reviews in ~/.ai-code-reviews/" + CODEX_WORDS[0]!.replace(":", "+") + "\n"],
 		["a focus has no prompt", (script: string) => script.replace(/^codex_reviewers=\(\S+/m, "codex_reviewers=(gpt-x:nonexistent"), "no prompt $ROOT/clank-right/bin/../review-prompts/codex-nonexistent.md\n"],
 		["codex-common.md is missing", (script: string) => script, "no prompt $ROOT/clank-right/bin/../review-prompts/codex-common.md\n"],
 		["optional_reviewers has a word that no reviewer has", (script: string) => script.replace(/^optional_reviewers=\(/m, "optional_reviewers=(gpt-x:general "), "optional_reviewers has gpt-x:general, which is not a word of codex_reviewers or claude_reviewers\n"],
