@@ -28,17 +28,17 @@ function words_in(script: string, name: string): string[] {
 const SCRIPT_TEXT = await readFile(SCRIPT, "utf8");
 /** The words of codex_reviewers, MODEL:FOCUS each, which is how --extra and optional_reviewers name a codex reviewer */
 const CODEX_WORDS = words_in(SCRIPT_TEXT, "codex_reviewers");
-/** Each codex reviewer's model and the focus that picks its prompt, from CODEX_WORDS */
-const CODEX_PAIRS = CODEX_WORDS.map((reviewer) => {
+/** Each codex reviewer's word, model, and the focus that picks its prompt, from CODEX_WORDS */
+const CODEX_TRIPLES = CODEX_WORDS.map((reviewer) => {
 	const parts = reviewer.split(":");
 	A.eq(parts.length, 2, "a codex reviewer must be MODEL:FOCUS, not " + reviewer);
 	const [model, focus] = parts as [string, string];
 	A.gt(model.length, 0);
 	A.gt(focus.length, 0);
-	return [model, focus] as const;
+	return [reviewer, model, focus] as const;
 });
 const CLAUDE_REVIEWERS = words_in(SCRIPT_TEXT, "claude_reviewers");
-/** The words of every reviewer, which is what --extra takes, and what the fake reviewers go by */
+/** Every reviewer's word; each --extra takes one of these, and each fake reviewer goes by one */
 const REVIEWERS = [...CODEX_WORDS, ...CLAUDE_REVIEWERS];
 A.eq(new Set(REVIEWERS).size, REVIEWERS.length);
 /** The words of the reviewers that review only if an --extra names them; maybe none */
@@ -56,8 +56,9 @@ A(CLAUDE_FALLBACK_MODEL !== undefined, "review-commits must set claude_fallback_
 
 /**
  * Stands in for both `codex` and `claude`. Takes its reviewer's WORD from the
- * name of the directory that its stdout (the review) is in, where a codex
- * reviewer's MODEL:FOCUS is MODEL+FOCUS. If $FAKE_HANG is set, starts a `sleep`
+ * name of the directory that its stdout (the review) is in, which is the WORD
+ * with each `:` made `+`; it makes the first `+` a `:` again, which gives back
+ * a codex reviewer's MODEL:FOCUS. If $FAKE_HANG is set, starts a `sleep`
  * that it waits for at the end. Writes how it was run (with the options of the
  * fake bwrap that started it, if any), what `git status` says, and the third
  * line of AGENTS.md, followed by what it read from stdin, to $CALLS/WORD, all at
@@ -202,7 +203,7 @@ function script_env(fake: Record<string, string> = {}): NodeJS.ProcessEnv {
 
 /**
  * @param args The arguments for review-commits.
- * @param fail The word of the reviewer whose fake exits with status 1, or "" for none.
+ * @param fail The word of the reviewer whose fake reviewer exits with status 1, or "" for none.
  * @returns The exit status and output of review-commits, run in `repo`.
  */
 function review_commits(args: string[], fail = ""): { status: number | null; stdout: string; stderr: string } {
@@ -271,8 +272,7 @@ describe("review-commits", () => {
 			expect(await readFile(review_path(reviewer, commit), "utf8")).toContain("review by " + reviewer + "\n");
 			expect(result.stdout).toContain("=== " + reviewer + " (exit status 0): " + review_path(reviewer, commit) + "\n");
 		}
-		for (const [model, focus] of CODEX_PAIRS) {
-			const reviewer = model + ":" + focus;
+		for (const [reviewer, model, focus] of CODEX_TRIPLES) {
 			const call = await call_of(reviewer);
 			expect(call).toContain("arg exec\n");
 			expect(call).toContain("arg model=" + model + "\narg -c\narg model_reasoning_effort=xhigh\narg -\n");
@@ -300,7 +300,7 @@ describe("review-commits", () => {
 			// The reviewer's sessions go to a directory of this run's own
 			expect(call).toMatch(new RegExp("\nsandbox --bind\nsandbox [^\n]*/" + model + "/" + commit + "\\.transcript/review-commits\\.\\w+\nsandbox " + home + "/\\.claude/projects\n"));
 			expect(call).not.toContain("sandbox " + home + "/.codex");
-			expect(call).toContain("arg --fallback-model\narg " + CLAUDE_FALLBACK_MODEL + "\n");
+			expect(call).toContain("arg --model\narg " + model + "\narg --fallback-model\narg " + CLAUDE_FALLBACK_MODEL + "\n");
 			expect(call).toContain("arg --settings\narg " + JSON.stringify({ env: { CLAUDE_CODE_SUBAGENT_MODEL: model } }) + "\n");
 			expect(call).toContain("arg /code-review xhigh commit " + commit + "\n");
 		}
@@ -361,7 +361,7 @@ describe("review-commits", () => {
 	});
 
 	it.each([
-		["a codex reviewer's model without its focus", [CODEX_PAIRS[0]![0]], ["review-commits: --extra got names that no reviewer has: " + CODEX_PAIRS[0]![0] + "; the reviewers are: " + REVIEWERS.join(" ") + ". If AGENTS.md gave this command, ask the user to fix extra_reviewers in its header"]],
+		["a codex reviewer's model without its focus", [CODEX_TRIPLES[0]![1]], ["review-commits: --extra got names that no reviewer has: " + CODEX_TRIPLES[0]![1] + "; the reviewers are: " + REVIEWERS.join(" ") + ". If AGENTS.md gave this command, ask the user to fix extra_reviewers in its header"]],
 		["two words that no reviewer has, among reviewers' words", ["gpt-x:general", CLAUDE_REVIEWERS[0]!, CODEX_WORDS[0]!, "gpt-y:general"], ["review-commits: --extra got names that no reviewer has: gpt-x:general gpt-y:general; the reviewers are: "]],
 	])("refuses with status 2, starting no reviewer, when --extra names %s", async (_, extras, messages) => {
 		const result = review_commits([...extras.flatMap((extra) => ["--extra", extra]), "HEAD"]);
