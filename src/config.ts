@@ -55,7 +55,7 @@ export interface ProjectOptions {
 	 * `--extra REVIEWER` each, e.g. "gpt-6-astra:general". review-commits, not this parser, checks that each is the
 	 * word of a reviewer.
 	 */
-	extra_reviewers: string[];
+	reviewers_extra: string[];
 }
 
 /** The header can't be understood; the human has to fix it. */
@@ -73,7 +73,7 @@ export const DEFAULT_OPTIONS: Readonly<ProjectOptions> = {
 	color_scheme:    "both",
 	sandbox_note:    "",
 	tools_extra:     [],
-	extra_reviewers: [],
+	reviewers_extra: [],
 };
 
 function describe_type(value: unknown): string {
@@ -185,8 +185,8 @@ export function parse_options(toml: string): ProjectOptions {
 			case "tools_extra":
 				options.tools_extra = expect_line_list(key, value);
 				break;
-			case "extra_reviewers":
-				options.extra_reviewers = expect_shell_word_list(key, value);
+			case "reviewers_extra":
+				options.reviewers_extra = expect_shell_word_list(key, value);
 				break;
 			default:
 				throw new OptionsError(`unknown option \`${key}\``);

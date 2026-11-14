@@ -361,7 +361,7 @@ describe("review-commits", () => {
 	});
 
 	it.each([
-		["a codex reviewer's model without its focus", [CODEX_TRIPLES[0]![1]], ["review-commits: --extra got names that no reviewer has: " + CODEX_TRIPLES[0]![1] + "; the reviewers are: " + REVIEWERS.join(" ") + ". If AGENTS.md gave this command, ask the user to fix extra_reviewers in its header"]],
+		["a codex reviewer's model without its focus", [CODEX_TRIPLES[0]![1]], ["review-commits: --extra got names that no reviewer has: " + CODEX_TRIPLES[0]![1] + "; the reviewers are: " + REVIEWERS.join(" ") + ". If AGENTS.md gave this command, ask the user to fix reviewers_extra in its header"]],
 		["two words that no reviewer has, among reviewers' words", ["gpt-x:general", CLAUDE_REVIEWERS[0]!, CODEX_WORDS[0]!, "gpt-y:general"], ["review-commits: --extra got names that no reviewer has: gpt-x:general gpt-y:general; the reviewers are: "]],
 	])("refuses with status 2, starting no reviewer, when --extra names %s", async (_, extras, messages) => {
 		const result = review_commits([...extras.flatMap((extra) => ["--extra", extra]), "HEAD"]);

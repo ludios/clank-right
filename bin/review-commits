@@ -390,7 +390,7 @@ main() {
 		extra[$reviewer]=1
 	done
 	if (( ${#unknown[@]} > 0 )); then
-		die "--extra got names that no reviewer has: ${unknown[*]}; the reviewers are: ${codex_reviewers[*]} ${claude_reviewers[*]}. If AGENTS.md gave this command, ask the user to fix extra_reviewers in its header, rather than running review-commits without the --extra options"
+		die "--extra got names that no reviewer has: ${unknown[*]}; the reviewers are: ${codex_reviewers[*]} ${claude_reviewers[*]}. If AGENTS.md gave this command, ask the user to fix reviewers_extra in its header, rather than running review-commits without the --extra options"
 	fi
 	drop_unasked codex_reviewers
 	drop_unasked claude_reviewers

@@ -104,7 +104,7 @@ Every option has a default, so an empty header is valid.
 | `color_scheme` | `"both"`     | `"light"`, `"dark"`, or `"both"`, for the `"2010"` web design.                                       |
 | `sandbox_note` | `""`         | Appended to the sandbox hostname bullet, e.g. `"you're unable to hit production"`.                   |
 | `tools_extra`  | `[]`         | Installed tools worth mentioning, e.g. `["ffmpeg"]`; listed after `uv`.                              |
-| `extra_reviewers` | `[]`      | Optional reviewers that the `review-commits` commands in "Code review after each commit" add, each with an `--extra`, e.g. `["gpt-6-astra:general"]` for the expensive Astra review; each must be a word of `codex_reviewers` or `claude_reviewers` in `bin/review-commits`, or `review-commits` refuses to run; a word of a reviewer that isn't in `optional_reviewers` there changes nothing. |
+| `reviewers_extra` | `[]`      | Optional reviewers that the `review-commits` commands in "Code review after each commit" add, each with an `--extra`, e.g. `["gpt-6-astra:general"]` for the expensive Astra review; each must be a word of `codex_reviewers` or `claude_reviewers` in `bin/review-commits`, or `review-commits` refuses to run; a word of a reviewer that isn't in `optional_reviewers` there changes nothing. |
 
 Facts that change over time (model names, the installed tools, the
 curl-impersonate binary) are `set` at the top of `templates/AGENTS.md.vto`. The
@@ -146,8 +146,8 @@ REVIEWER` names it with its word in `codex_reviewers` or `claude_reviewers`
 (e.g. `--extra gpt-6-astra:general`); the comment at its top says where the
 reviews go. To change the reviewers, edit those three lists. Renaming or
 removing a reviewer, or changing a codex reviewer's FOCUS, makes
-`review-commits` refuse to run in each repository whose `extra_reviewers` names
-the reviewer's old word, until that `extra_reviewers` is fixed and
+`review-commits` refuse to run in each repository whose `reviewers_extra` names
+the reviewer's old word, until that `reviewers_extra` is fixed and
 `clank-right update` has regenerated that repository's `AGENTS.md`. Taking a
 reviewer out of `optional_reviewers` breaks nothing: an `--extra` that names a
 reviewer that isn't optional changes nothing. The first codex
