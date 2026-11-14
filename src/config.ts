@@ -51,10 +51,10 @@ export interface ProjectOptions {
 	/** Installed tools worth mentioning for this project, e.g. "ffmpeg", listed among the standard ones. */
 	tools_extra: string[];
 	/**
-	 * Reviewers that the `review-commits` commands in "Code review after each commit" leave out, with a
-	 * `--skip REVIEWER` each, e.g. "gpt-6-astra:general"; each is a word of a reviewer list in bin/review-commits.
+	 * Optional reviewers that the `review-commits` commands in "Code review after each commit" add, with an
+	 * `--extra REVIEWER` each, e.g. "gpt-6-astra:general"; each is a word of optional_reviewers in bin/review-commits.
 	 */
-	skip_reviewers: string[];
+	extra_reviewers: string[];
 }
 
 /** The header can't be understood; the human has to fix it. */
@@ -72,7 +72,7 @@ export const DEFAULT_OPTIONS: Readonly<ProjectOptions> = {
 	color_scheme:    "both",
 	sandbox_note:    "",
 	tools_extra:     [],
-	skip_reviewers:  [],
+	extra_reviewers: [],
 };
 
 function describe_type(value: unknown): string {
@@ -184,8 +184,8 @@ export function parse_options(toml: string): ProjectOptions {
 			case "tools_extra":
 				options.tools_extra = expect_line_list(key, value);
 				break;
-			case "skip_reviewers":
-				options.skip_reviewers = expect_shell_word_list(key, value);
+			case "extra_reviewers":
+				options.extra_reviewers = expect_shell_word_list(key, value);
 				break;
 			default:
 				throw new OptionsError(`unknown option \`${key}\``);

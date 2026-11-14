@@ -20,7 +20,7 @@ web_design      = "2010"
 color_scheme    = "dark"
 sandbox_note    = "you're unable to hit production"
 tools_extra     = ["natscli (bin: nats)", "nats-server"]
-skip_reviewers  = ["gpt-6-astra:general", "claude-opus-5-5"]
+extra_reviewers = ["gpt-6-astra:general", "claude-opus-5-5"]
 `);
 		expect(options).toEqual({
 			languages:       ["typescript", "svelte", "sql"],
@@ -34,7 +34,7 @@ skip_reviewers  = ["gpt-6-astra:general", "claude-opus-5-5"]
 			color_scheme:    "dark",
 			sandbox_note:    "you're unable to hit production",
 			tools_extra:     ["natscli (bin: nats)", "nats-server"],
-			skip_reviewers:  ["gpt-6-astra:general", "claude-opus-5-5"],
+			extra_reviewers: ["gpt-6-astra:general", "claude-opus-5-5"],
 		});
 	});
 
@@ -64,7 +64,7 @@ skip_reviewers  = ["gpt-6-astra:general", "claude-opus-5-5"]
 		expect(() => parse_options("tools_extra = [\"a\\nb\"]")).toThrow("`tools_extra` must be a single line");
 		expect(() => parse_options("libraries_extra = [\"a\\nb\"]")).toThrow("`libraries_extra` must be a single line");
 		for (const word of ["", "a b", "$(x)", "--x", "-x"]) {
-			expect(() => parse_options("skip_reviewers = [" + JSON.stringify(word) + "]")).toThrow("`skip_reviewers` must hold only words of letters, digits and");
+			expect(() => parse_options("extra_reviewers = [" + JSON.stringify(word) + "]")).toThrow("`extra_reviewers` must hold only words of letters, digits and");
 		}
 	});
 

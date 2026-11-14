@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Usage: review-commits [--skip REVIEWER]... COMMIT
-#    or: review-commits [--skip REVIEWER]... BASE..LAST
+# Usage: review-commits [--extra REVIEWER]... COMMIT
+#    or: review-commits [--extra REVIEWER]... BASE..LAST
 #
 # Gets COMMIT, or the commits after BASE up to and including LAST, reviewed by
 # every reviewer below at xhigh reasoning, all at once, in a `git clone --shared`
-# of the current repository with COMMIT (or LAST) checked out. Each --skip
-# leaves out its REVIEWER, which must be a word of codex_reviewers or
-# claude_reviewers below, e.g. gpt-6-astra:general. Saves each review
+# of the current repository with COMMIT (or LAST) checked out; except that each
+# reviewer of optional_reviewers below reviews only if an --extra names it,
+# with its word there, e.g. --extra gpt-6-astra:general. Saves each review
 # to ~/.ai-code-reviews/MODEL/NAME, where NAME is the full hash of COMMIT, or
 # FULL_BASE..FULL_LAST; next to its review, a codex reviewer's transcript goes
 # to NAME.log, and a Claude reviewer's session files go to the directory
@@ -17,10 +17,9 @@
 # status 1 if any reviewer failed. On SIGINT or SIGTERM, stops every reviewer together with the
 # processes it started, deletes the clone, and exits with status 130 or 143.
 # Runs each reviewer in a bwrap sandbox (see make_sandbox). Exits with status 2
-# if bash is older than 5.3, if bwrap or jq is not on PATH, if a REVIEWER is
-# not a word of codex_reviewers or claude_reviewers, or if --skip leaves out
-# every reviewer. Shows the reviewers the copy of AGENTS.md that is for agents
-# that review commits (see show_review_copy).
+# if bash is older than 5.3, if bwrap or jq is not on PATH, or if a REVIEWER
+# is not a word of optional_reviewers. Shows the reviewers the copy of
+# AGENTS.md that is for agents that review commits (see show_review_copy).
 
 set -euo pipefail
 
@@ -33,6 +32,10 @@ set -euo pipefail
 # the reviewers, because its reviews are saved under its name.
 codex_reviewers=(gpt-6-astra:general gpt-6.1-sol:approach gpt-5.6-sol:text)
 claude_reviewers=(claude-mythos-5-2 claude-opus-5-5)
+# The reviewers above that review only if an --extra names them, each with its
+# word above. gpt-6-astra is here because, in November 2026, its reviews were
+# taking about 65% of our usage.
+optional_reviewers=(gpt-6-astra:general)
 # Reviews in place of a Claude reviewer's model where that model is not
 # available to the logged-in account (e.g. an account without Mythos) or keeps
 # being overloaded, but not where the account has hit that model's usage limit.
@@ -59,7 +62,7 @@ die() {
 # Prints $1 and the usage to stderr, then exits with status 2.
 die_usage() {
 	echo "review-commits: $1" >&2
-	echo "Usage: review-commits [--skip REVIEWER]... COMMIT, or review-commits [--skip REVIEWER]... BASE..LAST" >&2
+	echo "Usage: review-commits [--extra REVIEWER]... COMMIT, or review-commits [--extra REVIEWER]... BASE..LAST" >&2
 	exit 2
 }
 
@@ -86,17 +89,14 @@ may_show_dir() {
 	done
 }
 
-# Removes from the array named $1 every reviewer that is a key of `skip`
-# (which main declares), and removes that key from `skip`; so once every
-# reviewer list has been through here, the keys left name no reviewer.
-drop_skipped() {
+# Removes from the array named $1 every reviewer that is a key of `unasked`
+# (which main declares).
+drop_unasked() {
 	local -n list=$1
 	local -a kept=()
 	local reviewer
 	for reviewer in "${list[@]}"; do
-		if [[ -n ${skip[$reviewer]-} ]]; then
-			unset 'skip[$reviewer]'
-		else
+		if [[ -z ${unasked[$reviewer]-} ]]; then
 			kept+=("$reviewer")
 		fi
 	done
@@ -301,18 +301,18 @@ main() {
 		die "this is bash $BASH_VERSION, but review-commits needs bash 5.3 or later, whose \`wait -n\` returns every reviewer that has exited"
 	fi
 
-	# The reviewers that --skip leaves out, as keys. An empty REVIEWER is
+	# The reviewers that --extra names, as keys. An empty REVIEWER is
 	# refused: it names no reviewer, and bash refuses an empty string as a key.
-	local -A skip=()
-	while (( $# > 0 )) && [[ $1 == --skip ]]; do
+	local -A extra=()
+	while (( $# > 0 )) && [[ $1 == --extra ]]; do
 		if (( $# < 2 )) || [[ -z $2 ]]; then
-			die_usage "--skip needs a REVIEWER"
+			die_usage "--extra needs a REVIEWER"
 		fi
-		skip[$2]=1
+		extra[$2]=1
 		shift 2
 	done
 	if (( $# != 1 )); then
-		die_usage "expected one COMMIT or BASE..LAST after any --skip REVIEWER pairs (which go first), but got $# arguments after them"
+		die_usage "expected one COMMIT or BASE..LAST after any --extra REVIEWER pairs (which go first), but got $# arguments after them"
 	fi
 	local arg=$1
 	if [[ $arg == *...* ]]; then
@@ -363,14 +363,29 @@ main() {
 			die "no prompt $prompts/codex-$focus.md"
 		fi
 	done
-	local reviewers="${codex_reviewers[*]} ${claude_reviewers[*]}"
-	drop_skipped codex_reviewers
-	drop_skipped claude_reviewers
-	if (( ${#skip[@]} > 0 )); then
-		die "--skip got names that no reviewer has: ${!skip[*]}; the reviewers are: $reviewers. If AGENTS.md gave this command, ask the user to fix skip_reviewers in its header, rather than running review-commits without the --skip options"
+	# Each reviewer's word, as keys; and the optional reviewers that no
+	# --extra names, as keys, while `extra` keeps the names that aren't optional
+	local -A words=() unasked=()
+	for reviewer in "${codex_reviewers[@]}" "${claude_reviewers[@]}"; do
+		words[$reviewer]=1
+	done
+	for reviewer in "${optional_reviewers[@]}"; do
+		if [[ -z ${words[$reviewer]-} ]]; then
+			die "optional_reviewers has $reviewer, which is not a word of codex_reviewers or claude_reviewers"
+		fi
+		if [[ -n ${extra[$reviewer]-} ]]; then
+			unset 'extra[$reviewer]'
+		else
+			unasked[$reviewer]=1
+		fi
+	done
+	if (( ${#extra[@]} > 0 )); then
+		die "--extra got names that no optional reviewer has: ${!extra[*]}; the optional reviewers are: ${optional_reviewers[*]}. If AGENTS.md gave this command, ask the user to fix extra_reviewers in its header, rather than running review-commits without the --extra options"
 	fi
+	drop_unasked codex_reviewers
+	drop_unasked claude_reviewers
 	if (( ${#codex_reviewers[@]} + ${#claude_reviewers[@]} == 0 )); then
-		die "--skip leaves out every reviewer, so nothing would review $arg"
+		die "every reviewer is optional and no --extra names one, so nothing would review $arg"
 	fi
 
 	local top

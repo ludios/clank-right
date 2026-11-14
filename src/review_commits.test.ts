@@ -26,7 +26,7 @@ function words_in(script: string, name: string): string[] {
 }
 
 const SCRIPT_TEXT = await readFile(SCRIPT, "utf8");
-/** The words of codex_reviewers, MODEL:FOCUS each, which is what --skip takes for a codex reviewer */
+/** The words of codex_reviewers, MODEL:FOCUS each, which is what --extra takes for a codex reviewer */
 const CODEX_WORDS = words_in(SCRIPT_TEXT, "codex_reviewers");
 /** Each codex reviewer's model and the focus that picks its prompt, from CODEX_WORDS */
 const CODEX_PAIRS = CODEX_WORDS.map((reviewer) => {
@@ -42,6 +42,15 @@ const CLAUDE_REVIEWERS = words_in(SCRIPT_TEXT, "claude_reviewers");
 const REVIEWERS = [...CODEX_REVIEWERS, ...CLAUDE_REVIEWERS];
 A.eq(new Set(REVIEWERS).size, REVIEWERS.length);
 const CODEX_FOCUSES = new Map(CODEX_PAIRS);
+/** The words of the reviewers that review only if an --extra names them */
+const OPTIONAL_WORDS = words_in(SCRIPT_TEXT, "optional_reviewers");
+/** The models of the reviewers that review only if an --extra names them */
+const OPTIONAL_REVIEWERS = OPTIONAL_WORDS.map((word) => word.split(":")[0]!);
+for (const model of OPTIONAL_REVIEWERS) {
+	A(REVIEWERS.includes(model), "optional_reviewers must have only words of reviewers, not " + model);
+}
+/** The arguments that have every reviewer review, by naming each optional reviewer with an --extra */
+const EVERY_EXTRA = OPTIONAL_WORDS.flatMap((word) => ["--extra", word]);
 const CLAUDE_FALLBACK_MODEL = /^claude_fallback_model=(\S+)$/m.exec(SCRIPT_TEXT)?.[1];
 A(CLAUDE_FALLBACK_MODEL !== undefined, "review-commits must set claude_fallback_model on a line of its own");
 
@@ -259,7 +268,7 @@ function call_of(model: string): Promise<string> {
 describe("review-commits", () => {
 	it("reviews one commit with every reviewer, in a clone at that commit, then deletes the clone", async () => {
 		const commit = await git(repo, "rev-parse", "HEAD~1");
-		const result = review_commits(["HEAD~1"]);
+		const result = review_commits([...EVERY_EXTRA, "HEAD~1"]);
 		expect(result.stderr).toBe("");
 		expect(result.status).toBe(0);
 		for (const model of REVIEWERS) {
@@ -309,7 +318,7 @@ describe("review-commits", () => {
 		await writeFile(join(repo, AGENTS_MD), rendered);
 		await git(repo, "add", AGENTS_MD);
 		await git(repo, "commit", "--quiet", "--message", "Add AGENTS.md");
-		const result = review_commits(["HEAD"]);
+		const result = review_commits([...EVERY_EXTRA, "HEAD"]);
 		expect(result.stderr).toBe("");
 		expect(result.status).toBe(0);
 		for (const model of REVIEWERS) {
@@ -323,7 +332,7 @@ describe("review-commits", () => {
 		await writeFile(join(repo, AGENTS_MD), "<!-- clank-right\n# old\n-->\n\n# Project map\n");
 		await git(repo, "add", AGENTS_MD);
 		await git(repo, "commit", "--quiet", "--message", "Add AGENTS.md");
-		const result = review_commits(["HEAD"]);
+		const result = review_commits([...EVERY_EXTRA, "HEAD"]);
 		expect(result.stderr).toContain("AGENTS.md at HEAD isn't what the template makes of it");
 		expect(result.stderr).toContain("review-commits: so the reviewers get AGENTS.md as committed\n");
 		expect(result.status).toBe(0);
@@ -336,7 +345,7 @@ describe("review-commits", () => {
 		await writeFile(join(repo, AGENTS_MD), "# Notes\n\nhand-written\n");
 		await git(repo, "add", AGENTS_MD);
 		await git(repo, "commit", "--quiet", "--message", "Add AGENTS.md");
-		const result = review_commits(["HEAD"]);
+		const result = review_commits([...EVERY_EXTRA, "HEAD"]);
 		expect(result.stderr).toBe("");
 		expect(result.status).toBe(0);
 		for (const model of REVIEWERS) {
@@ -345,25 +354,23 @@ describe("review-commits", () => {
 		expect(await readdir(tmp)).toEqual([]);
 	});
 
-	it("leaves out each reviewer that --skip names, a codex reviewer as MODEL:FOCUS, even every Claude reviewer", async () => {
+	it("leaves out every optional reviewer that no --extra names", async () => {
 		const commit = await git(repo, "rev-parse", "HEAD");
-		const skipped = [CODEX_REVIEWERS[0]!, ...CLAUDE_REVIEWERS];
-		const result = review_commits([CODEX_WORDS[0]!, ...CLAUDE_REVIEWERS].flatMap((skip) => ["--skip", skip]).concat("HEAD"));
+		const result = review_commits(["HEAD"]);
 		expect(result.stderr).toBe("");
 		expect(result.status).toBe(0);
-		expect(result.stdout).toContain("review-commits: started " + (REVIEWERS.length - skipped.length) + " reviews of " + commit + " in ");
-		expect((await readdir(calls)).toSorted()).toEqual(REVIEWERS.filter((model) => !skipped.includes(model)).toSorted());
-		for (const model of skipped) {
+		expect(result.stdout).toContain("review-commits: started " + (REVIEWERS.length - OPTIONAL_REVIEWERS.length) + " reviews of " + commit + " in ");
+		expect((await readdir(calls)).toSorted()).toEqual(REVIEWERS.filter((model) => !OPTIONAL_REVIEWERS.includes(model)).toSorted());
+		for (const model of OPTIONAL_REVIEWERS) {
 			expect(result.stdout).not.toContain("=== " + model + " ");
 		}
 	});
 
 	it.each([
-		["a codex reviewer's model without its focus", [CODEX_REVIEWERS[0]!], ["review-commits: --skip got names that no reviewer has: " + CODEX_REVIEWERS[0] + "; the reviewers are: " + [...CODEX_WORDS, ...CLAUDE_REVIEWERS].join(" ") + ". If AGENTS.md gave this command, ask the user to fix skip_reviewers in its header"]],
-		["two words that no reviewer has, along with a reviewer's word", ["gpt-x:general", CLAUDE_REVIEWERS[0]!, "gpt-y:general"], ["review-commits: --skip got names that no reviewer has: ", "gpt-x:general", "gpt-y:general"]],
-		["every reviewer", [...CODEX_WORDS, ...CLAUDE_REVIEWERS], ["review-commits: --skip leaves out every reviewer, so nothing would review HEAD\n"]],
-	])("refuses with status 2, starting no reviewer, when --skip names %s", async (_, skips, messages) => {
-		const result = review_commits([...skips.flatMap((skip) => ["--skip", skip]), "HEAD"]);
+		["the model of an optional codex reviewer, without its focus", [OPTIONAL_REVIEWERS[0]!], ["review-commits: --extra got names that no optional reviewer has: " + OPTIONAL_REVIEWERS[0] + "; the optional reviewers are: " + OPTIONAL_WORDS.join(" ") + ". If AGENTS.md gave this command, ask the user to fix extra_reviewers in its header"]],
+		["two words that no reviewer has and a reviewer that isn't optional, along with an optional reviewer", ["gpt-x:general", CLAUDE_REVIEWERS[0]!, OPTIONAL_WORDS[0]!, "gpt-y:general"], ["review-commits: --extra got names that no optional reviewer has: ", "gpt-x:general", "gpt-y:general", CLAUDE_REVIEWERS[0]!]],
+	])("refuses with status 2, starting no reviewer, when --extra names %s", async (_, extras, messages) => {
+		const result = review_commits([...extras.flatMap((extra) => ["--extra", extra]), "HEAD"]);
 		for (const message of messages) {
 			expect(result.stderr).toContain(message);
 		}
@@ -376,7 +383,7 @@ describe("review-commits", () => {
 		const base = await git(repo, "rev-parse", "HEAD~2");
 		const last = await git(repo, "rev-parse", "HEAD");
 		const name = base + ".." + last;
-		const result = review_commits(["HEAD~2..HEAD"]);
+		const result = review_commits([...EVERY_EXTRA, "HEAD~2..HEAD"]);
 		expect(result.status).toBe(0);
 		for (const model of REVIEWERS) {
 			expect(await call_of(model)).toContain("head " + last + "\n");
@@ -392,7 +399,7 @@ describe("review-commits", () => {
 
 	it("prints every review and the end of a failed codex transcript, then exits with status 1", async () => {
 		const commit = await git(repo, "rev-parse", "HEAD");
-		const result = review_commits(["HEAD"], "gpt-6.1-sol");
+		const result = review_commits([...EVERY_EXTRA, "HEAD"], "gpt-6.1-sol");
 		expect(result.status).toBe(1);
 		expect(result.stdout).toContain(
 			"=== gpt-6.1-sol (exit status 1): " + review_path("gpt-6.1-sol", commit) + "\n" +
@@ -416,7 +423,7 @@ describe("review-commits", () => {
 		await mkdir(holds);
 		await writeFile(join(holds, first), "");
 		await writeFile(join(holds, second), "");
-		const script = spawn(SCRIPT, ["HEAD"], { cwd: repo, env: script_env({ FAKE_HOLDS: holds }) });
+		const script = spawn(SCRIPT, [...EVERY_EXTRA, "HEAD"], { cwd: repo, env: script_env({ FAKE_HOLDS: holds }) });
 		let stdout = "";
 		let stderr = "";
 		script.stdout.setEncoding("utf8").on("data", (chunk: string) => {
@@ -451,7 +458,7 @@ describe("review-commits", () => {
 	});
 
 	it("on SIGTERM, stops every reviewer and what it started, deletes the clone, and exits with status 143", async () => {
-		const script = spawn(SCRIPT, ["HEAD"], { cwd: repo, env: script_env({ FAKE_HANG: "1" }), stdio: "ignore" });
+		const script = spawn(SCRIPT, [...EVERY_EXTRA, "HEAD"], { cwd: repo, env: script_env({ FAKE_HANG: "1" }), stdio: "ignore" });
 		const exit_status = new Promise<number | null>((resolve) => {
 			script.on("exit", (code) => {
 				resolve(code);
@@ -489,6 +496,8 @@ describe("review-commits", () => {
 		["a model is a reviewer twice", (script: string) => script.replace(/^claude_reviewers=\(\S+/m, "claude_reviewers=(" + CODEX_REVIEWERS[0]), CODEX_REVIEWERS[0] + " is a reviewer twice"],
 		["a focus has no prompt", (script: string) => script.replace(/^codex_reviewers=\(\S+/m, "codex_reviewers=(gpt-x:nonexistent"), "no prompt $ROOT/clank-right/bin/../review-prompts/codex-nonexistent.md\n"],
 		["codex-common.md is missing", (script: string) => script, "no prompt $ROOT/clank-right/bin/../review-prompts/codex-common.md\n"],
+		["optional_reviewers has a word that no reviewer has", (script: string) => script.replace(/^optional_reviewers=\(/m, "optional_reviewers=(gpt-x:general "), "optional_reviewers has gpt-x:general, which is not a word of codex_reviewers or claude_reviewers\n"],
+		["every reviewer is optional", (script: string) => script.replace(/^optional_reviewers=\(.*$/m, "optional_reviewers=(" + [...CODEX_WORDS, ...CLAUDE_REVIEWERS].join(" ") + ")"), "every reviewer is optional and no --extra names one, so nothing would review HEAD\n"],
 	])("refuses to run with status 2, starting no reviewer, when %s", async (description, edit, message) => {
 		// A copy of the script, edited, that finds review-prompts/ next to its bin/: the real one, or a copy without codex-common.md
 		const bin = join(root, "clank-right", "bin");
@@ -526,7 +535,7 @@ describe("review-commits", () => {
 		const commit = await git(reviewed, "rev-parse", "HEAD");
 		// With TMPDIR at the test's directory, the sandbox hides the directory that holds the repository too
 		const env = { ...script_env(), PATH: home_bin + ":" + process.env["PATH"], ...(borrowing ? {} : { TMPDIR: root }) };
-		const result = spawnSync(SCRIPT, ["HEAD"], { cwd: reviewed, encoding: "utf8", env, timeout: 10_000 });
+		const result = spawnSync(SCRIPT, [...EVERY_EXTRA, "HEAD"], { cwd: reviewed, encoding: "utf8", env, timeout: 10_000 });
 		expect(result.status).toBe(0);
 		for (const model of REVIEWERS) {
 			expect(await readFile(review_path(model, commit), "utf8")).toBe("subject Commit 3\n");
@@ -556,7 +565,7 @@ describe("review-commits", () => {
 		await symlink(join(home, "dotfiles/commands"), join(home, ".claude/commands"));
 		await symlink(join(home, "dotfiles/todos"), join(home, ".claude/todos"));
 		const commit = await git(repo, "rev-parse", "HEAD");
-		const result = spawnSync(SCRIPT, ["HEAD"], { cwd: repo, encoding: "utf8", env: { ...script_env(), PATH: home_bin + ":" + process.env["PATH"] }, timeout: 10_000 });
+		const result = spawnSync(SCRIPT, [...EVERY_EXTRA, "HEAD"], { cwd: repo, encoding: "utf8", env: { ...script_env(), PATH: home_bin + ":" + process.env["PATH"] }, timeout: 10_000 });
 		expect(result.status).toBe(0);
 		for (const model of CODEX_REVIEWERS) {
 			const review = await readFile(review_path(model, commit), "utf8");
@@ -603,14 +612,15 @@ describe("review-commits", () => {
 		[["HEAD..HEAD~1"]],
 		[["HEAD..HEAD"]],
 		[["..HEAD"]],
-		[["--skip"]],
-		[["--skip", "", "HEAD"]],
-		[["--skip", CLAUDE_REVIEWERS[0]!]],
-		[["HEAD", "--skip", CLAUDE_REVIEWERS[0]!]],
+		[["--extra"]],
+		[["--extra", "", "HEAD"]],
+		[["--extra", OPTIONAL_WORDS[0]!]],
+		[["HEAD", "--extra", OPTIONAL_WORDS[0]!]],
+		[["--skip", CLAUDE_REVIEWERS[0]!, "HEAD"]],
 	])("refuses the arguments %j with status 2, starting no reviewer", async (args: string[]) => {
 		const result = review_commits(args);
 		expect(result.status).toBe(2);
-		expect(result.stderr).toContain("Usage: review-commits [--skip REVIEWER]... COMMIT, or review-commits [--skip REVIEWER]... BASE..LAST\n");
+		expect(result.stderr).toContain("Usage: review-commits [--extra REVIEWER]... COMMIT, or review-commits [--extra REVIEWER]... BASE..LAST\n");
 		expect(await readdir(calls)).toEqual([]);
 		expect(await readdir(tmp)).toEqual([]);
 	});
