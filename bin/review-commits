@@ -49,8 +49,9 @@ optional_reviewers=(gpt-6-astra:general)
 # being overloaded, but not where the account has hit that model's usage limit.
 # Its review is saved under the reviewer's model.
 claude_fallback_model=claude-fable-5-2
-# The highest reasoning effort at which claude_fallback_model reviews; claude
-# lowers xhigh to it for that model only. One of low, medium, high, xhigh, max.
+# The reasoning effort at which claude_fallback_model reviews: low, medium or
+# high. claude caps that model's effort at it, below the xhigh that each Claude
+# reviewer asks for (claude before 2.1.267 has no such cap).
 claude_fallback_effort=high
 # What a Claude reviewer can read in the home directory besides claude's own
 # files and the files that claude's settings name (see claude_home_options):
@@ -354,9 +355,10 @@ main() {
 	if ! command -v jq > /dev/null; then
 		die "jq is not on PATH; it finds the files that claude's settings name, which Claude reviewers need"
 	fi
-	# claude ignores an effort cap that isn't one of its levels
-	if [[ ! $claude_fallback_effort =~ ^(low|medium|high|xhigh|max)$ ]]; then
-		die "claude_fallback_effort must be low, medium, high, xhigh or max, not $claude_fallback_effort"
+	# claude ignores a cap that isn't one of its levels, and a cap of xhigh or
+	# max would leave the fallback model at the xhigh of --effort
+	if [[ ! $claude_fallback_effort =~ ^(low|medium|high)$ ]]; then
+		die "claude_fallback_effort must be low, medium or high, not $claude_fallback_effort"
 	fi
 	local bin prompts reviewer model focus
 	bin=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")

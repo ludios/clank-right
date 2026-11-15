@@ -25,6 +25,17 @@ function words_in(script: string, name: string): string[] {
 	return words;
 }
 
+/**
+ * @param script The text of review-commits.
+ * @param name The name of one of its variables that hold a single word.
+ * @returns The value that the script gives that variable.
+ */
+function value_in(script: string, name: string): string {
+	const value = new RegExp("^" + name + "=(\\S+)$", "m").exec(script)?.[1];
+	A(value !== undefined, "review-commits must set " + name + " on a line of its own");
+	return value;
+}
+
 const SCRIPT_TEXT = await readFile(SCRIPT, "utf8");
 /** The words of codex_reviewers, MODEL:FOCUS each, which is how --extra and optional_reviewers name a codex reviewer */
 const CODEX_WORDS = words_in(SCRIPT_TEXT, "codex_reviewers");
@@ -51,10 +62,8 @@ const DEFAULT_WORD = REVIEWERS.find((word) => !OPTIONAL_WORDS.includes(word));
 A(DEFAULT_WORD !== undefined, "some reviewer must review without an --extra");
 /** The arguments that have every reviewer review, by naming each optional reviewer with an --extra */
 const EVERY_EXTRA = OPTIONAL_WORDS.flatMap((word) => ["--extra", word]);
-const CLAUDE_FALLBACK_MODEL = /^claude_fallback_model=(\S+)$/m.exec(SCRIPT_TEXT)?.[1];
-A(CLAUDE_FALLBACK_MODEL !== undefined, "review-commits must set claude_fallback_model on a line of its own");
-const CLAUDE_FALLBACK_EFFORT = /^claude_fallback_effort=(\S+)$/m.exec(SCRIPT_TEXT)?.[1];
-A(CLAUDE_FALLBACK_EFFORT !== undefined, "review-commits must set claude_fallback_effort on a line of its own");
+const CLAUDE_FALLBACK_MODEL = value_in(SCRIPT_TEXT, "claude_fallback_model");
+const CLAUDE_FALLBACK_EFFORT = value_in(SCRIPT_TEXT, "claude_fallback_effort");
 
 /**
  * Stands in for both `codex` and `claude`. Takes its reviewer's WORD from the
@@ -497,6 +506,8 @@ describe("review-commits", () => {
 		["a focus has no prompt", (script: string) => script.replace(/^codex_reviewers=\(\S+/m, "codex_reviewers=(gpt-x:nonexistent"), "no prompt $ROOT/clank-right/bin/../review-prompts/codex-nonexistent.md\n"],
 		["codex-common.md is missing", (script: string) => script, "no prompt $ROOT/clank-right/bin/../review-prompts/codex-common.md\n"],
 		["optional_reviewers has a word that no reviewer has", (script: string) => script.replace(/^optional_reviewers=\(/m, "optional_reviewers=(gpt-x:general "), "optional_reviewers has gpt-x:general, which is not a word of codex_reviewers or claude_reviewers\n"],
+		["claude_fallback_effort isn't a level", (script: string) => script.replace(/^claude_fallback_effort=.*$/m, "claude_fallback_effort=highest"), "claude_fallback_effort must be low, medium or high, not highest\n"],
+		["claude_fallback_effort is a level that would cap nothing", (script: string) => script.replace(/^claude_fallback_effort=.*$/m, "claude_fallback_effort=max"), "claude_fallback_effort must be low, medium or high, not max\n"],
 		["every reviewer is optional", (script: string) => script.replace(/^optional_reviewers=\(.*$/m, "optional_reviewers=(" + REVIEWERS.join(" ") + ")"), "every reviewer is optional and no --extra names one, so nothing would review HEAD\n"],
 	])("refuses to run with status 2, starting no reviewer, when %s", async (description, edit, message) => {
 		// A copy of the script, edited, that finds review-prompts/ next to its bin/: the real one, or a copy without codex-common.md
