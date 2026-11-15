@@ -169,7 +169,10 @@ reviews; if Claude Code changes that format, change `codex-common.md` to match.
 Where a Claude reviewer's model is not available to the account that `claude` is
 logged into, or keeps being overloaded, `claude_fallback_model` reviews in its
 place, and the review is saved under the reviewer's model. Where the account
-has hit that model's usage limit, the reviewer fails instead.
+has hit that model's usage limit, the reviewer fails instead. Each Claude
+reviewer runs with `--effort xhigh`, but the settings that `review-commits`
+gives it cap the reasoning effort of `claude_fallback_model` at
+`claude_fallback_effort`; the cap does not apply to any other model.
 
 `review-commits` runs each reviewer in a bwrap sandbox that hides the home
 directory (other reviews, and the transcripts of claude and codex), the

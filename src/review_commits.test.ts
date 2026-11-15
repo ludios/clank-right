@@ -53,6 +53,8 @@ A(DEFAULT_WORD !== undefined, "some reviewer must review without an --extra");
 const EVERY_EXTRA = OPTIONAL_WORDS.flatMap((word) => ["--extra", word]);
 const CLAUDE_FALLBACK_MODEL = /^claude_fallback_model=(\S+)$/m.exec(SCRIPT_TEXT)?.[1];
 A(CLAUDE_FALLBACK_MODEL !== undefined, "review-commits must set claude_fallback_model on a line of its own");
+const CLAUDE_FALLBACK_EFFORT = /^claude_fallback_effort=(\S+)$/m.exec(SCRIPT_TEXT)?.[1];
+A(CLAUDE_FALLBACK_EFFORT !== undefined, "review-commits must set claude_fallback_effort on a line of its own");
 
 /**
  * Stands in for both `codex` and `claude`. Takes its reviewer's WORD from the
@@ -301,7 +303,9 @@ describe("review-commits", () => {
 			expect(call).toMatch(new RegExp("\nsandbox --bind\nsandbox [^\n]*/" + model + "/" + commit + "\\.transcript/review-commits\\.\\w+\nsandbox " + home + "/\\.claude/projects\n"));
 			expect(call).not.toContain("sandbox " + home + "/.codex");
 			expect(call).toContain("arg --model\narg " + model + "\narg --fallback-model\narg " + CLAUDE_FALLBACK_MODEL + "\n");
-			expect(call).toContain("arg --settings\narg " + JSON.stringify({ env: { CLAUDE_CODE_SUBAGENT_MODEL: model } }) + "\n");
+			const settings = { env: { CLAUDE_CODE_SUBAGENT_MODEL: model }, modelSettings: { [CLAUDE_FALLBACK_MODEL]: { maxEffortLevel: CLAUDE_FALLBACK_EFFORT } } };
+			expect(call).toContain("arg --settings\narg " + JSON.stringify(settings) + "\n");
+			expect(call).toContain("arg --effort\narg xhigh\n");
 			expect(call).toContain("arg /code-review xhigh commit " + commit + "\n");
 		}
 		expect(await readdir(tmp)).toEqual([]);

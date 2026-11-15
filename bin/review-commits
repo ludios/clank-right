@@ -3,7 +3,8 @@
 #    or: review-commits [--extra REVIEWER]... BASE..LAST
 #
 # Gets COMMIT, or the commits after BASE up to and including LAST, reviewed by
-# every reviewer below at xhigh reasoning, all at once, in a `git clone --shared`
+# every reviewer below at xhigh reasoning (but see claude_fallback_effort), all
+# at once, in a `git clone --shared`
 # of the current repository with COMMIT (or LAST) checked out; except that each
 # reviewer of optional_reviewers below reviews only if an --extra names it,
 # with its word in codex_reviewers or claude_reviewers, e.g. --extra
@@ -48,6 +49,9 @@ optional_reviewers=(gpt-6-astra:general)
 # being overloaded, but not where the account has hit that model's usage limit.
 # Its review is saved under the reviewer's model.
 claude_fallback_model=claude-fable-5-2
+# The highest reasoning effort at which claude_fallback_model reviews; claude
+# lowers xhigh to it for that model only. One of low, medium, high, xhigh, max.
+claude_fallback_effort=high
 # What a Claude reviewer can read in the home directory besides claude's own
 # files and the files that claude's settings name (see claude_home_options):
 # the files and directories that the settings' hooks read. The
@@ -350,6 +354,10 @@ main() {
 	if ! command -v jq > /dev/null; then
 		die "jq is not on PATH; it finds the files that claude's settings name, which Claude reviewers need"
 	fi
+	# claude ignores an effort cap that isn't one of its levels
+	if [[ ! $claude_fallback_effort =~ ^(low|medium|high|xhigh|max)$ ]]; then
+		die "claude_fallback_effort must be low, medium, high, xhigh or max, not $claude_fallback_effort"
+	fi
 	local bin prompts reviewer model focus
 	bin=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
 	prompts=$bin/../review-prompts
@@ -445,15 +453,19 @@ main() {
 	# /code-review runs in a subagent, which uses the model in
 	# CLAUDE_CODE_SUBAGENT_MODEL (if the environment or the user's settings set
 	# it) instead of --model; --settings overrides both, so that the reviewer's
-	# model (or the fallback model) reviews.
+	# model (or the fallback model) reviews. Its modelSettings cap the effort of
+	# the fallback model, which --effort would otherwise set to xhigh.
+	local settings
 	for model in "${claude_reviewers[@]}"; do
 		dir=${model//:/+}
 		# A directory of this run's own, so that the reviewer sees no session of
 		# another run, and another run can't delete this one's
 		transcript=$reviews/$dir/$name.transcript/${tmp##*/}
 		mkdir -p "$transcript"
+		settings=$(jq -cn --arg model "$model" --arg fallback "$claude_fallback_model" --arg effort "$claude_fallback_effort" \
+			'{env: {CLAUDE_CODE_SUBAGENT_MODEL: $model}, modelSettings: {($fallback): {maxEffortLevel: $effort}}}')
 		setsid "${sandbox[@]}" "${claude_options[@]}" --bind "$transcript" "$claude_sessions" -- claude -p --model "$model" --fallback-model "$claude_fallback_model" \
-			--settings "{\"env\":{\"CLAUDE_CODE_SUBAGENT_MODEL\":\"$model\"}}" --effort xhigh \
+			--settings "$settings" --effort xhigh \
 			"/code-review xhigh $claude_target" < /dev/null > "$reviews/$dir/$name" 2>&1 &
 		index_of[$!]=${#pending[@]}
 		pending+=("$model")
