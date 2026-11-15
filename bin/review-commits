@@ -3,9 +3,9 @@
 #    or: review-commits [--extra REVIEWER]... BASE..LAST
 #
 # Gets COMMIT, or the commits after BASE up to and including LAST, reviewed by
-# every reviewer below at xhigh reasoning (but see claude_fallback_effort), all
-# at once, in a `git clone --shared`
-# of the current repository with COMMIT (or LAST) checked out; except that each
+# every reviewer below at xhigh reasoning (but claude_fallback_model at
+# claude_fallback_effort), all at once, in a `git clone --shared` of the
+# current repository with COMMIT (or LAST) checked out; except that each
 # reviewer of optional_reviewers below reviews only if an --extra names it,
 # with its word in codex_reviewers or claude_reviewers, e.g. --extra
 # gpt-6-astra:general. An --extra that names a reviewer that isn't optional
@@ -353,7 +353,7 @@ main() {
 		die "bwrap is not on PATH; install bubblewrap (pkgs.bubblewrap on NixOS), which runs each reviewer in a sandbox"
 	fi
 	if ! command -v jq > /dev/null; then
-		die "jq is not on PATH; it finds the files that claude's settings name, which Claude reviewers need"
+		die "jq is not on PATH; Claude reviewers need it to build the settings that review-commits gives claude, and to find the files that claude's settings name"
 	fi
 	# claude ignores a cap that isn't one of its levels, and a cap of xhigh or
 	# max would leave the fallback model at the xhigh of --effort
@@ -455,8 +455,9 @@ main() {
 	# /code-review runs in a subagent, which uses the model in
 	# CLAUDE_CODE_SUBAGENT_MODEL (if the environment or the user's settings set
 	# it) instead of --model; --settings overrides both, so that the reviewer's
-	# model (or the fallback model) reviews. Its modelSettings cap the effort of
-	# the fallback model, which --effort would otherwise set to xhigh.
+	# model (or the fallback model) reviews. --effort asks for xhigh for every
+	# model, and the modelSettings in --settings cap the fallback model's effort
+	# at claude_fallback_effort.
 	local settings
 	for model in "${claude_reviewers[@]}"; do
 		dir=${model//:/+}
