@@ -104,7 +104,7 @@ Every option has a default, so an empty header is valid.
 | `color_scheme` | `"both"`     | `"light"`, `"dark"`, or `"both"`, for the `"2010"` web design.                                       |
 | `sandbox_note` | `""`         | Appended to the sandbox hostname bullet, e.g. `"you're unable to hit production"`.                   |
 | `tools_extra`  | `[]`         | Installed tools worth mentioning, e.g. `["ffmpeg"]`; listed after `uv`.                              |
-| `reviewers_extra` | `[]`      | Optional reviewers that the `review-commits` commands in "Code review after each commit" add, each with an `--extra`, e.g. `["gpt-6-astra:general"]` for the expensive Astra review; each must be a word of `codex_reviewers` or `claude_reviewers` in `bin/review-commits`, or `review-commits` refuses to run; a word of a reviewer that isn't in `optional_reviewers` there changes nothing. |
+| `reviewers_extra` | `[]`      | Optional reviewers that the `review-commits` commands in "Code review after each commit" add, each with an `--extra`, e.g. `["gpt-6.2-astra:general"]` for the expensive Astra review; each must be a word of `codex_reviewers` or `claude_reviewers` in `bin/review-commits`, or `review-commits` refuses to run; a word of a reviewer that isn't in `optional_reviewers` there changes nothing. |
 
 Facts that change over time (model names, the installed tools, the
 curl-impersonate binary) are `set` at the top of `templates/AGENTS.md.vto`. The
@@ -143,7 +143,7 @@ that `PATH` must be bash 5.3 or later (see the version check in the script).
 its `codex_reviewers` and `claude_reviewers` review it at once, except each
 reviewer of its `optional_reviewers`, which reviews only if an `--extra
 REVIEWER` names it with its word in `codex_reviewers` or `claude_reviewers`
-(e.g. `--extra gpt-6-astra:general`); the comment at its top says where the
+(e.g. `--extra gpt-6.2-astra:general`); the comment at its top says where the
 reviews go. To change the reviewers, edit those three lists. Renaming or
 removing a reviewer, or changing a codex reviewer's FOCUS, makes
 `review-commits` refuse to run in each repository whose `reviewers_extra` names

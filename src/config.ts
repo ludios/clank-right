@@ -52,7 +52,7 @@ export interface ProjectOptions {
 	tools_extra: string[];
 	/**
 	 * Optional reviewers that the `review-commits` commands in "Code review after each commit" add, with an
-	 * `--extra REVIEWER` each, e.g. "gpt-6-astra:general". review-commits, not this parser, checks that each is the
+	 * `--extra REVIEWER` each, e.g. "gpt-6.2-astra:general". review-commits, not this parser, checks that each is the
 	 * word of a reviewer.
 	 */
 	reviewers_extra: string[];

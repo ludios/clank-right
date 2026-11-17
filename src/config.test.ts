@@ -20,7 +20,7 @@ web_design      = "2010"
 color_scheme    = "dark"
 sandbox_note    = "you're unable to hit production"
 tools_extra     = ["natscli (bin: nats)", "nats-server"]
-reviewers_extra = ["gpt-6-astra:general", "claude-opus-5-5"]
+reviewers_extra = ["gpt-6.2-astra:general", "claude-opus-5-5"]
 `);
 		expect(options).toEqual({
 			languages:       ["typescript", "svelte", "sql"],
@@ -34,7 +34,7 @@ reviewers_extra = ["gpt-6-astra:general", "claude-opus-5-5"]
 			color_scheme:    "dark",
 			sandbox_note:    "you're unable to hit production",
 			tools_extra:     ["natscli (bin: nats)", "nats-server"],
-			reviewers_extra: ["gpt-6-astra:general", "claude-opus-5-5"],
+			reviewers_extra: ["gpt-6.2-astra:general", "claude-opus-5-5"],
 		});
 	});
 

@@ -23,7 +23,7 @@ describe("render", () => {
 
 	it("gives a codex exec command for Astra whose prompt is a quoted heredoc", async () => {
 		const text = await render_with({});
-		expect(text).toContain("\tcodex exec -c model=\"gpt-6-astra\" -c model_reasoning_effort=\"xhigh\" -s read-only - 2> LOG_FILE <<'EOF'\n\tPROMPT\n\tEOF\n");
+		expect(text).toContain("\tcodex exec -c model=\"gpt-6.2-astra\" -c model_reasoning_effort=\"xhigh\" -s read-only - 2> LOG_FILE <<'EOF'\n\tPROMPT\n\tEOF\n");
 	});
 
 	it("omits Node and Python material for a project in neither", async () => {
@@ -139,8 +139,8 @@ describe("render", () => {
 		const plain = await render_with({});
 		expect(plain).toContain("\n\treview-commits <sha>\n");
 		expect(plain).toContain("either run `review-commits <sha>` once for each commit, or review the whole batch at once with `review-commits <sha before your first commit>..");
-		const adding = await render_with({ reviewers_extra: ["gpt-6-astra:general", "claude-opus-5-5"] });
-		const command = "review-commits --extra gpt-6-astra:general --extra claude-opus-5-5";
+		const adding = await render_with({ reviewers_extra: ["gpt-6.2-astra:general", "claude-opus-5-5"] });
+		const command = "review-commits --extra gpt-6.2-astra:general --extra claude-opus-5-5";
 		expect(adding).toContain("\n\t" + command + " <sha>\n");
 		expect(adding).toContain("either run `" + command + " <sha>` once for each commit, or review the whole batch at once with `" + command + " <sha before your first commit>..");
 		expect(adding).toContain("\n`review-commits` runs the reviewers in a `git clone --shared`");

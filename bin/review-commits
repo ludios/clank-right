@@ -8,7 +8,7 @@
 # current repository with COMMIT (or LAST) checked out; except that each
 # reviewer of optional_reviewers below reviews only if an --extra names it,
 # with its word in codex_reviewers or claude_reviewers, e.g. --extra
-# gpt-6-astra:general. An --extra that names a reviewer that isn't optional
+# gpt-6.2-astra:general. An --extra that names a reviewer that isn't optional
 # changes nothing. Saves each review to ~/.ai-code-reviews/DIR/NAME, where DIR
 # is the reviewer's word with each `:` made `+` (MODEL+FOCUS for a codex
 # reviewer), and NAME is the full hash of COMMIT, or FULL_BASE..FULL_LAST. Next
@@ -38,12 +38,12 @@ set -euo pipefail
 # Each reviewer's reviews are saved under its word with each `:` made `+`
 # (MODEL+FOCUS for a codex reviewer), because Windows allows no `:` in file
 # names, and Syncthing may sync ~/.ai-code-reviews to Windows.
-codex_reviewers=(gpt-6-astra:general gpt-6.1-sol:general gpt-6.1-sol:approach gpt-5.6-sol:text)
+codex_reviewers=(gpt-6.2-astra:general gpt-6.2-sol:general gpt-6.2-sol:approach gpt-6.2-sol:text)
 claude_reviewers=(claude-mythos-5-2 claude-opus-5-5)
 # The reviewers above that review only if an --extra names them, each with its
-# word above. gpt-6-astra is here because, in November 2026, its reviews were
-# taking about 65% of our Codex usage.
-optional_reviewers=(gpt-6-astra:general)
+# word above. Astra is here because, in November 2026, the reviews of its
+# predecessor, gpt-6-astra, were taking about 65% of our Codex usage.
+optional_reviewers=(gpt-6.2-astra:general)
 # Reviews in place of a Claude reviewer's model where that model is not
 # available to the logged-in account (e.g. an account without Mythos) or keeps
 # being overloaded, but not where the account has hit that model's usage limit.
