@@ -145,7 +145,7 @@ reviewer of its `optional_reviewers`, which reviews only if an `--extra
 REVIEWER` names it with its word in `codex_reviewers` or `claude_reviewers`
 (e.g. `--extra gpt-6.2-astra:general`); the comment at its top says where the
 reviews go. To change the reviewers, edit those three lists. Renaming or
-removing a reviewer, or changing a codex reviewer's FOCUS, makes
+removing a reviewer, or changing a codex reviewer's MODEL or FOCUS, makes
 `review-commits` refuse to run in each repository whose `reviewers_extra` names
 the reviewer's old word, until that `reviewers_extra` is fixed and
 `clank-right update` has regenerated that repository's `AGENTS.md`. Taking a
