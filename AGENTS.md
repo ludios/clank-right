@@ -44,7 +44,7 @@ Use `rg` in various ways until you know you need the rest of the file.
 
 If you're Claude and are spending a lot of time in hairy / complex code, ask Astra for help, with `run_in_background` (Astra can take several minutes):
 
-	codex exec -c model="gpt-6-astra" -c model_reasoning_effort="xhigh" -s read-only - 2> LOG_FILE <<'EOF'
+	codex exec -c model="gpt-6.2-astra" -c model_reasoning_effort="xhigh" -s read-only - 2> LOG_FILE <<'EOF'
 	PROMPT
 	EOF
 
