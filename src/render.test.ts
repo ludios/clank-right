@@ -139,8 +139,8 @@ describe("render", () => {
 		const plain = await render_with({});
 		expect(plain).toContain("\n\treview-commits <sha>\n");
 		expect(plain).toContain("either run `review-commits <sha>` once for each commit, or review the whole batch at once with `review-commits <sha before your first commit>..");
-		const adding = await render_with({ reviewers_extra: ["gpt-6.2-astra:general", "claude-opus-5-5"] });
-		const command = "review-commits --extra gpt-6.2-astra:general --extra claude-opus-5-5";
+		const adding = await render_with({ reviewers_extra: ["model-1.2:focus", "other-model"] });
+		const command = "review-commits --extra model-1.2:focus --extra other-model";
 		expect(adding).toContain("\n\t" + command + " <sha>\n");
 		expect(adding).toContain("either run `" + command + " <sha>` once for each commit, or review the whole batch at once with `" + command + " <sha before your first commit>..");
 		expect(adding).toContain("\n`review-commits` runs the reviewers in a `git clone --shared`");
