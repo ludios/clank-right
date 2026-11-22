@@ -241,7 +241,7 @@ When small commits are too hard with e.g. the build still working, larger commit
 
 **Use the imperative mood in the subject line**. Do not end the subject line with a period. Wrap the body at 72 characters, generally.
 
-Wherever you write a commit ID (in a file, a commit message, or the chat), give at least 12 hex digits, as `git log --oneline --abbrev=12` does, because a shorter prefix can become ambiguous as the repository grows. Where a tool or a path needs the full ID, keep it in full.
+Commit IDs written to a file, commit message, or chat must have >= 12 chars to avoid ambiguity later.
 
 Sample subject line:
 
