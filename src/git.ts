@@ -10,6 +10,7 @@ const log = getLogger(["clank-right", "git"]);
 export class GitError extends Error {}
 
 /**
+ * Runs git with abbreviated hashes of at least 12 hex digits, which stay unambiguous as a repository grows.
  * @param repo The repository's working directory.
  * @param args Arguments to git.
  * @returns Stdout, exactly as git printed it.
@@ -17,7 +18,7 @@ export class GitError extends Error {}
  */
 export async function git_raw(repo: string, ...args: string[]): Promise<string> {
 	log.debug("git {args} in {repo}", { args, repo });
-	const result = await run_process("git", ["-C", repo, ...args]);
+	const result = await run_process("git", ["-C", repo, "-c", "core.abbrev=12", ...args]);
 	if (result.code !== 0) {
 		throw new GitError(`git ${args.join(" ")} failed in ${repo}: ${result.stderr.trim()}`);
 	}

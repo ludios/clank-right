@@ -32,6 +32,14 @@ async function commit(message: string, files: Record<string, string>): Promise<s
 	return await git(repo, "rev-parse", "--short", "HEAD");
 }
 
+describe("git", () => {
+	it("abbreviates hashes to at least 12 hex digits, even in a tiny repository", async () => {
+		await commit("initial", { f: "one\n" });
+		expect(await git(repo, "log", "--format=%h")).toMatch(/^[0-9a-f]{12,}$/);
+		expect(await git(repo, "describe", "--always")).toMatch(/^[0-9a-f]{12,}$/);
+	});
+});
+
 describe("file_state", () => {
 	it("follows a file from untracked through its first commit, before and after HEAD exists", async () => {
 		expect(await file_state(repo, "f")).toBe("clean");
