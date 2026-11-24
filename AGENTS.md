@@ -201,7 +201,7 @@ Automatically commit your changes with this commit template:
 
 	Subject line
 
-	A longer description or explanation of why/what is changing, when it is genuinely helpful.
+	Only if needed: a longer description of the change being made, esp. why. Never _start_ a paragraph writing about the prior state of the code here, except where it is very needed; in those cases be very explicit with e.g. "Previously, "
 
 	Model-output: model name e.g. Claude Mythos 5.2
 
