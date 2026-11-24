@@ -76,6 +76,8 @@ If you can't fetch something, use google-chrome or curl_chrome152 on this machin
 
 All new English must be maximally unambiguous, even if it becomes slightly longer! Think as a reader, and read the text every possible way. For example, never write "cannot change a hash once set" instead of "cannot change a hash (if already set)".
 
+Never write something like "Make no piece picker when ..."; instead, "Don't make a piece picker when".
+
 If you're Claude, you can also ask Astra to rewrite stuff, with the `codex exec` command shown earlier in this file.
 
 # Code conventions
